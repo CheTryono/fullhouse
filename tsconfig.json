@@ -1,0 +1,4 @@
+{
+  "compilerOptions": { "target": "ES2019", "module": "none", "jsx": "react", "outFile": "app.js", "strict": false, "skipLibCheck": true, "lib": ["DOM", "ES2020"], "noEmitOnError": true },
+  "files": ["react-shim.d.ts", "app.tsx"]
+}
