@@ -61,3 +61,12 @@ Este código conserva React 16 por continuidad con el prototipo previo; antes de
 - Cada cambio visual/funcional se desarrolla como una nueva revisión de Fullhouse.
 - Mantendremos el registro de decisiones y mejoras en `CAMBIOS.md` y comprobamos que la información persistida siga siendo compatible.
 - No habrá sincronización con Google Calendar, Apple Calendar ni otros calendarios externos.
+
+
+## Novedades 0.2
+- Guía paso a paso, ayuda contextual, cinco temas y logo/favicíono propio.
+- Metas numéricas, cualitativas e hitos, con colores libres.
+- Horario vertical de mañana a noche con bloques y desglose de subpasos.
+- Modales en orientación vertical u horizontal, selectores mejorados, textos más legibles.
+
+Los datos existentes de 0.1 se conservan al actualizar porque seguimos usando la misma clave de almacenamiento, y los campos nuevos son opcionales.

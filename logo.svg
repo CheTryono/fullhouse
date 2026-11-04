@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-label="Fullhouse">
+  <defs>
+    <linearGradient id="back" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#281959"/><stop offset="1" stop-color="#6a32a7"/></linearGradient>
+    <linearGradient id="roof" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffe4a2"/><stop offset=".45" stop-color="#f27dc5"/><stop offset="1" stop-color="#9b87ff"/></linearGradient>
+    <linearGradient id="fill" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#8c76fa"/><stop offset="1" stop-color="#ec7dc0"/></linearGradient>
+  </defs>
+  <rect width="160" height="160" rx="38" fill="url(#back)"/>
+  <circle cx="80" cy="82" r="60" stroke="#e7c9fc" stroke-opacity=".18" stroke-width="2" fill="none"/>
+  <path d="M31 78 80 32l49 46" fill="none" stroke="url(#roof)" stroke-linecap="round" stroke-linejoin="round" stroke-width="13"/>
+  <path d="M47 76v49c0 4 3 7 7 7h52c4 0 7-3 7-7V76" fill="none" stroke="url(#fill)" stroke-linecap="round" stroke-linejoin="round" stroke-width="12"/>
+  <path d="M80 66 86 82l16 6-16 6-6 16-6-16-16-6 16-6z" fill="#fff6d7"/>
+  <circle cx="126" cy="33" r="6" fill="#ffc875"/><path d="m126 19 2 8 8 2-8 2-2 8-2-8-8-2 8-2z" fill="#fff1ca"/>
+  <circle cx="34" cy="121" r="4" fill="#d9a4ff"/>
+</svg>
