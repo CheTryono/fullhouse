@@ -1,4 +1,4 @@
-# FULLHOUSE — Prototipo web v0.1
+# FULLHOUSE — Prototipo web v0.3
 
 **Fullhouse** es una herramienta independiente de organización integral: metas, rutinas, calendario propio y progreso. Es la versión ligera para prueba e iteraciones, sin sincronización con calendarios ni servicios externos.
 
@@ -70,3 +70,18 @@ Este código conserva React 16 por continuidad con el prototipo previo; antes de
 - Modales en orientación vertical u horizontal, selectores mejorados, textos más legibles.
 
 Los datos existentes de 0.1 se conservan al actualizar porque seguimos usando la misma clave de almacenamiento, y los campos nuevos son opcionales.
+
+
+## Novedades de la versión 0.3
+
+- Una guía **interactiva** para la primera entrada: crea un plan real mediante acciones que deben completarse; permite saltar el recorrido.
+- Un mapa de metas editable con conexiones de jerarquía y dependencia, fechas de inicio y fecha objetivo, y organización alternativa por tiempo.
+- Rutinas con reordenación de pasos y subpasos mediante arrastre táctil o ratón (flechas del teclado sobre el tirador para accesibilidad). Tiempos de pasos contenedores calculados automáticamente.
+- Ventanas y campos más estables, selects en portales superpuestos, selector de hora propio y colores personalizados sin diálogos nativos.
+- Bloques compactos según duración. Los apartados Calendario y Horario ya no tienen accesos cruzados.
+- Validación de conflictos para impedir rutinas duplicadas en un día. Al cambiar una rutina recurrente, puede aplicarse el horario a partir de una fecha determinada conservando los registros anteriores.
+- Un logo abstracto Fullhouse sin referencias a Botánica.
+
+**Compatibilidad:** no se cambia la clave de almacenamiento `fullhouse-v01` ni el esquema base del archivo JSON. Se recomienda exportar respaldo antes de realizar modificaciones importantes en tus metas o rutinas.
+
+**Limitaciones de esta etapa:** los datos son locales a cada navegador. Esta versión es un prototipo sin cuentas ni sincronización; el mapa es interactivo pero no admite reordenación libre de nodos. Los vínculos del mapa se crean desde la ficha de cada meta. La aplicación no calcula automáticamente el cumplimiento personal a partir de metas sin números.

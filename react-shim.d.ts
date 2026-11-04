@@ -7,7 +7,7 @@ declare namespace React {
   }
   function createElement(type: any, props?: any, ...children: any[]): any;
 }
-declare const ReactDOM: { render(element: any, target: Element | null): void };
+declare const ReactDOM: { render(element: any, target: Element | null): void; createPortal(element:any,target:Element):any };
 declare namespace JSX {
   interface IntrinsicElements { [elemName: string]: any }
 }

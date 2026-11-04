@@ -3,7 +3,7 @@ const LEGACY_STORE = 'botanica-planificador-v01';
 const colorOptions = ['#a26cf4', '#ed6dba', '#f7a853', '#39c8ab', '#54a9f4', '#ec6c73', '#8579e8', '#9bc55c', '#be81f2', '#d8a34c', '#ff8e5b', '#37b6cc', '#ec6f93', '#7e95e9', '#40b67a', '#ce7390', '#a85fe0', '#738c98'];
 const THEME_STORE = 'fullhouse-theme-v02';
 const LAYOUT_STORE = 'fullhouse-modal-layout-v02';
-const GUIDE_STORE = 'fullhouse-guide-seen-v02';
+const GUIDE_STORE = 'fullhouse-onboarding-v03';
 function getPreference(name) { try {
     return localStorage.getItem(name) || '';
 }
@@ -31,11 +31,13 @@ const goalStatuses = [
     { id: 'achieved', label: 'Conseguida', desc: 'Alcancé el resultado que buscaba' }
 ];
 const guideSteps = [
-    { page: 'inicio', title: 'Bienvenido a Fullhouse', text: 'Aquí tienes tu resumen diario: las metas que persigues, las actividades previstas y el trabajo que ya completaste.', action: 'Explorar Inicio' },
-    { page: 'metas', title: 'Empieza por tus metas', text: 'Crea una meta, elige si la medirás con números, hitos o estados cualitativos y divídela en sub-metas cuando sea necesario.', action: 'Ver mis metas' },
-    { page: 'rutinas', title: 'Convierte ideas en procedimientos', text: 'Diseña rutinas paso a paso. Cada paso puede contener instrucciones y, si lo necesitas, subpasos.', action: 'Ver rutinas' },
-    { page: 'horario', title: 'Organiza tu día completo', text: 'En Horario verás bloques desde la mañana hasta la noche. Toca uno para acercarte a la rutina, sus pasos y sus detalles.', action: 'Ver horario' },
-    { page: 'progreso', title: 'Registra lo que de verdad ocurre', text: 'Marca actividades, registra avances cualitativos o cuantitativos y consulta tu progreso. Descarga respaldos en Ajustes.', action: 'Ver progreso' }
+    { page: 'inicio', title: 'Tu recorrido empieza aquí', text: 'Vas a construir un pequeño plan de verdad. Te acompañaré desde una meta hasta tu horario. Puedes salir del tutorial cuando quieras.', action: 'Comenzar recorrido' },
+    { page: 'metas', title: '1. Elige una meta', text: 'Selecciona una de tus metas desde la tarjeta «Elegir para la guía», o crea una nueva. Trabajaremos alrededor de ella.', action: 'Seleccionar una meta' },
+    { page: 'metas', title: '2. Divide tu objetivo', text: 'Añade una submeta real a tu objetivo elegido: una fase, proceso o resultado más concreto. Se guardará como parte de tu plan.', action: 'Crear una submeta' },
+    { page: 'calendario', title: '3. Señala una fecha de revisión', text: 'Programa en tu calendario una revisión de los avances de esta meta. Elige la fecha y hora; guardaremos tu primer hito en la agenda.', action: 'Programar revisión' },
+    { page: 'rutinas', title: '4. Lleva la meta a tu día', text: 'Programa una rutina de ejemplo o una creada por ti. Así verás cómo se transforma en un bloque repetible de tu horario.', action: 'Programar una rutina' },
+    { page: 'horario', title: '5. Explora el bloque', text: 'Ahora abre en el horario la rutina que acabas de programar. Dentro encontrarás cada paso, sus detalles y tiempos.', action: 'Abrir mi bloque' },
+    { page: 'horario', title: '¡Tu primer plan está conectado!', text: 'Ya has recorrido meta → submeta → fecha de revisión → rutina → horario. Puedes seguir explorando y ajustando tu sistema.', action: 'Entrar a Fullhouse' }
 ];
 const weekdays = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 const longDays = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
@@ -52,7 +54,7 @@ function asInt(v, fallback = 0) { const x = Number(v); return Number.isFinite(x)
 function bound(num, a, b) { return Math.min(b, Math.max(a, num)); }
 function minutes(time) { const x = time.split(':').map(Number); return (x[0] || 0) * 60 + (x[1] || 0); }
 function timeString(m) { m = ((m % 1440) + 1440) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); }
-function gDraft() { return { id: '', title: '', desc: '', parentId: '', color: colorOptions[0], current: 0, target: 0, unit: '', mode: 'qualitative', status: 'pending', milestones: [] }; }
+function gDraft() { return { id: '', title: '', desc: '', parentId: '', dependsOn: '', startDate: '', dueDate: '', color: colorOptions[0], current: 0, target: 0, unit: '', mode: 'qualitative', status: 'pending', milestones: [] }; }
 function rDraft() { return { id: '', title: '', desc: '', steps: [{ id: uid(), title: '', min: 5 }] }; }
 function eDraft(date = today()) { return { id: '', title: '', date, time: '08:00', minutes: 30, goalId: '', routineId: '', repeat: 'none', note: '', overrides: {} }; }
 function seed() {
@@ -100,7 +102,7 @@ function load() {
 function validData(v) { return !!v && v.version === 1 && Array.isArray(v.goals) && Array.isArray(v.routines) && Array.isArray(v.events) && !!v.logs && typeof v.logs === 'object' && !Array.isArray(v.logs); }
 function occurs(e, date) {
     var _a;
-    if (date < e.date)
+    if (date < e.date || (e.endDate && date > e.endDate))
         return false;
     if (e.overrides && ((_a = e.overrides[date]) === null || _a === void 0 ? void 0 : _a.skip))
         return false;
@@ -117,6 +119,93 @@ function occurs(e, date) {
 }
 function eventsOn(data, date) { return data.events.filter(e => occurs(e, date)).sort((a, b) => { var _a, _b, _c, _d; return (((_b = (_a = a.overrides) === null || _a === void 0 ? void 0 : _a[date]) === null || _b === void 0 ? void 0 : _b.time) || a.time).localeCompare(((_d = (_c = b.overrides) === null || _c === void 0 ? void 0 : _c[date]) === null || _d === void 0 ? void 0 : _d.time) || b.time); }); }
 function eventTime(e, date) { var _a, _b; return ((_b = (_a = e.overrides) === null || _a === void 0 ? void 0 : _a[date]) === null || _b === void 0 ? void 0 : _b.time) || e.time; }
+function repeatCollision(a, b) {
+    if (!a.routineId || a.routineId !== b.routineId)
+        return false;
+    const start = a.date > b.date ? a.date : b.date;
+    // La periodicidad máxima es de siete días; 14 días cubren todos los patrones combinados.
+    for (let i = 0; i < 15; i++) {
+        const date = addDays(start, i);
+        if (occurs(a, date) && occurs(b, date))
+            return true;
+    }
+    return false;
+}
+function reorderTree(steps, from, to) {
+    const a = steps.findIndex(x => x.id === from), b = steps.findIndex(x => x.id === to);
+    if (a >= 0 && b >= 0 && a !== b) {
+        const next = [...steps];
+        const [item] = next.splice(a, 1);
+        next.splice(b, 0, item);
+        return { steps: next, moved: true };
+    }
+    for (let i = 0; i < steps.length; i++)
+        if (steps[i].children) {
+            const changed = reorderTree(steps[i].children || [], from, to);
+            if (changed.moved)
+                return { steps: steps.map((s, j) => i === j ? { ...s, children: changed.steps } : s), moved: true };
+        }
+    return { steps, moved: false };
+}
+function stepLevelName(level) { return ['Paso', 'Subpaso', 'Detalle', 'Subdetalle'][level] || `Nivel ${level + 1}`; }
+function nextStepLevelName(level) { return ['subpaso', 'detalle', 'subdetalle'][level] || `nivel ${level + 2}`; }
+function hexToHsl(hex) {
+    const c = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : '#a26cf4';
+    const rgb = [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16) / 255);
+    const max = Math.max(...rgb), min = Math.min(...rgb), d = max - min;
+    let h = 0, s = 0;
+    const l = (max + min) / 2;
+    if (d) {
+        s = d / (1 - Math.abs(2 * l - 1));
+        switch (max) {
+            case rgb[0]:
+                h = ((rgb[1] - rgb[2]) / d) % 6;
+                break;
+            case rgb[1]:
+                h = (rgb[2] - rgb[0]) / d + 2;
+                break;
+            default: h = (rgb[0] - rgb[1]) / d + 4;
+        }
+    }
+    return [Math.round((h * 60 + 360) % 360), Math.round(s * 100), Math.round(l * 100)];
+}
+function hslToHex(h, s, l) {
+    s /= 100;
+    l /= 100;
+    const a = s * Math.min(l, 1 - l);
+    const f = (n) => { const k = (n + h / 30) % 12; return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))).toString(16).padStart(2, '0'); };
+    return '#' + f(0) + f(8) + f(4);
+}
+function graphLayout(data, grouping) {
+    const gs = data.goals;
+    const edges = [];
+    gs.forEach(g => { if (gs.some(x => x.id === g.parentId))
+        edges.push({ from: g.parentId, to: g.id, kind: 'parent' }); if (g.dependsOn && gs.some(x => x.id === g.dependsOn))
+        edges.push({ from: g.dependsOn, to: g.id, kind: 'depends' }); });
+    const columns = new Map();
+    const labels = [];
+    if (grouping === 'structure') {
+        const depth = (g, seen = new Set()) => { if (!g.parentId || seen.has(g.id))
+            return 0; const parent = gs.find(x => x.id === g.parentId); if (!parent)
+            return 0; seen.add(g.id); return Math.min(5, 1 + depth(parent, seen)); };
+        gs.forEach(g => { const k = String(depth(g)); columns.set(k, [...(columns.get(k) || []), g]); });
+        [...columns.keys()].sort((a, b) => Number(a) - Number(b)).forEach(k => labels.push({ title: Number(k) ? `NIVEL ${Number(k) + 1}` : 'METAS PRINCIPALES', x: 25 + Number(k) * 280 }));
+    }
+    else {
+        const now = today(), soon = addDays(now, 30);
+        gs.forEach(g => { const dates = [g.dueDate, ...data.events.filter(e => e.goalId === g.id).map(e => e.date)].filter(Boolean); const date = dates.sort()[0]; const k = !date ? '3' : date < now ? '0' : date <= soon ? '1' : '2'; columns.set(k, [...(columns.get(k) || []), g]); });
+        ['ATRASADAS', 'PRÓXIMOS 30 DÍAS', 'MÁS ADELANTE', 'SIN FECHA'].forEach((title, i) => labels.push({ title, x: 25 + i * 280 }));
+    }
+    const nodes = [];
+    let largest = 1;
+    let last = grouping === 'structure' ? Math.max(0, ...[...columns.keys()].map(Number)) : 3;
+    for (let k = 0; k <= last; k++) {
+        const goals = columns.get(String(k)) || [];
+        largest = Math.max(largest, goals.length);
+        goals.forEach((goal, i) => nodes.push({ goal, x: 24 + k * 280, y: 72 + i * 146 }));
+    }
+    return { nodes, edges, width: (last + 1) * 280 + 40, height: largest * 146 + 108, labels };
+}
 function key(e, date) { return `${e.id}@${date}`; }
 function done(data, e, date) { var _a; return !!((_a = data.logs[key(e, date)]) === null || _a === void 0 ? void 0 : _a.completed); }
 function percent(current, target) { return target > 0 ? bound(Math.round((current / target) * 100), 0, 100) : 0; }
@@ -145,15 +234,21 @@ class FriendlySelect extends React.Component {
     constructor(props) {
         super(props);
         this.root = null;
-        this.outside = (e) => { if (this.root && !this.root.contains(e.target) && this.state.open)
+        this.menuEl = null;
+        this.outside = (e) => { if (this.root && !this.root.contains(e.target) && !(this.menuEl && this.menuEl.contains(e.target)) && this.state.open)
             this.setState({ open: false }); };
+        this.reposition = () => { if (!this.root || !this.state.open)
+            return; this.setState({ style: this.getPosition() }); };
+        this.getPosition = () => { var _a; const rect = (_a = this.root) === null || _a === void 0 ? void 0 : _a.getBoundingClientRect(); if (!rect)
+            return {}; const available = window.innerHeight - rect.bottom - 12, above = rect.top - 12; const up = available < 195 && above > available; const h = Math.min(280, Math.max(115, up ? above : available)); return { left: rect.left, top: up ? Math.max(8, rect.top - h - 6) : rect.bottom + 6, width: rect.width, maxHeight: h }; };
+        this.show = () => this.setState({ open: true, index: Math.max(0, this.props.options.findIndex(x => x.value === this.props.value)), style: this.getPosition() });
         this.keydown = (e) => { if (e.key === 'Escape') {
             this.setState({ open: false });
             return;
         } if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
             e.preventDefault();
             const current = this.state.open ? this.state.index : Math.max(0, this.props.options.findIndex(x => x.value === this.props.value));
-            this.setState({ open: true, index: bound(current + (e.key === 'ArrowDown' ? 1 : -1), 0, this.props.options.length - 1) });
+            this.setState({ open: true, index: bound(current + (e.key === 'ArrowDown' ? 1 : -1), 0, this.props.options.length - 1), style: this.getPosition() });
         } if (e.key === 'Enter' && this.state.open) {
             e.preventDefault();
             const opt = this.props.options[this.state.index];
@@ -162,17 +257,28 @@ class FriendlySelect extends React.Component {
                 this.setState({ open: false });
             }
         } };
-        this.state = { open: false, index: 0 };
+        this.state = { open: false, index: 0, style: {} };
     }
-    componentDidMount() { document.addEventListener('pointerdown', this.outside); }
-    componentWillUnmount() { document.removeEventListener('pointerdown', this.outside); }
-    render() { const choice = this.props.options.find(x => x.value === this.props.value); return React.createElement("div", { className: 'friendly-select ' + (this.state.open ? 'is-open' : ''), ref: (e) => this.root = e, onKeyDown: this.keydown },
-        React.createElement("button", { type: 'button', className: 'friendly-trigger', "aria-haspopup": 'listbox', "aria-expanded": this.state.open, "aria-label": this.props.ariaLabel || 'Seleccionar opción', onClick: () => this.setState({ open: !this.state.open, index: Math.max(0, this.props.options.findIndex(x => x.value === this.props.value)) }) },
+    componentDidMount() { document.addEventListener('pointerdown', this.outside); window.addEventListener('resize', this.reposition); document.addEventListener('scroll', this.reposition, true); }
+    componentWillUnmount() { document.removeEventListener('pointerdown', this.outside); window.removeEventListener('resize', this.reposition); document.removeEventListener('scroll', this.reposition, true); }
+    render() { const choice = this.props.options.find(x => x.value === this.props.value); const popup = this.state.open ? React.createElement("div", { className: 'friendly-menu friendly-portal', style: this.state.style, ref: (node) => this.menuEl = node, role: 'listbox', "aria-label": this.props.ariaLabel || 'Opciones disponibles' }, this.props.options.map((o, i) => React.createElement("button", { type: 'button', key: o.value, role: 'option', "aria-selected": o.value === this.props.value, className: 'friendly-option ' + (i === this.state.index ? 'focused ' : '') + (o.value === this.props.value ? 'selected' : ''), onMouseEnter: () => this.setState({ index: i }), onClick: () => { this.props.onChange(o.value); this.setState({ open: false }); } },
+        React.createElement("span", null, o.label),
+        o.value === this.props.value && React.createElement(Icon, { name: 'check', size: 15 })))) : null; return React.createElement("div", { className: 'friendly-select ' + (this.state.open ? 'is-open' : ''), ref: (e) => this.root = e, onKeyDown: this.keydown },
+        React.createElement("button", { type: 'button', className: 'friendly-trigger', "aria-haspopup": 'listbox', "aria-expanded": this.state.open, "aria-label": this.props.ariaLabel || 'Seleccionar opción', onClick: () => this.state.open ? this.setState({ open: false }) : this.show() },
             React.createElement("span", null, (choice === null || choice === void 0 ? void 0 : choice.label) || 'Selecciona una opción'),
             React.createElement("span", { className: 'select-caret' }, "\u2304")),
-        this.state.open && React.createElement("div", { className: 'friendly-menu', role: 'listbox', "aria-label": this.props.ariaLabel || 'Opciones disponibles' }, this.props.options.map((o, i) => React.createElement("button", { type: 'button', key: o.value, role: 'option', "aria-selected": o.value === this.props.value, className: 'friendly-option ' + (i === this.state.index ? 'focused ' : '') + (o.value === this.props.value ? 'selected' : ''), onMouseEnter: () => this.setState({ index: i }), onClick: () => { this.props.onChange(o.value); this.setState({ open: false }); } },
-            React.createElement("span", null, o.label),
-            o.value === this.props.value && React.createElement(Icon, { name: 'check', size: 15 }))))); }
+        popup && ReactDOM.createPortal(popup, document.querySelector('.app-shell') || document.body)); }
+}
+function TimePicker({ value, onChange }) {
+    const [hour, minute] = (value || '08:00').split(':');
+    const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(v => ({ value: v, label: v + ' h' }));
+    const mins = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(v => ({ value: v, label: v + ' min' }));
+    return React.createElement("div", { className: 'time-picker' },
+        React.createElement("span", { className: 'time-icon' },
+            React.createElement(Icon, { name: 'clock', size: 18 })),
+        React.createElement(FriendlySelect, { value: hour, ariaLabel: 'Seleccionar hora', options: hours, onChange: h => onChange(h + ':' + (minute || '00')) }),
+        React.createElement("span", { className: 'time-colon' }, ":"),
+        React.createElement(FriendlySelect, { value: minute, ariaLabel: 'Seleccionar minuto', options: mins, onChange: m => onChange((hour || '08') + ':' + m) }));
 }
 function Icon({ name, size = 19 }) { return React.createElement("span", { className: "icon", style: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center' } },
     React.createElement("svg", { style: { width: size, height: size, fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' } },
@@ -181,17 +287,20 @@ function Btn({ children, onClick, kind = '', tiny = false, disabled = false, typ
 class Planner extends React.Component {
     constructor(props) {
         super(props);
-        this.globalKeydown = (e) => { if (e.key === 'Escape' && (this.state.modal || this.state.guideOpen)) {
-            this.close();
+        this.globalKeydown = (e) => { if (e.key === 'Escape') {
+            if (this.state.modal)
+                this.close();
+            else if (this.state.guideOpen)
+                this.finishGuide();
         } };
-        this.syncModalState = () => { document.body.style.overflow = this.state.modal || this.state.guideOpen ? 'hidden' : ''; };
+        this.syncModalState = () => { document.body.style.overflow = this.state.modal || (this.state.guideOpen && this.state.guideStep === 0) ? 'hidden' : ''; };
         this.resizeTextareas = () => { document.querySelectorAll('.modal-body textarea').forEach(fitArea); };
         this.setTheme = (theme) => { putPreference(THEME_STORE, theme); this.setState({ theme }); };
         this.setLayout = (layout) => { putPreference(LAYOUT_STORE, layout); this.setState({ modalLayout: layout }); };
         this.finishGuide = () => { putPreference(GUIDE_STORE, 'yes'); this.setState({ guideOpen: false }); };
-        this.openGuide = () => this.setState({ modal: null, guideOpen: true, guideStep: 0 });
+        this.openGuide = () => this.setState({ modal: null, guideOpen: true, guideStep: 0, page: 'inicio', guideGoalId: '', guideEventId: '' });
         this.openHelp = (topic) => this.setState({ modal: 'help', helpTopic: topic });
-        this.openDetail = (e) => this.setState({ modal: 'detail', activeEventId: e.id, detailPath: [] });
+        this.openDetail = (e) => this.setState({ modal: 'detail', activeEventId: e.id, detailPath: [], ...(this.state.guideOpen && this.state.guideStep === 5 && e.id === this.state.guideEventId ? { guideStep: 6 } : {}) });
         this.save = (data, message = 'Cambios guardados') => {
             try {
                 localStorage.setItem(STORE, JSON.stringify(data));
@@ -201,14 +310,17 @@ class Planner extends React.Component {
                 this.setState({ data, toast: 'No se pudo guardar: almacenamiento lleno o bloqueado. Exporta una copia.' });
             }
         };
-        this.route = (page) => { this.setState({ page, modal: null }); window.scrollTo(0, 0); };
+        this.route = (page) => { if (this.state.guideOpen && this.state.guideStep > 0 && this.state.guideStep < 6 && page !== guideSteps[this.state.guideStep].page) {
+            this.setState({ toast: 'Completa este paso de la guía o selecciona «Saltar tutorial».', page: guideSteps[this.state.guideStep].page });
+            return;
+        } this.setState({ page, modal: null }); window.scrollTo(0, 0); };
         this.chooseDay = (s) => this.setState({ selectedDate: s, month: firstMonth(s) });
-        this.openGoal = (goal, parentId = '') => this.setState({ modal: 'goal', goalDraft: goal ? { id: goal.id, title: goal.title, desc: goal.desc, parentId: goal.parentId, color: goal.color, current: goal.current, target: goal.target, unit: goal.unit, mode: goalMode(goal), status: goalStatus(goal), milestones: goalMilestones(goal).map(x => ({ ...x })) } : { ...gDraft(), parentId } });
+        this.openGoal = (goal, parentId = '') => this.setState({ modal: 'goal', colorEditorOpen: false, hexDraft: (goal === null || goal === void 0 ? void 0 : goal.color) || colorOptions[0], goalDraft: goal ? { id: goal.id, title: goal.title, desc: goal.desc, parentId: goal.parentId, dependsOn: goal.dependsOn || '', startDate: goal.startDate || '', dueDate: goal.dueDate || '', color: goal.color, current: goal.current, target: goal.target, unit: goal.unit, mode: goalMode(goal), status: goalStatus(goal), milestones: goalMilestones(goal).map(x => ({ ...x })) } : { ...gDraft(), parentId } });
         this.openRoutine = (r) => this.setState({ modal: 'routine', routineDraft: r ? JSON.parse(JSON.stringify(r)) : rDraft() });
         this.openEvent = (e) => this.setState({ modal: 'event', eventDraft: e ? JSON.parse(JSON.stringify(e)) : eDraft(this.state.selectedDate) });
         this.openProgress = (g) => this.setState({ modal: 'progress', progressGoalId: g.id, progressValue: String(g.current), progressStatus: goalStatus(g), progressNote: '' });
         this.openExecute = (e) => this.setState({ modal: 'execute', activeEventId: e.id });
-        this.close = () => this.setState({ modal: null, guideOpen: false, detailPath: [] });
+        this.close = () => this.setState({ modal: null, detailPath: [] });
         this.updateGoalDraft = (patch) => this.setState({ goalDraft: { ...this.state.goalDraft, ...patch } });
         this.updateRoutineDraft = (patch) => this.setState({ routineDraft: { ...this.state.routineDraft, ...patch } });
         this.updateEventDraft = (patch) => this.setState({ eventDraft: { ...this.state.eventDraft, ...patch } });
@@ -218,8 +330,12 @@ class Planner extends React.Component {
                 this.setState({ toast: 'Escribe un nombre para la meta' });
                 return;
             }
-            if (x.id && x.parentId === x.id) {
+            if (x.id && (x.parentId === x.id || x.dependsOn === x.id)) {
                 this.setState({ toast: 'Una meta no puede depender de sí misma' });
+                return;
+            }
+            if (x.startDate && x.dueDate && x.dueDate < x.startDate) {
+                this.setState({ toast: 'La fecha objetivo debe ser posterior al inicio.' });
                 return;
             }
             const data = this.state.data;
@@ -227,6 +343,12 @@ class Planner extends React.Component {
             const next = { ...x, id: x.id || uid(), title: x.title.trim(), target: Math.max(0, x.target), current: Math.max(0, x.current), mode: goalMode(x), status: goalStatus(x), milestones: goalMilestones(x).filter(m => m.title.trim()).map(m => ({ ...m, title: m.title.trim() })), history: (before === null || before === void 0 ? void 0 : before.history) || [] };
             this.save({ ...data, goals: before ? data.goals.map(g => g.id === x.id ? next : g) : [...data.goals, next] });
             this.close();
+            if (this.state.guideOpen) {
+                if (this.state.guideStep === 1 && !x.id)
+                    this.selectGuideGoal(next.id);
+                else if (this.state.guideStep === 2 && !x.id && x.parentId === this.state.guideGoalId)
+                    this.setState({ guideStep: 3, page: 'calendario', modal: null });
+            }
         };
         this.saveRoutine = () => {
             const x = this.state.routineDraft;
@@ -239,8 +361,9 @@ class Planner extends React.Component {
                 return;
             }
             const data = this.state.data;
-            const result = { ...x, id: x.id || uid(), title: x.title.trim(), steps: (function clean(steps) { return steps.map(s => ({ ...s, title: s.title.trim(), min: Math.max(1, s.min), children: s.children ? clean(s.children) : undefined })); })(x.steps) };
-            this.save({ ...data, routines: x.id ? data.routines.map(r => r.id === x.id ? result : r) : [...data.routines, result] });
+            const clean = (steps) => steps.map(s => { const children = s.children ? clean(s.children) : undefined; return { ...s, title: s.title.trim(), children, min: children && children.length ? children.reduce((a, c) => a + stepMinutes(c), 0) : Math.max(1, s.min) }; });
+            const result = { ...x, id: x.id || uid(), title: x.title.trim(), steps: clean(x.steps) };
+            this.save({ ...data, routines: x.id ? data.routines.map(r => r.id === x.id ? result : r) : [...data.routines, result], events: data.events.map(e => e.routineId === result.id ? { ...e, minutes: routineMinutes(result) } : e) });
             this.close();
         };
         this.saveEvent = () => {
@@ -251,8 +374,37 @@ class Planner extends React.Component {
             }
             const data = this.state.data;
             const result = { ...x, id: x.id || uid(), title: x.title.trim(), minutes: Math.max(1, x.minutes), overrides: x.overrides || {} };
-            this.save({ ...data, events: x.id ? data.events.map(e => e.id === x.id ? result : e) : [...data.events, result] });
+            const original = data.events.find(e => e.id === x.id);
+            const split = !!original && original.repeat !== 'none' && !!x.applyFrom && x.applyFrom > original.date;
+            const future = split ? { ...result, id: uid(), date: x.applyFrom || result.date, overrides: Object.fromEntries(Object.entries(result.overrides || {}).filter(([d]) => d >= (x.applyFrom || result.date))), endDate: original === null || original === void 0 ? void 0 : original.endDate } : result;
+            if (split && (original === null || original === void 0 ? void 0 : original.endDate) && future.date > original.endDate) {
+                this.setState({ toast: 'La fecha elegida está fuera de la programación original.' });
+                return;
+            }
+            if (future.routineId && data.events.some(other => other.id !== result.id && repeatCollision(future, other))) {
+                this.setState({ toast: 'Esta rutina ya aparece en alguno de esos días. Edita su programación existente en vez de duplicarla.' });
+                return;
+            }
+            if (split && original) {
+                const cut = addDays(future.date, -1);
+                const old = { ...original, endDate: cut, overrides: Object.fromEntries(Object.entries(original.overrides || {}).filter(([d]) => d < future.date)) };
+                const logs = { ...data.logs };
+                Object.keys(logs).filter(k => k.startsWith(original.id + '@') && k.split('@')[1] >= future.date).forEach(k => { logs[future.id + '@' + k.split('@')[1]] = logs[k]; delete logs[k]; });
+                const next = { ...future, applyFrom: undefined };
+                this.save({ ...data, events: [...data.events.map(e => e.id === old.id ? old : e), next], logs }, 'Nuevo horario aplicado desde ' + future.date);
+            }
+            else {
+                const next = { ...result, applyFrom: undefined };
+                this.save({ ...data, events: x.id ? data.events.map(e => e.id === x.id ? next : e) : [...data.events, next] });
+            }
             this.close();
+            if (this.state.guideOpen) {
+                if (this.state.guideStep === 3 && result.goalId === this.state.guideGoalId)
+                    this.setState({ guideStep: 4, page: 'rutinas' });
+                else if (this.state.guideStep === 4 && result.routineId) {
+                    this.setState({ guideStep: 5, page: 'horario', selectedDate: result.date, month: firstMonth(result.date), guideEventId: result.id });
+                }
+            }
         };
         this.deleteGoal = (g) => {
             if (!confirm(`¿Eliminar la meta «${g.title}»? Las sub-metas pasarán a ser independientes.`))
@@ -361,28 +513,105 @@ class Planner extends React.Component {
             go(id);
             return all;
         };
+        this.selectGuideGoal = (id) => { if (this.state.guideOpen && this.state.guideStep === 1)
+            this.setState({ guideGoalId: id, guideStep: 2, page: 'metas' }); };
+        this.guideAction = () => {
+            var _a;
+            const step = this.state.guideStep, goal = this.state.data.goals.find(g => g.id === this.state.guideGoalId);
+            if (step === 0) {
+                this.setState({ guideStep: 1, page: 'metas' });
+                return;
+            }
+            if (step === 1) {
+                this.setState({ page: 'metas', toast: 'Selecciona «Elegir para la guía» en una meta, o crea una nueva.' });
+                return;
+            }
+            if (step === 2) {
+                this.openGoal(undefined, this.state.guideGoalId);
+                return;
+            }
+            if (step === 3) {
+                this.setState({ page: 'calendario', modal: 'event', eventDraft: { ...eDraft(addDays(today(), 7)), title: 'Revisión de avance: ' + ((goal === null || goal === void 0 ? void 0 : goal.title) || 'mi meta'), goalId: this.state.guideGoalId, time: '19:00', minutes: 30 } });
+                return;
+            }
+            if (step === 4) {
+                const r = this.state.data.routines[0];
+                if (!r) {
+                    this.openRoutine();
+                    this.setState({ toast: 'Crea una rutina antes de programarla.' });
+                    return;
+                }
+                this.useRoutineForGuide(r);
+                return;
+            }
+            if (step === 5) {
+                this.setState({ page: 'horario', selectedDate: ((_a = this.state.data.events.find(e => e.id === this.state.guideEventId)) === null || _a === void 0 ? void 0 : _a.date) || today(), modal: null });
+                return;
+            }
+            this.finishGuide();
+        };
+        this.useRoutineForGuide = (r) => {
+            const existing = this.state.data.events.find(e => e.routineId === r.id && occurs(e, today()));
+            if (existing) {
+                this.setState({ guideEventId: existing.id, guideStep: 5, page: 'horario', selectedDate: today(), month: firstMonth(today()), modal: null, toast: 'Esta rutina ya estaba programada. Ábrela en el horario.' });
+                return;
+            }
+            this.setState({ modal: 'event', eventDraft: { ...eDraft(today()), title: r.title, goalId: this.state.guideGoalId, routineId: r.id, minutes: routineMinutes(r), repeat: 'daily', time: '08:00' } });
+        };
+        this.startStepDrag = (id, e) => { e.preventDefault(); document.addEventListener('mousemove', this.moveStepDrag, true); document.addEventListener('mouseup', this.endStepDrag, true); document.addEventListener('touchmove', this.moveStepDrag, { capture: true, passive: false }); document.addEventListener('touchend', this.endStepDrag, true); this.setState({ draggedStepId: id, dragTargetId: id }); };
+        this.moveStepDrag = (e) => { var _a, _b, _c; if (!this.state.draggedStepId)
+            return; const point = ((_a = e.touches) === null || _a === void 0 ? void 0 : _a[0]) || ((_b = e.changedTouches) === null || _b === void 0 ? void 0 : _b[0]) || e; const t = (_c = document.elementFromPoint(point.clientX, point.clientY)) === null || _c === void 0 ? void 0 : _c.closest('[data-step-id]'); if ((t === null || t === void 0 ? void 0 : t.dataset.stepId) && t.dataset.stepId !== this.state.dragTargetId)
+            this.setState({ dragTargetId: t.dataset.stepId }); };
+        this.endStepDrag = () => { document.removeEventListener('mousemove', this.moveStepDrag, true); document.removeEventListener('mouseup', this.endStepDrag, true); document.removeEventListener('touchmove', this.moveStepDrag, true); document.removeEventListener('touchend', this.endStepDrag, true); const { draggedStepId, dragTargetId } = this.state; if (draggedStepId && dragTargetId && draggedStepId !== dragTargetId) {
+            const r = reorderTree(this.state.routineDraft.steps, draggedStepId, dragTargetId);
+            if (r.moved)
+                this.updateRoutineDraft({ steps: r.steps });
+        } this.setState({ draggedStepId: '', dragTargetId: '' }); };
+        this.moveStepDragKeyboard = (id, delta) => this.updateRoutineDraft({ steps: moveStepTree(this.state.routineDraft.steps, id, delta) });
         this.hint = (topic) => React.createElement("button", { type: "button", className: "hint-btn", title: "\u00BFC\u00F3mo funciona esta secci\u00F3n?", "aria-label": 'Ayuda de ' + topic, onClick: () => this.openHelp(topic) }, "?");
         this.changeMonth = (offset) => { const d = parseDay(this.state.month); d.setMonth(d.getMonth() + offset); const newMonth = ymd(d); this.setState({ month: newMonth, selectedDate: newMonth }); };
         this.renderStepEditor = (steps, level = 0) => {
             const update = (id, patch) => this.updateRoutineDraft({ steps: editStepTree(this.state.routineDraft.steps, id, s => ({ ...s, ...patch })) });
-            return React.createElement("div", { className: 'step-editor-list ' + (level ? 'nested' : '') }, steps.map((s, i) => React.createElement("div", { className: "step-editor-card", key: s.id },
-                React.createElement("div", { className: "step-edit" },
-                    React.createElement("span", { className: "step-label" },
-                        i + 1,
-                        "."),
-                    React.createElement("input", { "aria-label": 'Nombre del paso ' + (i + 1), value: s.title, onChange: e => update(s.id, { title: e.target.value }), placeholder: "Nombre del paso" }),
-                    React.createElement("input", { className: "step-min", title: "Minutos previstos (si tiene subpasos, se suman sus duraciones)", "aria-label": "Duraci\u00F3n en minutos", type: "number", min: "1", value: s.min, onChange: e => update(s.id, { min: asInt(e.target.value, 1) }) }),
-                    React.createElement("button", { className: "icon-btn", title: "Mover paso arriba", disabled: i === 0, onClick: () => this.updateRoutineDraft({ steps: moveStepTree(this.state.routineDraft.steps, s.id, -1) }) }, "\u2191"),
-                    React.createElement("button", { className: "icon-btn", title: "Mover paso abajo", disabled: i === steps.length - 1, onClick: () => this.updateRoutineDraft({ steps: moveStepTree(this.state.routineDraft.steps, s.id, 1) }) }, "\u2193"),
-                    React.createElement("button", { className: "icon-btn", title: "Quitar paso", onClick: () => this.updateRoutineDraft({ steps: deleteStepTree(this.state.routineDraft.steps, s.id) }) },
-                        React.createElement(Icon, { name: "close", size: 13 }))),
-                React.createElement("div", { className: "step-description" },
-                    React.createElement(AutoTextarea, { maxLength: 1000, value: s.desc || '', onChange: (e) => update(s.id, { desc: e.target.value }), placeholder: "Instrucciones, orden o detalles de este paso..." })),
-                s.children && s.children.length > 0 && this.renderStepEditor(s.children, level + 1),
-                React.createElement("div", { className: "step-subaction" },
-                    React.createElement(Btn, { tiny: true, kind: "ghost", onClick: () => update(s.id, { children: [...(s.children || []), { id: uid(), title: '', min: 5, desc: '' }] }) },
-                        React.createElement(Icon, { name: "plus", size: 14 }),
-                        " A\u00F1adir subpaso")))));
+            return React.createElement("div", { className: 'step-editor-list ' + (level ? 'nested' : '') }, steps.map((s, i) => {
+                var _a;
+                const hasChildren = !!((_a = s.children) === null || _a === void 0 ? void 0 : _a.length);
+                return React.createElement("div", { className: 'step-editor-card ' + (this.state.dragTargetId === s.id && this.state.draggedStepId !== s.id ? 'drop-target' : ''), "data-step-id": s.id, key: s.id },
+                    React.createElement("div", { className: "step-edit-head" },
+                        React.createElement("span", { className: "step-type-tag" },
+                            stepLevelName(level),
+                            " ",
+                            i + 1),
+                        React.createElement("span", { className: "step-duration-summary" },
+                            React.createElement(Icon, { name: "clock", size: 14 }),
+                            " ",
+                            stepMinutes(s),
+                            " min ",
+                            hasChildren ? '(suma automática)' : ''),
+                        React.createElement("button", { className: "drag-handle", title: "Arrastra para reordenar en este nivel. Con el teclado usa las flechas.", "aria-label": 'Arrastrar ' + stepLevelName(level) + ' ' + (i + 1), onMouseDown: e => this.startStepDrag(s.id, e), onTouchStart: e => this.startStepDrag(s.id, e), onKeyDown: e => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                                e.preventDefault();
+                                this.moveStepDragKeyboard(s.id, e.key === 'ArrowUp' ? -1 : 1);
+                            } } },
+                            React.createElement(Icon, { name: "grip", size: 18 })),
+                        React.createElement("button", { className: "icon-btn remove-step", title: "Eliminar este elemento", onClick: () => this.updateRoutineDraft({ steps: deleteStepTree(this.state.routineDraft.steps, s.id) }) },
+                            React.createElement(Icon, { name: "trash", size: 15 }))),
+                    React.createElement("div", { className: "step-edit-fields" },
+                        React.createElement("input", { "aria-label": 'Nombre del ' + stepLevelName(level).toLowerCase() + ' ' + (i + 1), value: s.title, onChange: e => update(s.id, { title: e.target.value }), placeholder: level === 0 ? 'Nombre del paso' : 'Nombre del ' + stepLevelName(level).toLowerCase() }),
+                        hasChildren ? React.createElement("span", { className: "step-readonly-time", title: "La duraci\u00F3n se calcula sumando todos los elementos hijos" },
+                            "\u03A3 ",
+                            stepMinutes(s),
+                            " min") : React.createElement("label", { className: "step-time-field" },
+                            "min ",
+                            React.createElement("input", { className: "step-min", title: "Minutos previstos", "aria-label": "Duraci\u00F3n en minutos", type: "number", min: "1", inputMode: "numeric", value: s.min, onWheel: e => e.currentTarget.blur(), onKeyDown: e => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown')
+                                    e.preventDefault(); }, onChange: e => update(s.id, { min: asInt(e.target.value, 1) }) }))),
+                    React.createElement("div", { className: "step-description" },
+                        React.createElement(AutoTextarea, { maxLength: 1000, value: s.desc || '', onChange: (e) => update(s.id, { desc: e.target.value }), placeholder: "Instrucciones y detalles de este elemento..." })),
+                    hasChildren && this.renderStepEditor(s.children || [], level + 1),
+                    React.createElement("div", { className: "step-subaction" },
+                        React.createElement(Btn, { tiny: true, kind: "secondary", onClick: () => update(s.id, { children: [...(s.children || []), { id: uid(), title: '', min: 5, desc: '' }] }) },
+                            React.createElement(Icon, { name: "plus", size: 14 }),
+                            " A\u00F1adir ",
+                            nextStepLevelName(level))));
+            }));
         };
         this.renderCheckSteps = (steps, e, date, log, level = 0) => React.createElement("div", { className: level ? 'check-child-steps' : '' }, steps.map((s, i) => { var _a; return React.createElement("div", { key: s.id },
             React.createElement("div", { className: "routine-step" },
@@ -396,14 +625,14 @@ class Planner extends React.Component {
                     React.createElement("div", { className: "agenda-sub" },
                         stepMinutes(s),
                         " min \u00B7 ",
-                        ((_a = s.children) === null || _a === void 0 ? void 0 : _a.length) ? 'Incluye ' + s.children.length + ' subpasos' : 'Paso individual'))),
+                        ((_a = s.children) === null || _a === void 0 ? void 0 : _a.length) ? 'Incluye ' + s.children.length + ' elementos' : 'Paso individual'))),
             s.children && s.children.length > 0 && this.renderCheckSteps(s.children, e, date, log, level + 1)); }));
         const d = today();
-        this.state = { data: load(), page: 'inicio', selectedDate: d, month: firstMonth(d), modal: null, goalDraft: gDraft(), routineDraft: rDraft(), eventDraft: eDraft(d), activeEventId: '', detailPath: [], progressValue: '', progressNote: '', progressStatus: 'pending', progressGoalId: '', toast: '', theme: (themeOptions.some(x => x.id === getPreference(THEME_STORE)) ? getPreference(THEME_STORE) : 'aurora'), modalLayout: getPreference(LAYOUT_STORE) === 'horizontal' ? 'horizontal' : 'vertical', guideOpen: getPreference(GUIDE_STORE) !== 'yes', guideStep: 0, helpTopic: '' };
+        this.state = { data: load(), page: 'inicio', selectedDate: d, month: firstMonth(d), modal: null, goalDraft: gDraft(), routineDraft: rDraft(), eventDraft: eDraft(d), activeEventId: '', detailPath: [], progressValue: '', progressNote: '', progressStatus: 'pending', progressGoalId: '', toast: '', theme: (themeOptions.some(x => x.id === getPreference(THEME_STORE)) ? getPreference(THEME_STORE) : 'aurora'), modalLayout: getPreference(LAYOUT_STORE) === 'horizontal' ? 'horizontal' : 'vertical', guideOpen: getPreference(GUIDE_STORE) !== 'yes', guideStep: 0, guideGoalId: '', guideEventId: '', helpTopic: '', goalView: 'cards', mapGrouping: 'structure', colorEditorOpen: false, hexDraft: colorOptions[0], draggedStepId: '', dragTargetId: '' };
     }
     componentDidMount() { this.syncModalState(); document.addEventListener('keydown', this.globalKeydown); this.resizeTextareas(); }
     componentDidUpdate() { this.syncModalState(); this.resizeTextareas(); }
-    componentWillUnmount() { document.body.style.overflow = ''; document.removeEventListener('keydown', this.globalKeydown); }
+    componentWillUnmount() { document.body.style.overflow = ''; document.removeEventListener('keydown', this.globalKeydown); document.removeEventListener('mousemove', this.moveStepDrag, true); document.removeEventListener('mouseup', this.endStepDrag, true); }
     renderSidebar() {
         const links = [{ id: 'inicio', label: 'Inicio', icon: 'home' }, { id: 'metas', label: 'Mis metas', icon: 'target' }, { id: 'rutinas', label: 'Rutinas', icon: 'checklist' }, { id: 'horario', label: 'Horario', icon: 'clock' }, { id: 'calendario', label: 'Calendario', icon: 'calendar' }, { id: 'progreso', label: 'Progreso', icon: 'chart' }, { id: 'ajustes', label: 'Respaldo y ajustes', icon: 'settings' }];
         return React.createElement(React.Fragment, null,
@@ -425,7 +654,7 @@ class Planner extends React.Component {
                         React.createElement("div", { className: "avatar" }, "\u2726"),
                         React.createElement("div", null,
                             React.createElement("div", { className: "profile-name" }, "Mi espacio privado"),
-                            React.createElement("div", { className: "profile-meta" }, "Fullhouse \u00B7 0.2"))),
+                            React.createElement("div", { className: "profile-meta" }, "Fullhouse \u00B7 0.3"))),
                     React.createElement("small", null, "Organiza \u00B7 Act\u00FAa \u00B7 Progresa. Los datos se guardan en este navegador."))),
             React.createElement("nav", { className: "mobile-nav", "aria-label": "Navegaci\u00F3n m\u00F3vil" }, links.filter(l => l.id !== 'ajustes' && l.id !== 'calendario').map(l => React.createElement("button", { key: l.id, className: `mobile-item ${this.state.page === l.id ? 'active' : ''}`, onClick: () => this.route(l.id) },
                 React.createElement(Icon, { name: l.icon }),
@@ -622,6 +851,9 @@ class Planner extends React.Component {
                     g.history.length,
                     " registros")),
             React.createElement("div", { className: "actions" },
+                this.state.guideOpen && this.state.guideStep === 1 && React.createElement(Btn, { kind: "secondary", tiny: true, onClick: () => this.selectGuideGoal(g.id) },
+                    React.createElement(Icon, { name: "check", size: 14 }),
+                    " Elegir para la gu\u00EDa"),
                 mode !== 'milestones' && React.createElement(Btn, { kind: "secondary", tiny: true, onClick: () => this.openProgress(g) },
                     React.createElement(Icon, { name: "chart", size: 14 }),
                     " Registrar avance"),
@@ -646,13 +878,60 @@ class Planner extends React.Component {
             this.renderHeading('Mis metas', 'De una visión amplia a objetivos concretos. Crea sub-metas, vincula actividades y registra resultados.', React.createElement(Btn, { onClick: () => this.openGoal() },
                 React.createElement(Icon, { name: "plus" }),
                 " Crear meta")),
+            React.createElement("div", { className: "goal-view-toolbar" },
+                React.createElement("span", null, "Explorar las metas como"),
+                React.createElement("div", { className: "view-toggle" },
+                    React.createElement("button", { className: this.state.goalView === 'cards' ? 'selected' : '', onClick: () => this.setState({ goalView: 'cards' }) },
+                        React.createElement(Icon, { name: "checklist", size: 16 }),
+                        " Tarjetas"),
+                    React.createElement("button", { className: this.state.goalView === 'map' ? 'selected' : '', onClick: () => this.setState({ goalView: 'map' }) },
+                        React.createElement(Icon, { name: "network", size: 16 }),
+                        " Mapa de metas"))),
             React.createElement("div", { className: "notice" }, "Cada meta puede medirse por resultados num\u00E9ricos, hitos o estados cualitativos. Completar actividades no equivale autom\u00E1ticamente a conseguir un resultado."),
-            items.length ? React.createElement("div", { className: "goal-grid", style: { marginTop: 20 } }, items.map(x => React.createElement("div", { key: x.goal.id, style: { paddingLeft: Math.min(x.depth, 3) * 12 } }, this.renderGoalCard(x.goal, x.depth)))) : React.createElement("div", { className: "panel", style: { marginTop: 20 } },
+            items.length ? (this.state.goalView === 'map' ? this.renderGoalMap() : React.createElement("div", { className: "goal-grid", style: { marginTop: 20 } }, items.map(x => React.createElement("div", { key: x.goal.id, style: { paddingLeft: Math.min(x.depth, 3) * 12 } }, this.renderGoalCard(x.goal, x.depth))))) : React.createElement("div", { className: "panel", style: { marginTop: 20 } },
                 React.createElement("div", { className: "empty" },
                     React.createElement(Icon, { name: "target" }),
                     React.createElement("strong", null, "Tu primera meta empieza aqu\u00ED"),
                     React.createElement("p", null, "Define algo que quieras conseguir y desgl\u00F3salo en pasos."),
                     React.createElement(Btn, { onClick: () => this.openGoal() }, "Crear meta"))));
+    }
+    renderGoalMap() {
+        const layout = graphLayout(this.state.data, this.state.mapGrouping);
+        const positions = new Map(layout.nodes.map(n => [n.goal.id, n]));
+        return React.createElement("section", { className: "goal-map-panel" },
+            React.createElement("div", { className: "map-topbar" },
+                React.createElement("div", null,
+                    React.createElement("h2", null, "Mapa de conexiones"),
+                    React.createElement("p", null, "Las l\u00EDneas continuas representan sub-metas; las discontinuas, procesos dependientes. Selecciona una tarjeta para editarla.")),
+                React.createElement("div", { className: "view-toggle" },
+                    React.createElement("button", { className: this.state.mapGrouping === 'structure' ? 'selected' : '', onClick: () => this.setState({ mapGrouping: 'structure' }) }, "Por procesos"),
+                    React.createElement("button", { className: this.state.mapGrouping === 'time' ? 'selected' : '', onClick: () => this.setState({ mapGrouping: 'time' }) }, "Por tiempo"))),
+            React.createElement("div", { className: "goal-map-scroll" },
+                React.createElement("div", { className: "goal-map-surface", style: { width: layout.width, height: layout.height } },
+                    React.createElement("svg", { className: "goal-map-wires", width: layout.width, height: layout.height, "aria-hidden": "true" },
+                        React.createElement("defs", null,
+                            React.createElement("marker", { id: "graph-arrow", viewBox: "0 0 10 10", refX: "9", refY: "5", markerWidth: "6", markerHeight: "6", orient: "auto-start-reverse" },
+                                React.createElement("path", { d: "M0 0 L10 5 L0 10 z", fill: "currentColor" }))),
+                        layout.edges.map((e, i) => { const a = positions.get(e.from), b = positions.get(e.to); if (!a || !b)
+                            return null; const x1 = a.x + 220, y1 = a.y + 53, x2 = b.x, y2 = b.y + 53; const c = Math.max(44, Math.abs(x2 - x1) * .46); return React.createElement("path", { key: i, className: 'graph-edge ' + (e.kind === 'depends' ? 'graph-dependency' : ''), d: `M${x1},${y1} C${x1 + c},${y1} ${x2 - c},${y2} ${x2},${y2}` }); })),
+                    layout.labels.map((label, i) => React.createElement("div", { className: "goal-map-label", key: i, style: { left: label.x } }, label.title)),
+                    layout.nodes.map(({ goal: g, x, y }) => React.createElement("button", { type: "button", className: "map-node", key: g.id, style: { left: x, top: y, borderTopColor: g.color }, onClick: () => this.openGoal(g) },
+                        React.createElement("span", { className: "map-node-name" }, g.title),
+                        React.createElement("span", { className: "map-node-tag" },
+                            goalMode(g) === 'numeric' ? 'Numérica' : goalMode(g) === 'milestones' ? 'Por hitos' : 'Cualitativa',
+                            " ",
+                            g.dueDate ? '· ' + g.dueDate : ''),
+                        React.createElement("span", { className: "map-node-progress" }, goalMode(g) === 'numeric' ? percent(g.current, g.target) + '%' : goalMode(g) === 'milestones' ? goalMilestones(g).filter(m => m.done).length + ' hitos' : statusLabel(goalStatus(g))))))),
+            React.createElement("div", { className: "map-legend" },
+                React.createElement("span", null,
+                    React.createElement("i", { className: "legend-line" }),
+                    " Sub-meta"),
+                React.createElement("span", null,
+                    React.createElement("i", { className: "legend-line dashed" }),
+                    " Depende de"),
+                React.createElement("span", null,
+                    React.createElement(Icon, { name: "help", size: 14 }),
+                    " Puedes asignar fechas y dependencias al editar cada meta")));
     }
     renderRoutines() {
         const rs = this.state.data.routines;
@@ -688,9 +967,11 @@ class Planner extends React.Component {
                         r.steps.length - 3,
                         " pasos m\u00E1s")),
                 React.createElement("div", { className: "actions" },
-                    React.createElement(Btn, { tiny: true, onClick: () => this.setState({ modal: 'event', eventDraft: { ...eDraft(this.state.selectedDate), title: r.title, routineId: r.id, minutes: routineMinutes(r) } }) },
+                    this.state.guideOpen && this.state.guideStep === 4 && React.createElement(Btn, { tiny: true, kind: "secondary", onClick: () => this.useRoutineForGuide(r) }, "Usar en la gu\u00EDa"),
+                    React.createElement(Btn, { tiny: true, onClick: () => { const existing = this.state.data.events.find(e => e.routineId === r.id && occurs(e, this.state.selectedDate)); existing ? this.openEvent(existing) : this.setState({ modal: 'event', eventDraft: { ...eDraft(this.state.selectedDate), title: r.title, routineId: r.id, minutes: routineMinutes(r) } }); } },
                         React.createElement(Icon, { name: "calendar", size: 14 }),
-                        " Programar"),
+                        " ",
+                        this.state.data.events.some(e => e.routineId === r.id && occurs(e, this.state.selectedDate)) ? 'Ajustar horario' : 'Programar'),
                     React.createElement(Btn, { tiny: true, kind: "secondary", onClick: () => this.openRoutine(r) },
                         React.createElement(Icon, { name: "edit", size: 14 }),
                         " Editar"),
@@ -719,7 +1000,7 @@ class Planner extends React.Component {
         const startHour = Math.max(0, Math.min(6, Math.floor(minStart / 60)));
         const endHour = Math.min(24, Math.max(22, Math.ceil(maxEnd / 60)));
         const hourHeight = 82, origin = startHour * 60;
-        const placed = [], all = es.map(e => ({ event: e, start: minutes(eventTime(e, date)), end: Math.min(1440, minutes(eventTime(e, date)) + e.minutes) })).sort((a, b) => a.start - b.start);
+        const placed = [], all = es.map(e => ({ event: e, start: minutes(eventTime(e, date)), end: Math.min(1440, minutes(eventTime(e, date)) + Math.max(20, e.minutes)) })).sort((a, b) => a.start - b.start);
         let group = [], groupEnd = -1;
         const finish = () => { if (!group.length)
             return; const laneEnds = []; group.forEach(x => { let j = laneEnds.findIndex(t => t <= x.start); if (j < 0) {
@@ -749,9 +1030,7 @@ class Planner extends React.Component {
                     React.createElement(Btn, { tiny: true, kind: "secondary", onClick: () => this.chooseDay(today()) }, "Hoy")),
                 React.createElement("div", { className: "schedule-banner-actions" },
                     React.createElement("span", null, "Selecciona un bloque para verlo en detalle."),
-                    React.createElement(Btn, { tiny: true, kind: "secondary", onClick: () => this.route('calendario') },
-                        React.createElement(Icon, { name: "calendar" }),
-                        " Vista mensual"))),
+                    React.createElement("span", { className: "schedule-tip" }, "Cada bloque puede revelar m\u00E1s detalles al abrirlo."))),
             React.createElement("section", { className: "timeline-panel" },
                 React.createElement("div", { className: "timeline-head" },
                     React.createElement("div", null,
@@ -764,17 +1043,17 @@ class Planner extends React.Component {
                             String(hour).padStart(2, '0'),
                             ":00"),
                         React.createElement("div", null))),
-                    React.createElement("div", { className: "timeline-events" }, placed.map(({ event: e, start, end, lane, lanes }) => { const goal = data.goals.find(g => g.id === e.goalId), routine = data.routines.find(r => r.id === e.routineId), isDone = done(data, e, date), color = (goal === null || goal === void 0 ? void 0 : goal.color) || '#a477ec'; return React.createElement("button", { key: e.id, className: 'timeline-block ' + (isDone ? 'completed' : ''), onClick: () => this.openDetail(e), style: { top: ((start - origin) / 60) * hourHeight, height: Math.max(36, ((end - start) / 60) * hourHeight - 4), left: (lane / lanes * 100) + '%', width: (100 / lanes) + '%', borderLeftColor: color, background: `linear-gradient(113deg, ${color}25, ${color}12 70%, white)` } },
+                    React.createElement("div", { className: "timeline-events" }, placed.map(({ event: e, start, end, lane, lanes }) => { const goal = data.goals.find(g => g.id === e.goalId), routine = data.routines.find(r => r.id === e.routineId), isDone = done(data, e, date), color = (goal === null || goal === void 0 ? void 0 : goal.color) || '#a477ec'; const style = e.minutes <= 20 ? 'micro' : e.minutes <= 44 ? 'compact' : 'expanded'; return React.createElement("button", { key: e.id, className: 'timeline-block ' + style + ' ' + (isDone ? 'completed' : ''), title: `${e.title} · ${eventTime(e, date)} · ${e.minutes} minutos${e.note ? ' · ' + e.note : ''}`, "aria-label": `Abrir ${e.title}, ${eventTime(e, date)}, ${e.minutes} minutos`, onClick: () => this.openDetail(e), style: { top: ((start - origin) / 60) * hourHeight, height: Math.max(26, ((end - start) / 60) * hourHeight - 4), left: (lane / lanes * 100) + '%', width: (100 / lanes) + '%', borderLeftColor: color } },
                         React.createElement("div", { className: "timeline-block-header" },
                             React.createElement("span", { className: "timeline-event-name" }, e.title),
                             isDone && React.createElement("span", { className: "timeline-done" }, "\u2713")),
-                        React.createElement("div", { className: "timeline-time" },
+                        style !== 'micro' && React.createElement("div", { className: "timeline-time" },
                             eventTime(e, date),
                             " \u00B7 ",
                             e.minutes,
                             " min ",
-                            routine ? '· ' + leafSteps(routine.steps).length + ' pasos' : ''),
-                        e.note && React.createElement("div", { className: "timeline-description" }, e.note)); }))),
+                            style === 'expanded' && routine ? '· ' + leafSteps(routine.steps).length + ' pasos' : ''),
+                        style === 'expanded' && e.note && React.createElement("div", { className: "timeline-description" }, e.note)); }))),
                 !es.length && React.createElement("div", { className: "timeline-empty" },
                     React.createElement(Icon, { name: "calendar" }),
                     React.createElement("p", null, "Este d\u00EDa todav\u00EDa no tiene actividades. Empieza creando tu primer bloque."),
@@ -830,7 +1109,7 @@ class Planner extends React.Component {
                 React.createElement("p", null, (current === null || current === void 0 ? void 0 : current.desc) || 'No hay instrucciones adicionales para este paso.'),
                 current && !((_a = current.children) === null || _a === void 0 ? void 0 : _a.length) && React.createElement(Btn, { kind: "secondary", onClick: () => this.toggleStep(e, date, current.id) }, log.checkedSteps.includes(current.id) ? '✓ Completado · Desmarcar' : 'Marcar paso completado')),
             choices.length > 0 && React.createElement(React.Fragment, null,
-                React.createElement("h3", { className: "detail-section-title" }, path.length ? 'Subpasos de este paso' : 'Dentro de este bloque'),
+                React.createElement("h3", { className: "detail-section-title" }, path.length ? 'Elementos de ' + stepLevelName(path.length - 1).toLowerCase() : 'Dentro de este bloque'),
                 React.createElement("div", { className: "zoom-children" }, choices.map((s, i) => { var _a; return React.createElement("button", { key: s.id, className: "zoom-child", onClick: () => this.setState({ detailPath: [...path, s.id] }) },
                     React.createElement("span", { className: "zoom-index" }, i + 1),
                     React.createElement("div", { className: "flex" },
@@ -838,49 +1117,55 @@ class Planner extends React.Component {
                         React.createElement("div", { className: "caption" },
                             stepMinutes(s),
                             " min \u00B7 ",
-                            ((_a = s.children) === null || _a === void 0 ? void 0 : _a.length) ? s.children.length + ' subpasos' : 'Ver instrucciones')),
+                            ((_a = s.children) === null || _a === void 0 ? void 0 : _a.length) ? s.children.length + ' elementos' : 'Ver instrucciones')),
                     React.createElement(Icon, { name: "right", size: 18 })); }))),
             !r && React.createElement("div", { className: "notice" }, "Para desglosar este bloque en pasos, as\u00EDgnale una rutina desde \u00ABEditar bloque\u00BB."),
             path.length > 0 && React.createElement(Btn, { kind: "ghost", onClick: () => this.setState({ detailPath: path.slice(0, -1) }) },
                 React.createElement(Icon, { name: "left" }),
                 " Volver al nivel anterior"));
     }
-    renderGuide() { if (!this.state.guideOpen)
-        return null; const i = this.state.guideStep, step = guideSteps[i]; return React.createElement("div", { className: "guide-backdrop", role: "presentation" },
-        React.createElement("div", { className: "guide-panel", role: "dialog", "aria-modal": "true", "aria-label": "Gu\u00EDa paso a paso" },
-            React.createElement("div", { className: "guide-top" },
-                React.createElement("span", { className: "guide-tag" },
-                    React.createElement(Icon, { name: "spark" }),
-                    " Gu\u00EDa de inicio"),
-                React.createElement("button", { className: "icon-btn", onClick: this.finishGuide, title: "Cerrar gu\u00EDa" },
-                    React.createElement(Icon, { name: "close" }))),
-            React.createElement("h2", null, step.title),
-            React.createElement("p", null, step.text),
-            React.createElement("div", { className: "guide-progress" }, guideSteps.map((s, j) => React.createElement("button", { className: 'guide-dot ' + (j <= i ? 'active' : ''), key: j, title: 'Paso ' + (j + 1), onClick: () => this.setState({ guideStep: j, page: s.page }) }))),
-            React.createElement("div", { className: "guide-lesson" },
-                React.createElement("div", { className: "guide-count" }, i + 1),
-                React.createElement("div", null,
-                    React.createElement("strong", null,
-                        "Paso ",
-                        i + 1,
-                        " de ",
-                        guideSteps.length),
-                    React.createElement("span", null, step.action)),
-                React.createElement(Btn, { kind: "secondary", tiny: true, onClick: () => this.setState({ page: step.page, modal: null }) }, "Ver secci\u00F3n")),
-            React.createElement("div", { className: "guide-buttons" },
-                React.createElement(Btn, { kind: "ghost", onClick: this.finishGuide }, "Explorar por mi cuenta"),
-                React.createElement("div", { className: "row" },
-                    i > 0 && React.createElement(Btn, { kind: "secondary", onClick: () => this.setState({ guideStep: i - 1, page: guideSteps[i - 1].page }) }, "Anterior"),
-                    React.createElement(Btn, { onClick: () => i === guideSteps.length - 1 ? this.finishGuide() : this.setState({ guideStep: i + 1, page: guideSteps[i + 1].page }) },
-                        i === guideSteps.length - 1 ? 'Terminar guía' : 'Siguiente',
+    renderGuide() {
+        if (!this.state.guideOpen)
+            return null;
+        const i = this.state.guideStep, step = guideSteps[i];
+        const dock = i > 0;
+        const goal = this.state.data.goals.find(g => g.id === this.state.guideGoalId);
+        const buttonLabel = i === 0 ? '¡Vamos!' : i === 1 ? 'Ver mis metas' : i === 2 ? 'Añadir submeta' : i === 3 ? 'Programar revisión' : i === 4 ? 'Programar rutina' : i === 5 ? 'Ver mi horario' : 'Finalizar recorrido';
+        return React.createElement("div", { className: 'guide-backdrop ' + (dock ? 'guide-docked' : 'guide-welcome'), role: "presentation" },
+            React.createElement("div", { className: "guide-panel", role: "dialog", "aria-modal": !dock, "aria-label": "Tutorial interactivo" },
+                React.createElement("div", { className: "guide-top" },
+                    React.createElement("span", { className: "guide-tag" },
+                        React.createElement(Icon, { name: "spark" }),
+                        " TUTORIAL INTERACTIVO"),
+                    React.createElement("button", { className: "icon-btn", onClick: this.finishGuide, "aria-label": "Saltar el tutorial", title: "Saltar tutorial" },
+                        React.createElement(Icon, { name: "close" }))),
+                React.createElement("div", { className: "guide-progress" }, guideSteps.map((s, j) => React.createElement("span", { className: 'guide-dot ' + (j <= i ? 'active' : ''), key: j }))),
+                React.createElement("div", { className: "guide-section-label" },
+                    "Paso ",
+                    i + 1,
+                    " de ",
+                    guideSteps.length),
+                React.createElement("h2", null, step.title),
+                React.createElement("p", null, step.text),
+                goal && i > 1 && i < 6 && React.createElement("div", { className: "guide-selected-goal" },
+                    React.createElement(Icon, { name: "target", size: 16 }),
+                    " Trabajando en: ",
+                    React.createElement("strong", null, goal.title)),
+                i === 1 && React.createElement("div", { className: "guide-tip" }, "Busca el bot\u00F3n \u00ABElegir para la gu\u00EDa\u00BB en alguna meta de la p\u00E1gina."),
+                i === 5 && React.createElement("div", { className: "guide-tip" }, "Busca el bloque que programaste: estar\u00E1 en la fecha que elegiste."),
+                React.createElement("div", { className: "guide-buttons" },
+                    React.createElement("button", { className: "guide-skip", onClick: this.finishGuide }, "Saltar tutorial"),
+                    React.createElement(Btn, { onClick: this.guideAction },
+                        buttonLabel,
                         " ",
-                        React.createElement(Icon, { name: "arrow-right" })))))); }
+                        React.createElement(Icon, { name: "arrow-right", size: 16 })))));
+    }
     helpBody() {
         const content = {
             inicio: ['Inicio y resumen', ['Tu panel reúne las metas, rutinas y actividades del día.', 'El porcentaje de cumplimiento refleja actividades realizadas, no resultados obtenidos.', 'Usa los accesos rápidos para crear metas, rutinas o programar eventos.']],
-            metas: ['Metas y tipos de seguimiento', ['Numérica: registra un resultado concreto y una cantidad objetivo.', 'Cualitativa: elige estados de avance y deja reflexiones; es ideal para relaciones, bienestar o aprendizaje.', 'Por hitos: divide una meta en logros verificables y marca los que completas.', 'Puedes crear sub-metas y conectar tus actividades con una meta.']],
-            rutinas: ['Rutinas y procedimientos', ['Las rutinas son plantillas reutilizables: agrega pasos, instrucciones y tiempos.', 'Puedes incluir subpasos y entrar progresivamente a cada nivel desde los bloques del horario.', 'Para usar una rutina en tu jornada, pulsa «Programar».']],
-            horario: ['Horario de mañana a noche', ['Cada bloque representa una actividad o rutina programada.', 'Haz clic en un bloque para acercarte a su contenido, sus pasos y sus detalles.', 'Si algo cambia, puedes editar el bloque o moverlo ±15 minutos desde el calendario.']],
+            metas: ['Metas y tipos de seguimiento', ['Numérica: registra un resultado concreto y una cantidad objetivo.', 'Cualitativa: elige estados de avance y deja reflexiones; es ideal para relaciones, bienestar o aprendizaje.', 'Por hitos: divide una meta en logros verificables y marca los que completas.', 'Puedes crear sub-metas, indicar fechas y dependencias, y explorar sus conexiones desde el mapa.']],
+            rutinas: ['Rutinas y procedimientos', ['Las rutinas son plantillas reutilizables. Arrastra el tirador de cada paso para reordenarlo.', 'Puedes incluir subpasos y entrar progresivamente a cada nivel desde los bloques del horario.', 'Para usar una rutina en tu jornada, pulsa «Programar».']],
+            horario: ['Horario de mañana a noche', ['Cada bloque representa una actividad o rutina programada. Su diseño se adapta a la duración disponible.', 'Haz clic en un bloque para acercarte a su contenido, sus pasos y sus detalles.', 'Si algo cambia, puedes editar el bloque o moverlo ±15 minutos desde el calendario.']],
             calendario: ['Calendario independiente', ['Selecciona un día para consultar su agenda.', 'Las actividades pueden repetirse diariamente, entre semana o cada semana.', 'Los movimientos de ±15 minutos aplican solo a ese día, incluso en una rutina recurrente.']],
             progreso: ['Progreso y resultados', ['Puedes comparar lo planeado con lo realizado durante los últimos siete días.', 'Las metas numéricas, los hitos y las cualitativas se muestran de forma diferente.', 'Registrar una actividad completada no modifica automáticamente un resultado personal.']],
             ajustes: ['Apariencia, respaldos y ayuda', ['Selecciona una paleta y la interfaz se adaptará al instante.', 'Desde cualquier ventana emergente puedes alternar entre disposición vertical u horizontal.', 'Exporta un respaldo JSON antes de limpiar los datos del navegador.', 'Puedes volver a abrir la guía en cualquier momento.']]
@@ -903,11 +1188,9 @@ class Planner extends React.Component {
                 " Programar actividad")),
             React.createElement("div", { className: "calendar-shortcut" },
                 React.createElement("span", null,
-                    React.createElement(Icon, { name: "clock" }),
-                    " \u00BFQuieres ordenar el d\u00EDa de la ma\u00F1ana a la noche?"),
-                React.createElement(Btn, { kind: "secondary", onClick: () => this.route('horario') },
-                    "Abrir horario por bloques ",
-                    React.createElement(Icon, { name: "arrow-right" }))),
+                    React.createElement(Icon, { name: "spark" }),
+                    " Las fechas tambi\u00E9n cuentan tu historia"),
+                React.createElement("span", { className: "calendar-shortcut-note" }, "Anota revisiones, compromisos y momentos importantes. Tu calendario y tu horario est\u00E1n disponibles por separado desde el men\u00FA.")),
             React.createElement("div", { className: "calendar-layout" },
                 React.createElement("section", { className: "panel" },
                     React.createElement("div", { className: "calendar-toolbar" },
@@ -953,7 +1236,7 @@ class Planner extends React.Component {
         }
         return React.createElement(React.Fragment, null,
             this.renderHeading('Mi progreso', 'Comprende la diferencia entre tu constancia diaria y los resultados que estás consiguiendo.'),
-            React.createElement("div", { className: "cards" },
+            React.createElement("div", { className: "cards progress-stats" },
                 this.renderStat('Últimos 7 días', weekPlanned, 'Actividades programadas', 'calendar'),
                 this.renderStat('Completadas', weekDone, 'Registros de ejecución', 'checklist'),
                 this.renderStat('Cumplimiento', weekPlanned ? Math.round(weekDone / weekPlanned * 100) + '%' : '—', 'Últimos 7 días', 'chart'),
@@ -1126,6 +1409,17 @@ class Planner extends React.Component {
             React.createElement("div", { className: "field" },
                 React.createElement("label", null, "Meta superior (opcional)"),
                 React.createElement(FriendlySelect, { ariaLabel: "Elegir meta superior", value: x.parentId, onChange: value => this.updateGoalDraft({ parentId: value }), options: [{ value: '', label: 'Ninguna · Meta principal' }, ...this.state.data.goals.filter(g => !notAllowed.includes(g.id)).map(g => ({ value: g.id, label: g.title }))] })),
+            React.createElement("div", { className: "field-grid" },
+                React.createElement("div", { className: "field" },
+                    React.createElement("label", null, "Fecha de inicio (opcional)"),
+                    React.createElement("input", { type: "date", value: x.startDate || '', onChange: e => this.updateGoalDraft({ startDate: e.target.value }) })),
+                React.createElement("div", { className: "field" },
+                    React.createElement("label", null, "Fecha objetivo (opcional)"),
+                    React.createElement("input", { type: "date", value: x.dueDate || '', onChange: e => this.updateGoalDraft({ dueDate: e.target.value }) }))),
+            React.createElement("div", { className: "field" },
+                React.createElement("label", null, "Depende de otra meta (opcional)"),
+                React.createElement(FriendlySelect, { ariaLabel: "Meta previa necesaria", value: x.dependsOn || '', onChange: dependsOn => this.updateGoalDraft({ dependsOn }), options: [{ value: '', label: 'Ninguna · Puede avanzar de forma independiente' }, ...this.state.data.goals.filter(g => !notAllowed.includes(g.id)).map(g => ({ value: g.id, label: 'Después de: ' + g.title }))] }),
+                React.createElement("p", { className: "caption" }, "Esta conexi\u00F3n se dibuja con una l\u00EDnea discontinua en el mapa de metas.")),
             React.createElement("div", { className: "field" },
                 React.createElement("label", null,
                     "\u00BFC\u00F3mo quieres medir el avance? ",
@@ -1166,10 +1460,25 @@ class Planner extends React.Component {
             React.createElement("div", { className: "field" },
                 React.createElement("label", null, "Color de identificaci\u00F3n"),
                 React.createElement("div", { className: "color-picker" },
-                    colorOptions.map(c => React.createElement("button", { type: "button", key: c, className: 'color-dot ' + (x.color === c ? 'active' : ''), onClick: () => this.updateGoalDraft({ color: c }), "aria-label": 'Color ' + c, title: c, style: { background: c } })),
-                    React.createElement("label", { className: "custom-color", title: "Elegir cualquier color" },
-                        "\uFF0B",
-                        React.createElement("input", { type: "color", value: /^#[a-fA-F0-9]{6}$/.test(x.color) ? x.color : '#a477ec', onChange: e => this.updateGoalDraft({ color: e.target.value }) })))));
+                    colorOptions.map(c => React.createElement("button", { type: "button", key: c, className: 'color-dot ' + (x.color === c ? 'active' : ''), onClick: () => { this.updateGoalDraft({ color: c }); this.setState({ hexDraft: c }); }, "aria-label": 'Color ' + c, title: c, style: { background: c } })),
+                    React.createElement("button", { type: "button", className: 'custom-color ' + (this.state.colorEditorOpen ? 'active' : ''), onClick: () => this.setState({ colorEditorOpen: !this.state.colorEditorOpen }) },
+                        React.createElement(Icon, { name: "palette", size: 18 }),
+                        " Personalizar")),
+                this.state.colorEditorOpen && React.createElement("div", { className: "custom-color-editor" },
+                    React.createElement("div", { className: "custom-color-preview" },
+                        React.createElement("span", { style: { background: x.color } }),
+                        React.createElement("div", null,
+                            React.createElement("strong", null, "Crea tu propio tono"),
+                            React.createElement("small", null, x.color.toUpperCase()))),
+                    ['Tono', 'Saturación', 'Luminosidad'].map((label, i) => { const hsl = hexToHsl(x.color); return React.createElement("div", { key: label, className: "color-slider-row" },
+                        React.createElement("label", null, label),
+                        React.createElement("input", { type: "range", min: 0, max: i === 0 ? 359 : 100, value: hsl[i], className: i === 0 ? 'hue-range' : 'color-range', onChange: e => { const values = [...hsl]; values[i] = Number(e.target.value); this.updateGoalDraft({ color: hslToHex(values[0], values[1], values[2]) }); this.setState({ hexDraft: hslToHex(values[0], values[1], values[2]) }); } })); }),
+                    React.createElement("div", { className: "custom-color-actions" },
+                        React.createElement("label", null,
+                            "Hexadecimal ",
+                            React.createElement("input", { value: this.state.hexDraft, maxLength: 7, onChange: e => { const v = e.target.value; this.setState({ hexDraft: v }); if (/^#[a-fA-F0-9]{6}$/.test(v))
+                                    this.updateGoalDraft({ color: v }); }, onBlur: () => this.setState({ hexDraft: this.state.goalDraft.color }), "aria-label": "Color hexadecimal" })),
+                        React.createElement(Btn, { tiny: true, kind: "secondary", onClick: () => this.setState({ colorEditorOpen: false }) }, "Listo")))));
     }
     routineForm() {
         const r = this.state.routineDraft;
@@ -1207,11 +1516,11 @@ class Planner extends React.Component {
                     React.createElement("input", { type: "date", value: e.date, onChange: v => this.updateEventDraft({ date: v.target.value }) })),
                 React.createElement("div", { className: "field" },
                     React.createElement("label", null, "Hora *"),
-                    React.createElement("input", { type: "time", value: e.time, onChange: v => this.updateEventDraft({ time: v.target.value }) }))),
+                    React.createElement(TimePicker, { value: e.time, onChange: time => this.updateEventDraft({ time }) }))),
             React.createElement("div", { className: "field-grid" },
                 React.createElement("div", { className: "field" },
                     React.createElement("label", null, "Duraci\u00F3n estimada (min)"),
-                    React.createElement("input", { type: "number", min: "1", max: "1440", value: e.minutes, onChange: v => this.updateEventDraft({ minutes: asInt(v.target.value, 30) }) })),
+                    React.createElement("input", { type: "number", min: "1", max: "1440", onWheel: v => v.currentTarget.blur(), value: e.minutes, onChange: v => this.updateEventDraft({ minutes: asInt(v.target.value, 30) }) })),
                 React.createElement("div", { className: "field" },
                     React.createElement("label", null, "Repetici\u00F3n"),
                     React.createElement(FriendlySelect, { value: e.repeat, ariaLabel: "Repetici\u00F3n", onChange: value => this.updateEventDraft({ repeat: value }), options: [{ value: 'none', label: 'Solo esta fecha' }, { value: 'daily', label: 'Todos los días' }, { value: 'weekdays', label: 'Lunes a viernes' }, { value: 'weekly', label: 'Cada semana' }] }))),
@@ -1226,6 +1535,11 @@ class Planner extends React.Component {
             React.createElement("div", { className: "field" },
                 React.createElement("label", null, "Notas e instrucciones"),
                 React.createElement(AutoTextarea, { value: e.note, onChange: (v) => this.updateEventDraft({ note: v.target.value }), maxLength: 1500, placeholder: "Detalles que quieras recordar" })),
+            e.routineId && React.createElement("p", { className: "caption" }, "Cada rutina solo puede aparecer una vez por d\u00EDa. Para cambiar su horario, edita esta programaci\u00F3n."),
+            e.id && e.repeat !== 'none' && React.createElement("div", { className: "field" },
+                React.createElement("label", null, "Aplicar cambios solo desde esta fecha (opcional)"),
+                React.createElement("input", { type: "date", min: e.date, value: e.applyFrom || '', onChange: v => this.updateEventDraft({ applyFrom: v.target.value }) }),
+                React.createElement("p", { className: "caption" }, "Vac\u00EDo: cambia toda la serie. Con fecha: conserva el historial anterior y crea una nueva programaci\u00F3n desde el d\u00EDa elegido.")),
             e.id && React.createElement("div", { className: "row spread", style: { marginTop: 16 } },
                 React.createElement("div", { className: "caption" }, "Editar una actividad recurrente modifica su programaci\u00F3n general. Los cambios de \u00B115 min en el calendario afectan solo al d\u00EDa elegido."),
                 React.createElement(Btn, { kind: "danger", tiny: true, onClick: () => this.deleteEvent(e) },
@@ -1285,7 +1599,7 @@ class Planner extends React.Component {
             React.createElement("main", { className: "main" },
                 React.createElement("header", { className: "topbar" },
                     React.createElement("div", { className: "crumb" },
-                        React.createElement(Icon, { name: "sprout", size: 16 }),
+                        React.createElement(Icon, { name: "home", size: 16 }),
                         React.createElement("span", null, "Mi espacio"),
                         React.createElement("span", null, "/"),
                         React.createElement("strong", null, title[this.state.page])),
@@ -1293,9 +1607,9 @@ class Planner extends React.Component {
                         React.createElement("span", { className: "pill" },
                             React.createElement("span", { className: "dot" }),
                             " Datos locales"),
-                        React.createElement("button", { className: "icon-btn", onClick: this.openGuide, title: "Gu\u00EDa de inicio", "aria-label": "Abrir gu\u00EDa de inicio" },
+                        React.createElement("button", { className: "icon-btn guide-top-button", onClick: this.openGuide, title: "Gu\u00EDa de inicio", "aria-label": "Abrir gu\u00EDa de inicio" },
                             React.createElement(Icon, { name: "help" })),
-                        React.createElement("button", { className: "icon-btn", onClick: () => this.route('ajustes'), title: "Colores, respaldos y ajustes" },
+                        React.createElement("button", { className: "icon-btn palette-mini", onClick: () => this.route('ajustes'), title: "Paletas y ajustes" },
                             React.createElement(Icon, { name: "palette" })))),
                 React.createElement("div", { className: "content" }, this.state.page === 'inicio' ? this.renderHome() : this.state.page === 'metas' ? this.renderGoals() : this.state.page === 'rutinas' ? this.renderRoutines() : this.state.page === 'horario' ? this.renderSchedule() : this.state.page === 'calendario' ? this.renderCalendar() : this.state.page === 'progreso' ? this.renderProgress() : this.renderSettings())),
             this.renderModal(),
