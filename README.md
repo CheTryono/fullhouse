@@ -1,4 +1,4 @@
-# FULLHOUSE — Prototipo web v0.3
+# FULLHOUSE — Prototipo web v0.4
 
 **Fullhouse** es una herramienta independiente de organización integral: metas, rutinas, calendario propio y progreso. Es la versión ligera para prueba e iteraciones, sin sincronización con calendarios ni servicios externos.
 
@@ -7,7 +7,7 @@
 ### Abrir en tu equipo
 
 1. Descomprime el ZIP.
-2. En Windows, ejecuta `iniciar-windows.bat` (requiere Python). Se abrirá `http://127.0.0.1:5500`.
+2. Si tienes Python, abre una terminal en esta carpeta y ejecuta `python -m http.server 5500`. Abre `http://127.0.0.1:5500` en tu navegador.
 3. También puedes abrir `index.html` directamente para inspeccionar el diseño, pero para conservar datos con mayor fiabilidad usa un servidor local.
 
 ### Tener una página web permanente y actualizarla como Prisma
@@ -85,3 +85,28 @@ Los datos existentes de 0.1 se conservan al actualizar porque seguimos usando la
 **Compatibilidad:** no se cambia la clave de almacenamiento `fullhouse-v01` ni el esquema base del archivo JSON. Se recomienda exportar respaldo antes de realizar modificaciones importantes en tus metas o rutinas.
 
 **Limitaciones de esta etapa:** los datos son locales a cada navegador. Esta versión es un prototipo sin cuentas ni sincronización; el mapa es interactivo pero no admite reordenación libre de nodos. Los vínculos del mapa se crean desde la ficha de cada meta. La aplicación no calcula automáticamente el cumplimiento personal a partir de metas sin números.
+
+
+## Novedades 0.4 (4 de noviembre de 2026)
+
+- Logo reformulado para representar **avance en distintas áreas y plenitud**, sin símbolos botánicos; también es el favicon.
+- Guía de aprendizaje con mayor contraste y explicaciones sobre el porqué de cada paso; en la primera acción se invita a crear una meta nueva. La ayuda contextual no cierra la ventana que estás editando.
+- Metas agrupadas en un árbol visual de **ramas conectadas**; clasificación por ámbitos: Mente, Físico, Propósito, Social y Otro. Filtros por ámbito para árbol y mapa.
+- **Revisiones de metas**: una sola vez, cada semana o cada mes. Al guardar la meta, se mantiene un evento vinculado en el calendario. Los eventos de revisión se editan desde la meta.
+- **Calendario** centrado en fechas importantes; muestra el nombre de eventos especiales y únicamente puntos de color para rutinas recurrentes. La agenda de la derecha distingue compromisos especiales y rutinas del día.
+- **Repeticiones**: diaria, lunes a viernes, semanal, días personalizados, mensual, anual, intervalos en días y fechas concretas. Se impide duplicar la misma rutina en un día.
+- **Variantes de pasos por día de la semana**: cada variante admite su propio nombre, duración, instrucciones y subpasos; en la ejecución y el horario se toma la correspondiente al día.
+- Horario con bloques **completamente coloreados**, y densidades de información micro, compacta y extendida según tamaño/espacio disponible.
+- Campos de minutos de edición libre: no aparece un 0 adicional al borrar, ni se ajustan cantidades por la rueda del ratón.
+- Avisos que desaparecen tras 3,5 segundos o pueden cerrarse. Protección frente a cerrar involuntariamente un formulario con cambios no guardados.
+- Se suprimió el acceso a paletas en la barra superior; permanecen en **Ajustes**, conservando las cinco combinaciones anteriores.
+
+### Notas sobre repeticiones y variantes
+
+- Una repetición mensual conserva el mismo número de día (por ejemplo, el 31 **no** se presenta en meses sin día 31). Una anual conserva día y mes.
+- Las variantes de un paso se aplican según el día de la semana. Los pasos que no tienen una variante para ese día utilizan la versión base. Puedes asignar distintos subpasos dentro de cada variante.
+- Los cambios en plantillas de rutinas se reflejan en futuras ejecuciones; los registros previos de pasos guardan sus identificadores, por lo que si reestructuras una rutina mucho después conviene exportar un respaldo.
+
+### Compatibilidad y límites
+
+El almacén `fullhouse-v01` y la versión base JSON `1` permanecen iguales; los nuevos atributos son opcionales. La herramienta continúa guardando **solo localmente** y sin cuentas, sincronización o copias automáticas. Antes de modificar muchas rutinas o metas, exporta un JSON desde Ajustes. No publiques datos personales en el repositorio.

@@ -1,3 +1,36 @@
+# Registro de cambios de Fullhouse
+
+## v0.4 · 2026-11-04
+
+1. **Logo** rediseñado como órbita de cuatro secciones con una trayectoria de avance ascendente; favicon actualizado. No hay elementos de Botánica.
+2. **Guía** con contraste, justificaciones breves de cada paso y creación de una meta nueva como acción principal. Se mantiene la opción de saltar.
+3. **Desplazamiento de modales** más estable al dejar de recalcular alturas de áreas de texto en cada actualización; las ventanas ya no cierran por clic accidental en el fondo.
+4. **Metas** en árbol con submetas visualmente vinculadas.
+5. **Avisos** temporales y cerrables.
+6. **Horario** con bloques totalmente coloreados y variantes visuales según el tamaño efectivo.
+7. **Calendario** distingue fechas importantes de actividades recurrentes. Quita los textos de conteo de actividades y conserva puntos de rutinas.
+8. **Revisiones de metas** únicas, semanales o mensuales; se guardan en la agenda con referencia a su meta.
+9. **Ámbitos**: mente, físico, propósito, social y otro; filtros de vista.
+10. **Variantes diarias de rutina** para pasos distintos según el día, con instrucciones, duración y subpasos particulares.
+11. **Campos de duración** permiten vaciarse sin que aparezca un cero hasta confirmar.
+12. **Ayuda contextual flotante** abierta simultáneamente con la ventana de trabajo.
+13. **Repetición ampliada** por días personalizados, semanal, mensual, anual, intervalos y fechas específicas.
+14. **Prevención de cierre involuntario** del editor y confirmación ante cambios no guardados.
+15. **Títulos correctos de submeta** en creación y edición.
+16. **Selector de paleta** retirado de la barra superior; continúa en ajustes.
+
+### Verificaciones locales
+
+- `tsc -p tsconfig.json` y `node --check app.js` sin errores.
+- Pruebas interactivas de creación de metas y submetas, guardado de revisión, calendario, formulario de rutina con variante y subpaso, menú de ayuda simultáneo, estilos de horario y desaparición del aviso completadas sin errores de JavaScript.
+- Validación específica de patrones de repetición y resolución de la variante por día.
+
+### Persistencia
+
+Se conserva la clave `fullhouse-v01` y los datos anteriores con campos opcionales nuevos. Un respaldo JSON sigue siendo necesario antes de modificaciones importantes.
+
+---
+
 # Historial de Fullhouse
 
 ## v0.1 — Inicio del desarrollo web
