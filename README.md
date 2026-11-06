@@ -1,4 +1,4 @@
-# FULLHOUSE — Prototipo web v0.4
+# FULLHOUSE — Prototipo web v0.5
 
 **Fullhouse** es una herramienta independiente de organización integral: metas, rutinas, calendario propio y progreso. Es la versión ligera para prueba e iteraciones, sin sincronización con calendarios ni servicios externos.
 
@@ -21,6 +21,18 @@ Incluimos el archivo `.github/workflows/pages.yml` para que **cada cambio subido
 5. Para actualizarlo, sustituimos los archivos modificados en ese repositorio y hacemos `git push` a `main`.
 
 *GitHub Pages en el plan gratuito requiere un repositorio público. Es útil para esta fase de prototipo, pero no está destinado a alojar un SaaS comercial. Para una versión de pago elegiremos otro alojamiento.*
+
+
+## Novedades de Fullhouse 0.5
+
+- Metas con distribución de columnas independientes para aprovechar la altura de cada rama; metas y rutinas reordenables al arrastrar desde el asa.
+- Tarjetas de rutinas rediseñadas para legibilidad, especialmente en tema Medianoche; icono seleccionable para cada rutina.
+- Pasos de rutina normales, que aparecen solo ciertos días o que alternan entre varias opciones. La opción original se conserva como alternativa de base; se usa «Mié» para miércoles.
+- Programa una rutina desde la hora de inicio o la hora de término. Para una rutina existente se usa **Reprogramar**, con confirmación y fecha de aplicación. Se conserva el historial pasado.
+- Repeticiones agrupadas por días de la semana, intervalos periódicos o fechas concretas con selector de calendario.
+- Eventos especiales y ocasiones de varios días (viajes, ceremonias, citas), destacados en la agenda y calendario.
+
+**Regla de programación:** una rutina tiene una programación vigente por vez. La reprogramación conserva los registros del pasado y aplica los cambios desde la fecha de corte. Los eventos de varios días no se repiten automáticamente; crea otro evento cuando sea necesario.
 
 ## Funciones actuales
 

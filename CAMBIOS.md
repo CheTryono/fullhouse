@@ -1,3 +1,21 @@
+# Cambios de Fullhouse
+
+## 0.5 — Metas, rutinas y eventos mejorados
+
+1. Distribución de metas sin filas rígidas para evitar huecos entre tarjetas.
+2. Vista general de rutinas con mejor legibilidad y contraste en Medianoche.
+3. Arrastrar para reordenar metas y rutinas, sin selección accidental de textos en tarjetas.
+4. Iconos individuales en cada rutina.
+5. Programación por hora de inicio o de término.
+6. Pasos siempre activos, opcionales por día o con alternativas diarias. Miércoles muestra «Mié» y las opciones tienen nombres genéricos, no solo ejercicios.
+7. Repeticiones agrupadas por días, períodos o fechas específicas mediante calendario.
+8. Eventos especiales de uno o varios días y mejor presentación de fechas importantes.
+9. Una sola programación vigente por rutina, con confirmación al reprogramar y conservación del pasado.
+
+Se conserva el almacenamiento `fullhouse-v01`, las cinco paletas y las funciones previas. La versión sigue siendo un prototipo sin cuentas ni sincronización.
+
+---
+
 # Registro de cambios de Fullhouse
 
 ## v0.4 · 2026-11-04

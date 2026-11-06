@@ -1,4 +1,4 @@
-/* Fullhouse · Planificador v0.4 — prototipo local sin servicios externos.
+/* Fullhouse · Planificador v0.5 — prototipo local sin servicios externos.
    Interfaz React + TypeScript. Los datos se guardan en este navegador. */
 type Page = 'inicio' | 'metas' | 'rutinas' | 'horario' | 'calendario' | 'progreso' | 'ajustes';
 type GoalMode = 'numeric' | 'qualitative' | 'milestones';
@@ -11,16 +11,16 @@ type LifeArea = 'mind' | 'physical' | 'purpose' | 'social' | 'other';
 type ReviewPlan = { date:string; time:string; repeat:'none'|'weekly'|'monthly' };
 type StepVariant = { id:string; title:string; desc:string; min:number; days:number[]; children?:Step[] };
 type Goal = { id: string; title: string; desc: string; parentId: string; color: string; area?:LifeArea; review?:ReviewPlan; startDate?: string; dueDate?: string; dependsOn?: string; current: number; target: number; unit: string; mode?: GoalMode; status?: GoalStatus; milestones?: Milestone[]; history: { date: string; value: number; note: string; status?: GoalStatus }[] };
-type Step = { id: string; title: string; min: number; desc?: string; children?: Step[]; variants?:StepVariant[] };
-type Routine = { id: string; title: string; desc: string; steps: Step[] };
-type EventItem = { id: string; title: string; date: string; endDate?: string; applyFrom?:string; time: string; minutes: number; goalId: string; routineId: string; repeat: Repeat; repeatDays?:number[]; everyDays?:number; specificDates?:string[]; kind?:'review'; note: string; overrides: Record<string, { time?: string; skip?: boolean }> };
+type Step = { id: string; title: string; min: number; desc?: string; children?: Step[]; variants?:StepVariant[]; mode?:'always'|'selected'|'alternatives'; days?:number[] };
+type Routine = { id: string; title: string; desc: string; steps: Step[]; icon?:string };
+type EventItem = { id: string; title: string; date: string; endDate?: string; applyFrom?:string; time: string; minutes: number; goalId: string; routineId: string; repeat: Repeat; repeatDays?:number[]; everyDays?:number; specificDates?:string[]; kind?:'review'|'occasion'; allDay?:boolean; anchor?:'start'|'end'; endTime?:string; note: string; overrides: Record<string, { time?: string; skip?: boolean }> };
 type RecordLog = { completed: boolean; checkedSteps: string[]; note?: string };
 type Data = { version: number; goals: Goal[]; routines: Routine[]; events: EventItem[]; logs: Record<string, RecordLog> };
 type GoalDraft = Omit<Goal,'history'>;
 type RoutineDraft = Routine;
 type EventDraft = EventItem;
 type Modal = 'goal' | 'routine' | 'event' | 'execute' | 'progress' | 'detail' | 'help' | null;
-type State = { data: Data; page: Page; selectedDate: string; month: string; modal: Modal; goalDraft: GoalDraft; routineDraft: RoutineDraft; eventDraft: EventDraft; activeEventId: string; detailPath: string[]; progressValue: string; progressNote: string; progressStatus: GoalStatus; progressGoalId: string; toast: string; theme: Theme; modalLayout: 'vertical'|'horizontal'; guideOpen: boolean; guideStep: number; guideGoalId: string; guideEventId: string; helpTopic: string; helpOpen:boolean; areaFilter:LifeArea|'all'; goalView: 'cards'|'map'; mapGrouping: 'structure'|'time'; colorEditorOpen:boolean; hexDraft:string; draggedStepId:string; dragTargetId:string };
+type State = { data: Data; page: Page; selectedDate: string; month: string; modal: Modal; goalDraft: GoalDraft; routineDraft: RoutineDraft; eventDraft: EventDraft; activeEventId: string; detailPath: string[]; progressValue: string; progressNote: string; progressStatus: GoalStatus; progressGoalId: string; toast: string; theme: Theme; modalLayout: 'vertical'|'horizontal'; guideOpen: boolean; guideStep: number; guideGoalId: string; guideEventId: string; helpTopic: string; helpOpen:boolean; areaFilter:LifeArea|'all'; goalView: 'cards'|'map'; mapGrouping: 'structure'|'time'; colorEditorOpen:boolean; hexDraft:string; draggedStepId:string; dragTargetId:string; draggedCardType:''|'goal'|'routine'; draggedCardId:string; datePickerMonth:string };
 
 const STORE = 'fullhouse-v01';
 const LEGACY_STORE = 'botanica-planificador-v01';
@@ -61,7 +61,10 @@ const guideSteps=[
   {page:'horario' as Page,title:'5. Conecta las piezas de tu día',text:'El horario reserva tiempo real para tus planes. Abre el bloque que acabas de programar y explora sus pasos: de lo grande a lo pequeño, sin perderte.',action:'Abrir mi bloque'},
   {page:'horario' as Page,title:'¡Tu primer plan está conectado!',text:'Ya has recorrido meta → submeta → fecha de revisión → rutina → horario. Puedes seguir explorando y ajustando tu sistema.',action:'Entrar a Fullhouse'}
 ];
-const weekdays = ['L','M','M','J','V','S','D'];
+const weekdays = ['L','M','Mié','J','V','S','D'];
+const weekdayNames=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+const DAYS=[0,1,2,3,4,5,6];
+const routineIcons=['checklist','sun','moon','target','spark','clock','calendar','chart','heart','book','dumbbell','coffee','star','briefcase','music'];
 const longDays = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
 const months = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 function uid(): string { return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
@@ -77,7 +80,7 @@ function bound(num:number,a:number,b:number):number {return Math.min(b,Math.max(
 function minutes(time:string):number {const x=time.split(':').map(Number);return (x[0]||0)*60+(x[1]||0);}
 function timeString(m:number):string {m=((m%1440)+1440)%1440;return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');}
 function gDraft():GoalDraft {return {id:'',title:'',desc:'',parentId:'',area:'purpose',dependsOn:'',startDate:'',dueDate:'',color:colorOptions[0],current:0,target:0,unit:'',mode:'qualitative',status:'pending',milestones:[]};}
-function rDraft():RoutineDraft {return {id:'',title:'',desc:'',steps:[{id:uid(),title:'',min:5}]};}
+function rDraft():RoutineDraft {return {id:'',title:'',desc:'',icon:'checklist',steps:[{id:uid(),title:'',min:5}]};}
 function eDraft(date=today()):EventDraft {return {id:'',title:'',date,time:'08:00',minutes:30,goalId:'',routineId:'',repeat:'none',repeatDays:[],everyDays:2,specificDates:[],note:'',overrides:{}};}
 function seed():Data {
   const d=today();
@@ -122,6 +125,7 @@ function occurs(e:EventItem,date:string):boolean {
   const earliest=e.date;
   if(date<earliest||(e.endDate&&date>e.endDate))return false;
   if(e.overrides?.[date]?.skip)return false;
+  if(e.kind==='occasion'&&e.repeat==='none'&&e.endDate)return date<=e.endDate;
   if(e.repeat==='none')return e.date===date;
   const day=parseDay(date),start=parseDay(earliest);
   const weekday=day.getDay();
@@ -135,8 +139,15 @@ function occurs(e:EventItem,date:string):boolean {
   if(e.repeat==='dates')return (e.specificDates||[]).includes(date)||date===e.date;
   return false;
 }
-function eventsOn(data:Data,date:string):EventItem[]{return data.events.filter(e=>occurs(e,date)).sort((a,b)=>(a.overrides?.[date]?.time||a.time).localeCompare(b.overrides?.[date]?.time||b.time));}
-function eventTime(e:EventItem,date:string):string {return e.overrides?.[date]?.time||e.time;}
+function eventsOn(data:Data,date:string):EventItem[]{return data.events.filter(e=>occurs(e,date)).sort((a,b)=>eventTime(a,date,data).localeCompare(eventTime(b,date,data)));}
+function eventTime(e:EventItem,date:string,data?:Data):string {
+  if(e.overrides?.[date]?.time)return e.overrides[date].time!;
+  if(e.anchor==='end'&&e.endTime){const length=data?durationOn(e,date,data):e.minutes;return timeString(Math.max(0,minutes(e.endTime)-length));}
+  return e.time;
+}
+function scheduleStart(e:EventItem,date:string,data:Data):number{return minutes(eventTime(e,date,data));}
+function sameScheduleActive(e:EventItem,cutoff:string):boolean{return !!e.routineId && (!e.endDate||e.endDate>=cutoff) && (e.repeat!=='none'||e.date>=cutoff);}
+function reorderByIds<T extends {id:string}>(items:T[],from:string,to:string):T[]{const list=[...items],a=list.findIndex(i=>i.id===from),b=list.findIndex(i=>i.id===to);if(a<0||b<0||a===b)return items;const [m]=list.splice(a,1);list.splice(b,0,m);return list;}
 
 function repeatCollision(a:EventItem,b:EventItem):boolean {
   if(!a.routineId||a.routineId!==b.routineId)return false;
@@ -189,12 +200,19 @@ function goalStatus(g:Goal|GoalDraft):GoalStatus{return g.status||'pending';}
 function statusLabel(s:GoalStatus):string{return goalStatuses.find(x=>x.id===s)?.label||'Por comenzar';}
 function goalMilestones(g:Goal|GoalDraft):Milestone[]{return g.milestones||[];}
 function stepMinutes(s:Step):number{return s.children&&s.children.length?s.children.reduce((a,c)=>a+stepMinutes(c),0):s.min;}
-function activeStep(s:Step,date:string):Step{
-  const weekday=parseDay(date).getDay(),match=s.variants?.find(v=>v.days.includes(weekday));
-  if(!match)return {...s,children:s.children?.map(c=>activeStep(c,date))};
-  return {...s,title:match.title||s.title,desc:match.desc||s.desc,min:match.min,children:match.children?.map(c=>activeStep(c,date))};
+function activeStep(s:Step,date:string):Step|null{
+  const weekday=parseDay(date).getDay();
+  if(s.mode==='selected' && !(s.days||[]).includes(weekday))return null;
+  const mode=s.mode||((s.variants||[]).length?'alternatives':'always');
+  const match=mode==='alternatives'?s.variants?.find(v=>v.days.includes(weekday)):undefined;
+  if(s.mode==='alternatives'&&!match){
+    const baseDays=s.days||DAYS.filter(n=>!(s.variants||[]).some(v=>v.days.includes(n)));
+    if(!baseDays.includes(weekday))return null;
+  }
+  const chosen=match?{...s,title:match.title||s.title,desc:match.desc||'',min:match.min,children:match.children||[]}:s;
+  return {...chosen,children:chosen.children?.map(c=>activeStep(c,date)).filter(Boolean) as Step[]};
 }
-function activeSteps(steps:Step[],date:string):Step[]{return steps.map(s=>activeStep(s,date));}
+function activeSteps(steps:Step[],date:string):Step[]{return steps.map(s=>activeStep(s,date)).filter(Boolean) as Step[];}
 function routineMinutesOn(r:Routine,date:string):number{return activeSteps(r.steps,date).reduce((total,s)=>total+stepMinutes(s),0);}
 function durationOn(e:EventItem,date:string,data:Data):number{const r=data.routines.find(r=>r.id===e.routineId);return r?Math.max(1,routineMinutesOn(r,date)):e.minutes;}
 function readableOn(color:string):string{const rgb=[1,3,5].map(i=>parseInt(color.slice(i,i+2),16)/255).map(x=>x<=.04045?x/12.92:Math.pow((x+.055)/1.055,2.4));return rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722>.36?'#201b2e':'#fff';} 
@@ -242,7 +260,7 @@ class Planner extends React.Component<{},State> {
   constructor(props:{}){
     super(props);
     const d=today();
-    this.state={data:load(),page:'inicio',selectedDate:d,month:firstMonth(d),modal:null,goalDraft:gDraft(),routineDraft:rDraft(),eventDraft:eDraft(d),activeEventId:'',detailPath:[],progressValue:'',progressNote:'',progressStatus:'pending',progressGoalId:'',toast:'',theme:(themeOptions.some(x=>x.id===getPreference(THEME_STORE))?getPreference(THEME_STORE):'aurora') as Theme,modalLayout:getPreference(LAYOUT_STORE)==='horizontal'?'horizontal':'vertical',guideOpen:getPreference(GUIDE_STORE)!=='yes',guideStep:0,guideGoalId:'',guideEventId:'',helpTopic:'',helpOpen:false,areaFilter:'all',goalView:'cards',mapGrouping:'structure',colorEditorOpen:false,hexDraft:colorOptions[0],draggedStepId:'',dragTargetId:''};
+    this.state={data:load(),page:'inicio',selectedDate:d,month:firstMonth(d),modal:null,goalDraft:gDraft(),routineDraft:rDraft(),eventDraft:eDraft(d),activeEventId:'',detailPath:[],progressValue:'',progressNote:'',progressStatus:'pending',progressGoalId:'',toast:'',theme:(themeOptions.some(x=>x.id===getPreference(THEME_STORE))?getPreference(THEME_STORE):'aurora') as Theme,modalLayout:getPreference(LAYOUT_STORE)==='horizontal'?'horizontal':'vertical',guideOpen:getPreference(GUIDE_STORE)!=='yes',guideStep:0,guideGoalId:'',guideEventId:'',helpTopic:'',helpOpen:false,areaFilter:'all',goalView:'cards',mapGrouping:'structure',colorEditorOpen:false,hexDraft:colorOptions[0],draggedStepId:'',dragTargetId:'',draggedCardType:'',draggedCardId:'',datePickerMonth:firstMonth(d)};
   }
   componentDidMount():void{this.syncModalState();document.addEventListener('keydown',this.globalKeydown);this.resizeTextareas();}
   componentDidUpdate(_:any,prev:State):void{
@@ -275,7 +293,9 @@ class Planner extends React.Component<{},State> {
     this.setState({modal:'goal',colorEditorOpen:false,hexDraft:draft.color,goalDraft:draft});
   };
   openRoutine=(r?:Routine):void=>{const draft=r?JSON.parse(JSON.stringify(r)):rDraft();this.initialDraft=JSON.stringify(draft);this.setState({modal:'routine',routineDraft:draft});};
-  openEvent=(e?:EventItem):void=>{if(e?.kind==='review'){const g=this.state.data.goals.find(x=>x.id===e.goalId);if(g){this.openGoal(g);return;}}const draft=e?JSON.parse(JSON.stringify(e)):eDraft(this.state.selectedDate);this.initialDraft=JSON.stringify(draft);this.setState({modal:'event',eventDraft:draft});};
+  openEvent=(e?:EventItem,kind?:'occasion'):void=>{if(e?.kind==='review'){const g=this.state.data.goals.find(x=>x.id===e.goalId);if(g){this.openGoal(g);return;}}const draft:EventDraft=e?JSON.parse(JSON.stringify(e)):{...eDraft(this.state.selectedDate),...(kind==='occasion'?{kind:'occasion' as const,allDay:true}: {})};
+    if(e&&e.date<today())draft.applyFrom=today();
+    this.initialDraft=JSON.stringify(draft);this.setState({modal:'event',eventDraft:draft,datePickerMonth:firstMonth(draft.date)});};
   openProgress=(g:Goal):void=>this.setState({modal:'progress',progressGoalId:g.id,progressValue:String(g.current),progressStatus:goalStatus(g),progressNote:''});
   openExecute=(e:EventItem):void=>this.setState({modal:'execute',activeEventId:e.id});
   close=(force=false):void=>{
@@ -286,6 +306,42 @@ class Planner extends React.Component<{},State> {
   updateGoalDraft=(patch:Partial<GoalDraft>):void=>this.setState({goalDraft:{...this.state.goalDraft,...patch}});
   updateRoutineDraft=(patch:Partial<RoutineDraft>):void=>this.setState({routineDraft:{...this.state.routineDraft,...patch}});
   updateEventDraft=(patch:Partial<EventDraft>):void=>this.setState({eventDraft:{...this.state.eventDraft,...patch}});
+
+  startCardDrag=(kind:'goal'|'routine',id:string,event:any):void=>{event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain',kind+':'+id);this.setState({draggedCardType:kind,draggedCardId:id});};
+  endCardDrag=():void=>this.setState({draggedCardType:'',draggedCardId:''});
+  moveCard=(kind:'goal'|'routine',from:string,to:string):void=>{
+    const d=this.state.data;
+    if(kind==='goal'){
+      const a=d.goals.find(g=>g.id===from),b=d.goals.find(g=>g.id===to);
+      if(!a||!b||a.parentId!==b.parentId)return;
+      this.save({...d,goals:reorderByIds(d.goals,from,to)},'Orden de metas actualizado');
+    }else this.save({...d,routines:reorderByIds(d.routines,from,to)},'Orden de rutinas actualizado');
+    this.endCardDrag();
+  };
+  moveCardKeyboard=(kind:'goal'|'routine',id:string,delta:number):void=>{
+    const d=this.state.data;
+    const relevant=kind==='goal'?d.goals.filter(g=>g.parentId===d.goals.find(x=>x.id===id)?.parentId):d.routines;
+    const i=relevant.findIndex(x=>x.id===id),target=relevant[i+delta];if(target)this.moveCard(kind,id,target.id);
+  };
+  cardDrop=(kind:'goal'|'routine',id:string,event:any):void=>{event.preventDefault();event.stopPropagation();if(this.state.draggedCardType===kind&&this.state.draggedCardId)this.moveCard(kind,this.state.draggedCardId,id);};
+  routineSchedule=(routineId:string):EventItem|undefined=>{const items=this.state.data.events.filter(e=>e.routineId===routineId);const upcoming=items.filter(e=>sameScheduleActive(e,today())).sort((a,b)=>a.date.localeCompare(b.date));return upcoming[0]||items.sort((a,b)=>b.date.localeCompare(a.date))[0];};
+  chooseRoutineForSchedule=(r:Routine):void=>{const old=this.routineSchedule(r.id);if(old){this.openEvent(old);this.notice('Reprogramación: los días anteriores quedarán intactos.');}else this.openEventWithRoutine(r);};
+  openEventWithRoutine=(r:Routine):void=>{const draft={...eDraft(this.state.selectedDate),title:r.title,routineId:r.id,minutes:routineMinutes(r)};this.initialDraft=JSON.stringify(draft);this.setState({modal:'event',eventDraft:draft,datePickerMonth:firstMonth(draft.date)});};
+  updateStepDays=(id:string,variantId:string|undefined,weekday:number):void=>{
+    const next=editStepTree(this.state.routineDraft.steps,id,s=>{
+      const mode=(s.mode||'always')==='alternatives'?'alternatives':s.mode;
+      if(mode==='selected')return {...s,days:(s.days||[]).includes(weekday)?(s.days||[]).filter(x=>x!==weekday):[...(s.days||[]),weekday]};
+      if(mode!=='alternatives')return s;
+      const prevBase=s.days||DAYS.filter(n=>!(s.variants||[]).some(v=>v.days.includes(n)));
+      const isPicked=variantId?!!s.variants?.find(v=>v.id===variantId)?.days.includes(weekday):prevBase.includes(weekday);
+      const base=prevBase.filter(n=>n!==weekday);
+      const variants=(s.variants||[]).map(v=>({...v,days:v.days.filter(n=>n!==weekday)}));
+      if(!isPicked){if(variantId){const v=variants.find(v=>v.id===variantId);if(v)v.days.push(weekday);}else base.push(weekday);}
+      return {...s,days:base,variants};
+    });
+    this.updateRoutineDraft({steps:next});
+  };
+
   saveGoal=():void=>{
     const x=this.state.goalDraft;if(!x.title.trim()){this.setState({toast:'Escribe un nombre para la meta'});return;}
     if(x.id && (x.parentId===x.id||x.dependsOn===x.id)){this.setState({toast:'Una meta no puede depender de sí misma'});return;}
@@ -302,22 +358,50 @@ class Planner extends React.Component<{},State> {
   saveRoutine=():void=>{
     const x=this.state.routineDraft;if(!x.title.trim()){this.setState({toast:'Escribe un nombre para la rutina'});return;}
     if((function invalid(steps:Step[]):boolean{return steps.some(s=>!s.title.trim()||(s.children&&invalid(s.children))||((s.variants||[]).some(v=>!!v.title.trim()&&!!v.days.length&&v.children&&invalid(v.children))))})(x.steps)){this.setState({toast:'Todos los pasos necesitan un nombre'});return;}
-    const data=this.state.data;const clean=(steps:Step[]):Step[]=>steps.map(s=>{const children=s.children?clean(s.children):undefined;return {...s,title:s.title.trim(),children,variants:s.variants?.filter(v=>v.title.trim()&&v.days.length).map(v=>({...v,title:v.title.trim(),days:[...new Set(v.days)],children:v.children?clean(v.children):undefined,min:Math.max(1,v.min)})),min:children&&children.length?children.reduce((a,c)=>a+stepMinutes(c),0):Math.max(1,s.min)};});const result:Routine={...x,id:x.id||uid(),title:x.title.trim(),steps:clean(x.steps)};
+    const data=this.state.data;const clean=(steps:Step[]):Step[]=>steps.map(s=>{const children=s.children?clean(s.children):undefined;return {...s,title:s.title.trim(),children,variants:s.variants?.filter(v=>v.title.trim()&&v.days.length).map(v=>({...v,title:v.title.trim(),days:[...new Set(v.days)],children:v.children?clean(v.children):undefined,min:Math.max(1,v.min)})),min:children&&children.length?children.reduce((a,c)=>a+stepMinutes(c),0):Math.max(1,s.min),mode:s.mode||((s.variants||[]).length?'alternatives':'always')};});const result:Routine={...x,id:x.id||uid(),title:x.title.trim(),steps:clean(x.steps)};
     this.save({...data,routines:x.id?data.routines.map(r=>r.id===x.id?result:r):[...data.routines,result],events:data.events.map(e=>e.routineId===result.id?{...e,minutes:routineMinutes(result)}:e)});this.close(true);
   }
   saveEvent=():void=>{
-    const x=this.state.eventDraft;if(!x.title.trim()||!x.date||!x.time){this.setState({toast:'Completa el título, la fecha y la hora'});return;}
-    if(x.repeat==='custom'&&!(x.repeatDays||[]).length){this.notice('Selecciona al menos un día de la semana.');return;}
-    if(x.repeat==='dates'&&(x.specificDates||[]).some(day=>!day||day<x.date)){this.notice('Las fechas específicas deben ser iguales o posteriores al inicio.');return;}
-    const data=this.state.data;const result:EventItem={...x,id:x.id||uid(),title:x.title.trim(),minutes:Math.max(1,x.minutes),specificDates:[...new Set((x.specificDates||[]).filter(Boolean))],overrides:x.overrides||{}};
-    const original=data.events.find(e=>e.id===x.id);const split=!!original&&original.repeat!=='none'&&!!x.applyFrom&&x.applyFrom>original.date;
-    const future=split?{...result,id:uid(),date:x.applyFrom||result.date,overrides:Object.fromEntries(Object.entries(result.overrides||{}).filter(([d])=>d>=(x.applyFrom||result.date))),endDate:original?.endDate}:result;
-    if(split&&original?.endDate&&future.date>original.endDate){this.setState({toast:'La fecha elegida está fuera de la programación original.'});return;}
-    if(future.routineId&&data.events.some(other=>other.id!==result.id&&repeatCollision(future,other))){this.setState({toast:'Esta rutina ya aparece en alguno de esos días. Edita su programación existente en vez de duplicarla.'});return;}
-    if(split&&original){const cut=addDays(future.date,-1);const old={...original,endDate:cut,overrides:Object.fromEntries(Object.entries(original.overrides||{}).filter(([d])=>d<future.date))};const logs={...data.logs};Object.keys(logs).filter(k=>k.startsWith(original.id+'@')&&k.split('@')[1]>=future.date).forEach(k=>{logs[future.id+'@'+k.split('@')[1]]=logs[k];delete logs[k];});const next={...future,applyFrom:undefined};this.save({...data,events:[...data.events.map(e=>e.id===old.id?old:e),next],logs},'Nuevo horario aplicado desde '+future.date);}
-    else{const next={...result,applyFrom:undefined};this.save({...data,events:x.id?data.events.map(e=>e.id===x.id?next:e):[...data.events,next]});}
+    const x=this.state.eventDraft;
+    if(!x.title.trim()||!x.date||(!x.allDay&&!x.time)){this.notice('Completa el nombre, la fecha y la hora.');return;}
+    if(x.kind==='occasion'&&x.endDate&&x.endDate<x.date){this.notice('La fecha final no puede ser anterior a la inicial.');return;}
+    if(x.repeat==='custom'&&!(x.repeatDays||[]).length){this.notice('Selecciona los días en que quieres repetirlo.');return;}
+    if(x.repeat==='dates'&&(x.specificDates||[]).some(day=>!day||day<x.date)){this.notice('Las fechas específicas deben ser posteriores al comienzo.');return;}
+    const data=this.state.data;
+    const original=data.events.find(e=>e.id===x.id);
+    if(original?.kind==='review'){this.notice('Las revisiones se editan desde la meta.');return;}
+    const scheduleChanged=!!original&&(original.time!==x.time||original.endTime!==x.endTime||original.anchor!==x.anchor||original.date!==x.date||original.endDate!==x.endDate||original.repeat!==x.repeat||JSON.stringify(original.repeatDays||[])!==JSON.stringify(x.repeatDays||[])||original.everyDays!==x.everyDays||JSON.stringify(original.specificDates||[])!==JSON.stringify(x.specificDates||[]));
+    if(original&&scheduleChanged&&!confirm('¿Confirmas la reprogramación? Se actualizarán las próximas fechas y el resto de hoy desde la fecha elegida, sin modificar días anteriores ni sus registros.'))return;
+    const startChange=original ? (x.applyFrom||today()) : x.date;
+    if(original&&startChange<today()){this.notice('La reprogramación debe aplicarse desde hoy o una fecha posterior.');return;}
+    const cut=original&&original.date<startChange;
+    const result:EventItem={...x,id:x.id||uid(),title:x.title.trim(),minutes:Math.max(1,x.minutes),specificDates:[...new Set((x.specificDates||[]).filter(Boolean))],overrides:x.overrides||{}};
+    if(result.anchor==='end'&&result.endTime){const duration=result.routineId?Math.max(1,routineMinutesOn(data.routines.find(r=>r.id===result.routineId)||{id:'',title:'',desc:'',steps:[]},result.date)):result.minutes;
+      if(minutes(result.endTime)<duration){this.notice('La duración no cabe antes de la hora de término. Elige otra hora.');return;}result.time=timeString(minutes(result.endTime)-duration);
+    }
+    if(result.kind==='occasion'&&result.endDate&&result.endDate>result.date&&result.repeat!=='none'){
+      this.notice('Los eventos de varios días se programan sin repetición. Puedes crear otro evento para un periodo diferente.');return;
+    }
+    const finalStart=cut?(x.date>startChange?x.date:startChange):x.date;
+    const future:EventItem=cut?{...result,id:uid(),date:finalStart,overrides:Object.fromEntries(Object.entries(result.overrides||{}).filter(([day])=>day>=finalStart)),specificDates:(result.specificDates||[]).filter(day=>day>=finalStart)}:result;
+    if(future.routineId){
+      const conflict=data.events.find(other=>other.routineId===future.routineId&&other.id!==result.id&&other.id!==original?.id&&sameScheduleActive(other,today()));
+      if(conflict){this.notice('Esta rutina ya tiene una programación futura. Utiliza Reprogramar desde la tarjeta de rutinas.');return;}
+    }
+    const cleanFuture={...future,applyFrom:undefined};
+    if(cut&&original){
+      const endDate=addDays(finalStart,-1);
+      const history:EventItem={...original,endDate:original.endDate&&original.endDate<endDate?original.endDate:endDate,overrides:Object.fromEntries(Object.entries(original.overrides||{}).filter(([day])=>day<finalStart))};
+      const logs={...data.logs};
+      Object.keys(logs).filter(k=>k.startsWith(original.id+'@')&&k.split('@')[1]>=finalStart).forEach(k=>{logs[cleanFuture.id+'@'+k.split('@')[1]]=logs[k];delete logs[k];});
+      const nextData={...data,events:[...data.events.map(e=>e.id===original.id?history:e),cleanFuture],logs};
+      this.save(nextData,'Programación actualizada desde '+finalStart);
+    }else{
+      if(future.routineId&&data.events.some(other=>other.id!==result.id&&other.routineId===future.routineId&&sameScheduleActive(other,today()))){this.notice('Esta rutina ya está programada. Reprograma la existente.');return;}
+      this.save({...data,events:x.id?data.events.map(e=>e.id===x.id?cleanFuture:e):[...data.events,cleanFuture]},'Actividad guardada');
+    }
     this.close(true);
-    if(this.state.guideOpen){if(this.state.guideStep===3&&result.goalId===this.state.guideGoalId)this.setState({guideStep:4,page:'rutinas'});else if(this.state.guideStep===4&&result.routineId){this.setState({guideStep:5,page:'horario',selectedDate:result.date,month:firstMonth(result.date),guideEventId:result.id});}}
+    if(this.state.guideOpen){if(this.state.guideStep===3&&result.goalId===this.state.guideGoalId)this.setState({guideStep:4,page:'rutinas'});else if(this.state.guideStep===4&&result.routineId){this.setState({guideStep:5,page:'horario',selectedDate:result.date,month:firstMonth(result.date),guideEventId:cleanFuture.id});}}
   }
   deleteGoal=(g:Goal):void=>{
     if(!confirm(`¿Eliminar la meta «${g.title}»? Las sub-metas pasarán a ser independientes.`))return;
@@ -338,11 +422,11 @@ class Planner extends React.Component<{},State> {
   toggleStep=(e:EventItem,date:string,stepId:string):void=>{
     const d=this.state.data,k=key(e,date),r=d.logs[k]||{completed:false,checkedSteps:[]};const routine=d.routines.find(x=>x.id===e.routineId);
     const checked=r.checkedSteps.includes(stepId)?r.checkedSteps.filter(s=>s!==stepId):[...r.checkedSteps,stepId];
-    const leaves=routine?leafSteps(routine.steps):[];const completed=leaves.length>0&&leaves.every(s=>checked.includes(s.id));
+    const leaves=routine?leafSteps(activeSteps(routine.steps,date)):[];const completed=leaves.length>0&&leaves.every(s=>checked.includes(s.id));
     this.save({...d,logs:{...d.logs,[k]:{...r,checkedSteps:checked,completed}}},'Paso actualizado');
   }
   shiftEvent=(e:EventItem,date:string,delta:number):void=>{
-    const d=this.state.data;const newTime=timeString(bound(minutes(eventTime(e,date))+delta,0,1439));const next={...e,overrides:{...e.overrides,[date]:{...e.overrides[date],time:newTime}}};
+    const d=this.state.data;const newTime=timeString(bound(minutes(eventTime(e,date,d))+delta,0,1439));const next={...e,overrides:{...e.overrides,[date]:{...e.overrides[date],time:newTime}}};
     this.save({...d,events:d.events.map(x=>x.id===e.id?next:x)},`Actividad movida a las ${newTime}`);
   }
   saveProgress=():void=>{
@@ -401,7 +485,7 @@ class Planner extends React.Component<{},State> {
         <div className="brand"><img className="brand-logo" src="logo.svg" alt="Logo Fullhouse"/><div><div className="brand-name">FULLHOUSE</div><div className="brand-sub">Tu espacio, completo</div></div></div>
         <div className="side-section">Mi espacio</div>
         <nav>{links.map(l=><button key={l.id} className={`nav-item ${this.state.page===l.id?'active':''}`} onClick={()=>this.route(l.id)}><Icon name={l.icon}/>{l.label}</button>)}</nav>
-        <div className="sidebar-bottom"><button className="nav-item nav-help" onClick={this.openGuide}><Icon name="help"/> Guía paso a paso</button><div className="profile-mini"><div className="avatar">✦</div><div><div className="profile-name">Mi espacio privado</div><div className="profile-meta">Fullhouse · 0.4</div></div></div><small>Organiza · Actúa · Progresa. Los datos se guardan en este navegador.</small></div>
+        <div className="sidebar-bottom"><button className="nav-item nav-help" onClick={this.openGuide}><Icon name="help"/> Guía paso a paso</button><div className="profile-mini"><div className="avatar">✦</div><div><div className="profile-name">Mi espacio privado</div><div className="profile-meta">Fullhouse · 0.5</div></div></div><small>Organiza · Actúa · Progresa. Los datos se guardan en este navegador.</small></div>
       </aside>
       <nav className="mobile-nav" aria-label="Navegación móvil">{links.filter(l=>l.id!=='ajustes'&&l.id!=='calendario').map(l=><button key={l.id} className={`mobile-item ${this.state.page===l.id?'active':''}`} onClick={()=>this.route(l.id)}><Icon name={l.icon}/>{l.label.replace('Mis ','')}</button>)}</nav>
     </>;
@@ -410,25 +494,26 @@ class Planner extends React.Component<{},State> {
   hint=(topic:string):any=><button type="button" className="hint-btn" title="¿Cómo funciona esta sección?" aria-label={'Ayuda de '+topic} onClick={()=>this.openHelp(topic)}>?</button>;
   renderStat(label:string,value:string|number,note:string,icon:string):any{return <div className="stat-card"><div className="stat-top"><span className="stat-icon"><Icon name={icon}/></span><span className="stat-deco">FULLHOUSE</span></div><div className="stat-label">{label}</div><div className="stat-value">{value}</div><div className="stat-note">{note}</div></div>}
   renderTodayList(date:string,compact=false):any{
-    const d=this.state.data,es=eventsOn(d,date);
+    const d=this.state.data,es=eventsOn(d,date).filter(e=>!e.allDay);
     if(!es.length)return <div className="empty"><Icon name="calendar"/><strong>Un día por diseñar</strong><p>No hay actividades programadas todavía. Comienza agregando una.</p><Btn tiny kind="secondary" onClick={()=>this.openEvent()}><Icon name="plus" size={14}/> Nueva actividad</Btn></div>;
     return <div>{es.map(e=>{
       const isDone=done(d,e,date),routine=d.routines.find(r=>r.id===e.routineId),log=d.logs[key(e,date)];
-      return compact?<div key={e.id} className={`agenda-item ${isDone?'is-done':''}`}><div className="agenda-time">{eventTime(e,date)}</div><div className="agenda-main"><div className="agenda-name">{e.title}</div><div className="agenda-sub">{durationOn(e,date,d)} min {routine?'· '+routine.steps.length+' pasos':''}</div></div><button className={`check-circle ${isDone?'checked':''}`} onClick={()=>this.toggleEvent(e,date)} aria-label={isDone?'Marcar pendiente':'Marcar completado'}>{isDone&&<Icon name="check" size={13}/>}</button></div>
-      :<div key={e.id} className={`schedule-line ${isDone?'is-done':''}`}><div className="schedule-time">{eventTime(e,date)}</div><div className="schedule-body"><div className="schedule-name">{e.title}</div><div className="schedule-meta"><span>{durationOn(e,date,d)} min</span>{e.repeat!=='none'&&<span>↻ Recurrente</span>}{routine&&<span>{routine.steps.length} pasos</span>}</div>{e.note&&<div className="schedule-notes">{e.note}</div>}<div className="actions" style={{marginTop:9}}>{routine&&<Btn tiny kind="secondary" onClick={()=>this.openExecute(e)}>Abrir pasos</Btn>}<Btn tiny kind="ghost" title="Mover 15 minutos antes (solo este día)" onClick={()=>this.shiftEvent(e,date,-15)}>−15 min</Btn><Btn tiny kind="ghost" title="Mover 15 minutos después (solo este día)" onClick={()=>this.shiftEvent(e,date,15)}>+15 min</Btn></div></div><div className="mini-actions"><button className={`check-circle ${isDone?'checked':''}`} onClick={()=>this.toggleEvent(e,date)} aria-label={isDone?'Marcar pendiente':'Marcar completado'}>{isDone&&<Icon name="check" size={13}/>}</button><Btn tiny kind="ghost" onClick={()=>this.openEvent(e)} title="Editar actividad"><Icon name="edit" size={14}/></Btn></div></div>
+      return compact?<div key={e.id} className={`agenda-item ${isDone?'is-done':''}`}><div className="agenda-time">{eventTime(e,date,d)}</div><div className="agenda-main"><div className="agenda-name">{e.title}</div><div className="agenda-sub">{durationOn(e,date,d)} min {routine?'· '+routine.steps.length+' pasos':''}</div></div><button className={`check-circle ${isDone?'checked':''}`} onClick={()=>this.toggleEvent(e,date)} aria-label={isDone?'Marcar pendiente':'Marcar completado'}>{isDone&&<Icon name="check" size={13}/>}</button></div>
+      :<div key={e.id} className={`schedule-line ${isDone?'is-done':''}`}><div className="schedule-time">{eventTime(e,date,d)}</div><div className="schedule-body"><div className="schedule-name">{e.title}</div><div className="schedule-meta"><span>{durationOn(e,date,d)} min</span>{e.repeat!=='none'&&<span>↻ Recurrente</span>}{routine&&<span>{routine.steps.length} pasos</span>}</div>{e.note&&<div className="schedule-notes">{e.note}</div>}<div className="actions" style={{marginTop:9}}>{routine&&<Btn tiny kind="secondary" onClick={()=>this.openExecute(e)}>Abrir pasos</Btn>}<Btn tiny kind="ghost" title="Mover 15 minutos antes (solo este día)" onClick={()=>this.shiftEvent(e,date,-15)}>−15 min</Btn><Btn tiny kind="ghost" title="Mover 15 minutos después (solo este día)" onClick={()=>this.shiftEvent(e,date,15)}>+15 min</Btn></div></div><div className="mini-actions"><button className={`check-circle ${isDone?'checked':''}`} onClick={()=>this.toggleEvent(e,date)} aria-label={isDone?'Marcar pendiente':'Marcar completado'}>{isDone&&<Icon name="check" size={13}/>}</button><Btn tiny kind="ghost" onClick={()=>this.openEvent(e)} title="Editar actividad"><Icon name="edit" size={14}/></Btn></div></div>
     })}</div>;
   }
   renderHome():any{
-    const d=this.state.data,date=this.state.selectedDate,es=eventsOn(d,date),n=es.filter(e=>done(d,e,date)).length;
+    const d=this.state.data,date=this.state.selectedDate,es=eventsOn(d,date).filter(e=>!e.allDay),occasions=eventsOn(d,date).filter(e=>e.kind==='occasion'),n=es.filter(e=>done(d,e,date)).length;
     const tracked=d.goals,rate=es.length?Math.round(n/es.length*100):0;
     return <><section className="home-hero"><div className="hero-copy"><div className="hero-kicker">✦ TU ESPACIO PERSONAL</div><h2>Tu día, todas tus posibilidades.</h2><p>Transforma tus metas en acciones concretas y observa cómo avanzas, paso a paso.</p><div className="hero-actions"><Btn onClick={()=>this.route('horario')}><Icon name="clock"/> Abrir mi horario</Btn><Btn kind="secondary" onClick={this.openGuide}><Icon name="help"/> Conocer Fullhouse</Btn></div></div><div className="hero-symbol"><img src="logo.svg" alt=""/></div></section>{this.renderHeading('Tu espacio para avanzar','Una vista clara de lo que quieres conseguir, lo que harás hoy y lo que realmente has hecho.',<Btn onClick={()=>this.openEvent()}><Icon name="plus" size={16}/> Nueva actividad</Btn>)}
       <div className="notice">Este es un prototipo funcional con datos de ejemplo. Puedes editarlo todo. Los cambios se guardan automáticamente en este navegador.</div>
       <div className="cards">{this.renderStat('Metas activas',d.goals.length,'Incluye sub-metas','target')}{this.renderStat('Rutinas creadas',d.routines.length,'Procedimientos reutilizables','checklist')}{this.renderStat('Actividades del día',es.length,`${n} completadas`,'calendar')}{this.renderStat('Cumplimiento diario',rate+'%','De actividades planificadas','chart')}</div>
+      {occasions.length>0&&<div className='home-special-events'><strong><Icon name='calendar' size={17}/> Acontecimientos de hoy</strong>{occasions.map(e=><button key={e.id} onClick={()=>{this.route('calendario');this.chooseDay(date);}}>{e.title} <span>{e.allDay?'Todo el día':eventTime(e,date,d)}</span></button>)}</div>}
       <div className="two-col"><section className="panel"><div className="panel-head"><div><h2>Agenda del día</h2><p className="panel-sub">{fmtDate(date)}</p></div><button className="link-btn" onClick={()=>this.route('horario')}>Ver horario <Icon name="arrow-right" size={15}/></button></div>{this.renderTodayList(date,true)}</section>
         <section className="panel"><div className="panel-head"><div><h2>Mis metas</h2><p className="panel-sub">Indicadores de resultados, no solo tareas</p></div><button className="link-btn" onClick={()=>this.route('metas')}>Ver todas <Icon name="arrow-right" size={15}/></button></div>
         {tracked.length?tracked.slice(0,5).map(g=><div key={g.id} className="goal-summary"><div className="goal-summary-top"><strong>{g.title}</strong><span>{goalMode(g)==='numeric'?percent(g.current,g.target)+'%':goalMode(g)==='milestones'?goalMilestones(g).filter(m=>m.done).length+'/'+goalMilestones(g).length+' hitos':statusLabel(goalStatus(g))}</span></div>{goalMode(g)!=='qualitative'?<div className="progress-track"><div className="progress-fill" style={{width:(goalMode(g)==='milestones'?percent(goalMilestones(g).filter(m=>m.done).length,goalMilestones(g).length):percent(g.current,g.target))+'%',background:g.color}}/></div>:<p className="caption">Meta cualitativa · registra cambios en tu relación o bienestar</p>}</div>):<div className="empty"><strong>Aún no tienes metas</strong><p>Comienza con un objetivo que sea importante para ti.</p></div>}
         </section></div>
-      <div className="section-head"><h2 className="section-title">Acceso rápido</h2></div><div className="goal-grid"><button className="goal-card" style={{textAlign:'left',cursor:'pointer'}} onClick={()=>this.openGoal()}><div className="row"><span className="routine-badge"><Icon name="target"/></span><div><div className="goal-name">Nueva meta</div><div className="goal-desc">Desglosa un objetivo y define cómo medirlo.</div></div></div><span className="link-btn">Crear meta <Icon name="arrow-right" size={14}/></span></button><button className="goal-card" style={{textAlign:'left',cursor:'pointer'}} onClick={()=>this.openRoutine()}><div className="row"><span className="routine-badge"><Icon name="checklist"/></span><div><div className="goal-name">Nueva rutina</div><div className="goal-desc">Diseña los pasos de un procedimiento.</div></div></div><span className="link-btn">Crear rutina <Icon name="arrow-right" size={14}/></span></button></div>
+      <div className="section-head"><h2 className="section-title">Acceso rápido</h2></div><div className="goal-grid"><button className="goal-card" style={{textAlign:'left',cursor:'pointer'}} onClick={()=>this.openEvent(undefined,'occasion')}><div className='row'><span className='routine-badge'><Icon name='calendar'/></span><div><div className='goal-name'>Nuevo evento</div><div className='goal-desc'>Viajes, citas, celebraciones o fechas especiales.</div></div></div><span className='link-btn'>Crear evento <Icon name='arrow-right' size={14}/></span></button><button className="goal-card" style={{textAlign:'left',cursor:'pointer'}} onClick={()=>this.openGoal()}><div className="row"><span className="routine-badge"><Icon name="target"/></span><div><div className="goal-name">Nueva meta</div><div className="goal-desc">Desglosa un objetivo y define cómo medirlo.</div></div></div><span className="link-btn">Crear meta <Icon name="arrow-right" size={14}/></span></button><button className="goal-card" style={{textAlign:'left',cursor:'pointer'}} onClick={()=>this.openRoutine()}><div className="row"><span className="routine-badge"><Icon name="checklist"/></span><div><div className="goal-name">Nueva rutina</div><div className="goal-desc">Diseña los pasos de un procedimiento.</div></div></div><span className="link-btn">Crear rutina <Icon name="arrow-right" size={14}/></span></button></div>
     </>;
   }
   renderGoalCard(g:Goal,depth=0):any{
@@ -448,18 +533,21 @@ class Planner extends React.Component<{},State> {
   }
   renderGoalTree(g:Goal,all:Goal[],level=0):any{
     const children=all.filter(x=>x.parentId===g.id);
-    return <div className={'goal-tree-node '+(level?'goal-tree-descendant':'')} key={g.id}>
-      <div className='goal-tree-card'>{this.renderGoalCard(g,level)}</div>
+    return <div className={'goal-tree-node '+(level?'goal-tree-descendant':'')} key={g.id} onDragOver={e=>{if(this.state.draggedCardType==='goal'){e.preventDefault();e.stopPropagation();}}} onDrop={e=>this.cardDrop('goal',g.id,e)}>
+      <div className='goal-tree-card'><button type='button' draggable={true} className='card-drag-handle' title='Arrastrar para cambiar el orden (solo dentro del mismo nivel)' aria-label={'Reordenar '+g.title} onDragStart={e=>this.startCardDrag('goal',g.id,e)} onDragEnd={this.endCardDrag} onKeyDown={e=>{if(e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();this.moveCardKeyboard('goal',g.id,e.key==='ArrowUp'?-1:1);}}}><Icon name='grip' size={17}/> Mover</button>{this.renderGoalCard(g,level)}</div>
       {children.length>0&&<div className='goal-tree-children'>{children.map(child=>this.renderGoalTree(child,all,level+1))}</div>}
     </div>;
   }
   renderGoals():any{
     const items=this.visibleGoals();const ids=new Set(items.map(g=>g.id));
     const roots=items.filter(g=>!g.parentId||!ids.has(g.parentId));
+    const masonry:Goal[][]=[[],[]];const heights=[0,0];
+    const estimate=(g:Goal):number=>{const children=items.filter(x=>x.parentId===g.id);const ms=goalMilestones(g).length;return 360+Math.min(120,(g.desc||'').length*.45)+ms*35+children.reduce((sum,x)=>sum+estimate(x)+22,0);};
+    roots.forEach(g=>{const col=heights[0]<=heights[1]?0:1;masonry[col].push(g);heights[col]+=estimate(g)+18;});
     return <>{this.renderHeading('Mis metas','Metas conectadas con sus submetas, sus ámbitos de vida y sus fechas de revisión.',<Btn onClick={()=>this.openGoal()}><Icon name='plus'/> Crear meta</Btn>)}
       <div className='goal-view-toolbar'><span>Explorar como</span><div className='view-toggle'><button className={this.state.goalView==='cards'?'selected':''} onClick={()=>this.setState({goalView:'cards'})}><Icon name='checklist' size={16}/> Árbol de metas</button><button className={this.state.goalView==='map'?'selected':''} onClick={()=>this.setState({goalView:'map'})}><Icon name='network' size={16}/> Mapa de metas</button></div><div className='goal-area-filter'><span>Ámbito</span><FriendlySelect value={this.state.areaFilter} ariaLabel='Filtrar metas por ámbito' onChange={areaFilter=>this.setState({areaFilter:areaFilter as LifeArea|'all'})} options={[{value:'all',label:'Todos los ámbitos'},...lifeAreas.map(a=>({value:a.id,label:a.title}))]}/></div></div>
       <div className='notice'>Cada meta puede pertenecer a Mente, Físico, Propósito o Social. Las ramas muestran dónde nace cada submeta y el mapa permite explorar conexiones adicionales.</div>
-      {items.length?(this.state.goalView==='map'?this.renderGoalMap():<div className='goal-forest'>{roots.map(g=>this.renderGoalTree(g,items))}</div>):<section className='panel' style={{marginTop:20}}><div className='empty'><Icon name='target'/><strong>No hay metas en este ámbito</strong><p>Crea una meta o cambia el filtro para ver otras ramas.</p><Btn onClick={()=>this.openGoal()}>Crear meta</Btn></div></section>}
+      {items.length?(this.state.goalView==='map'?this.renderGoalMap():<div className='goal-forest'>{masonry.map((column,i)=><div className='goal-masonry-column' key={i}>{column.map(g=>this.renderGoalTree(g,items))}</div>)}</div>):<section className='panel' style={{marginTop:20}}><div className='empty'><Icon name='target'/><strong>No hay metas en este ámbito</strong><p>Crea una meta o cambia el filtro para ver otras ramas.</p><Btn onClick={()=>this.openGoal()}>Crear meta</Btn></div></section>}
     </>;
   }
   renderGoalMap():any{
@@ -469,11 +557,19 @@ class Planner extends React.Component<{},State> {
   }
   renderRoutines():any{
     const rs=this.state.data.routines;
-    return <>{this.renderHeading('Rutinas y procedimientos','Convierte actividades complejas en pasos claros, reutilizables y fáciles de ejecutar.',<Btn onClick={()=>this.openRoutine()}><Icon name="plus"/> Nueva rutina</Btn>)}
-      <div className="routine-grid">{rs.map(r=><div className="routine-card" key={r.id}><div className="row"><span className="routine-badge"><Icon name="checklist" size={21}/></span><div className="flex"><h3 className="goal-name">{r.title}</h3><p className="goal-desc">{r.desc||'Procedimiento sin descripción'}</p></div></div>
-        <div className="routine-steps"><Icon name="clock" size={15}/>{leafSteps(r.steps).length} pasos · {routineMinutes(r)} min estimados</div><div className="routine-step-preview">{r.steps.slice(0,3).map((s,i)=><div key={s.id}>{i+1}. {s.title} <span className="muted">· {stepMinutes(s)} min</span></div>)}{r.steps.length>3&&<div>+{r.steps.length-3} pasos más</div>}</div>
-        <div className="actions">{this.state.guideOpen&&this.state.guideStep===4&&<Btn tiny kind="secondary" onClick={()=>this.useRoutineForGuide(r)}>Usar en la guía</Btn>}<Btn tiny onClick={()=>{const existing=this.state.data.events.find(e=>e.routineId===r.id&&occurs(e,this.state.selectedDate));existing?this.openEvent(existing):this.setState({modal:'event',eventDraft:{...eDraft(this.state.selectedDate),title:r.title,routineId:r.id,minutes:routineMinutes(r)}});}}><Icon name="calendar" size={14}/> {this.state.data.events.some(e=>e.routineId===r.id&&occurs(e,this.state.selectedDate))?'Ajustar horario':'Programar'}</Btn><Btn tiny kind="secondary" onClick={()=>this.openRoutine(r)}><Icon name="edit" size={14}/> Editar</Btn><Btn tiny kind="ghost" onClick={()=>this.deleteRoutine(r)}><Icon name="trash" size={14}/></Btn></div></div>)}
-      </div>{!rs.length&&<div className="panel"><div className="empty"><strong>Aún no tienes rutinas</strong><p>Crea un procedimiento, sus pasos y duración estimada.</p><Btn onClick={()=>this.openRoutine()}>Crear rutina</Btn></div></div>}
+    return <>{this.renderHeading('Rutinas y procedimientos','Diseña, ordena y programa procedimientos que se adapten a tus días.',<Btn onClick={()=>this.openRoutine()}><Icon name="plus"/> Nueva rutina</Btn>)}
+      <div className="routine-grid">{rs.map(r=>{const scheduled=this.routineSchedule(r.id);return <div className="routine-card routine-modern" key={r.id}
+        onDragOver={e=>{if(this.state.draggedCardType==='routine')e.preventDefault();}}
+        onDrop={e=>this.cardDrop('routine',r.id,e)}>
+        <div className="routine-modern-top"><span className="routine-badge routine-icon"><Icon name={routineIcons.includes(r.icon||'')?r.icon!:'checklist'} size={23}/></span><div className="flex"><h3 className="goal-name">{r.title}</h3><p className="goal-desc">{r.desc||'Sin descripción todavía'}</p></div><button className="card-drag-handle" draggable={true} title="Arrastra para reordenar" aria-label={'Reordenar '+r.title} onDragStart={e=>this.startCardDrag('routine',r.id,e)} onDragEnd={this.endCardDrag} onKeyDown={e=>{if(e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();this.moveCardKeyboard('routine',r.id,e.key==='ArrowUp'?-1:1);}}}><Icon name="grip" size={17}/></button></div>
+        <div className="routine-metadata"><span><Icon name="clock" size={15}/> {routineMinutes(r)} min estimados</span><span><Icon name="checklist" size={15}/> {r.steps.length} pasos principales</span></div>
+        <div className="routine-step-preview new-step-preview">{r.steps.slice(0,4).map((s,i)=><div className="routine-preview-line" key={s.id}><span className="routine-preview-index">{i+1}</span><span className="routine-preview-name">{s.title}</span><span className="routine-preview-time">{stepMinutes(s)} min</span></div>)}{r.steps.length>4&&<div className="routine-preview-more">+{r.steps.length-4} pasos adicionales</div>}</div>
+        <div className="actions">{this.state.guideOpen&&this.state.guideStep===4&&<Btn tiny kind="secondary" onClick={()=>this.useRoutineForGuide(r)}>Usar en la guía</Btn>}
+          <Btn tiny onClick={()=>this.chooseRoutineForSchedule(r)}><Icon name="calendar" size={14}/> {scheduled?'Reprogramar':'Programar'}</Btn>
+          <Btn tiny kind="secondary" onClick={()=>this.openRoutine(r)}><Icon name="edit" size={14}/> Editar</Btn>
+          <Btn tiny kind="ghost" onClick={()=>this.deleteRoutine(r)}><Icon name="trash" size={14}/></Btn></div>
+      </div>;})}</div>
+      {!rs.length&&<div className="panel"><div className="empty"><strong>Aún no tienes rutinas</strong><p>Crea un procedimiento, sus pasos y duración estimada.</p><Btn onClick={()=>this.openRoutine()}>Crear rutina</Btn></div></div>}
     </>;
   }
   monthDays():{day:string;inside:boolean}[]{
@@ -482,14 +578,14 @@ class Planner extends React.Component<{},State> {
   }
   changeMonth=(offset:number):void=>{const d=parseDay(this.state.month);d.setMonth(d.getMonth()+offset);const newMonth=ymd(d);this.setState({month:newMonth,selectedDate:newMonth})}
   renderSchedule():any{
-    const date=this.state.selectedDate,data=this.state.data,es=eventsOn(data,date);
-    const minStart=es.length?Math.min(...es.map(e=>minutes(eventTime(e,date)))):360;
-    const maxEnd=es.length?Math.max(...es.map(e=>minutes(eventTime(e,date))+durationOn(e,date,data))):1320;
+    const date=this.state.selectedDate,data=this.state.data,es=eventsOn(data,date).filter(e=>!e.allDay);
+    const minStart=es.length?Math.min(...es.map(e=>minutes(eventTime(e,date,data)))):360;
+    const maxEnd=es.length?Math.max(...es.map(e=>minutes(eventTime(e,date,data))+durationOn(e,date,data))):1320;
     const startHour=Math.max(0,Math.min(6,Math.floor(minStart/60)));
     const endHour=Math.min(24,Math.max(22,Math.ceil(maxEnd/60)));
     const hourHeight=82,origin=startHour*60;
     type Placed={event:EventItem;start:number;end:number;lane:number;lanes:number};
-    const placed:Placed[]=[],all=es.map(e=>({event:e,start:minutes(eventTime(e,date)),end:Math.min(1440,minutes(eventTime(e,date))+Math.max(10,durationOn(e,date,data)))})).sort((a,b)=>a.start-b.start);
+    const placed:Placed[]=[],all=es.map(e=>({event:e,start:minutes(eventTime(e,date,data)),end:Math.min(1440,minutes(eventTime(e,date,data))+Math.max(10,durationOn(e,date,data)))})).sort((a,b)=>a.start-b.start);
     let group:Placed[]=[],groupEnd=-1;
     const finish=()=>{if(!group.length)return;const laneEnds:number[]=[];group.forEach(x=>{let j=laneEnds.findIndex(t=>t<=x.start);if(j<0){j=laneEnds.length;laneEnds.push(-1);}x.lane=j;laneEnds[j]=x.end;});group.forEach(x=>{x.lanes=laneEnds.length;placed.push(x);});group=[];};
     all.forEach(x=>{if(group.length&&x.start>=groupEnd)finish();group.push({...x,lane:0,lanes:1});groupEnd=Math.max(groupEnd,x.end);});finish();
@@ -498,7 +594,7 @@ class Planner extends React.Component<{},State> {
       <section className="timeline-panel"><div className="timeline-head"><div><Icon name="sun"/> Tu jornada</div><p>Desplázate por el horario y abre los bloques para consultar sus pasos e instrucciones.</p></div>
       <div className="timeline-canvas" style={{height:(endHour-startHour)*hourHeight+24}}>
         {Array.from({length:endHour-startHour+1},(_,i)=>i+startHour).map(hour=><div key={hour} className="timeline-gridline" style={{top:(hour-startHour)*hourHeight}}><span>{String(hour).padStart(2,'0')}:00</span><div/></div>)}
-        <div className="timeline-events">{placed.map(({event:e,start,end,lane,lanes})=>{const goal=data.goals.find(g=>g.id===e.goalId),routine=data.routines.find(r=>r.id===e.routineId),isDone=done(data,e,date),color=goal?.color||'#a477ec';const duration=durationOn(e,date,data),height=Math.max(16,((end-start)/60)*hourHeight-3),width=100/lanes;const style=height<38||width<26?'micro':height<84||width<44?'compact':'expanded';return <button key={e.id} className={'timeline-block '+style+' '+(isDone?'completed':'')} title={`${e.title} · ${eventTime(e,date)} · ${duration} minutos${e.note?' · '+e.note:''}`} aria-label={`Abrir ${e.title}, ${eventTime(e,date)}, ${duration} minutos`} onClick={()=>this.openDetail(e)} style={{top:((start-origin)/60)*hourHeight,height,left:(lane/lanes*100)+'%',width:width+'%','--block-bg':color,'--block-text':readableOn(color)} as any}><div className='timeline-block-header'><span className='timeline-event-name'>{e.title}</span>{isDone&&<span className='timeline-done'>✓</span>}</div>{style!=='micro'&&<div className='timeline-time'>{eventTime(e,date)} · {duration} min {style==='expanded'&&routine?'· '+leafSteps(routine.steps).length+' pasos':''}</div>}{style==='expanded'&&e.note&&<div className='timeline-description'>{e.note}</div>}</button>;})}</div>
+        <div className="timeline-events">{placed.map(({event:e,start,end,lane,lanes})=>{const goal=data.goals.find(g=>g.id===e.goalId),routine=data.routines.find(r=>r.id===e.routineId),isDone=done(data,e,date),color=goal?.color||'#a477ec';const duration=durationOn(e,date,data),height=Math.max(16,((end-start)/60)*hourHeight-3),width=100/lanes;const style=height<38||width<26?'micro':height<84||width<44?'compact':'expanded';return <button key={e.id} className={'timeline-block '+style+' '+(isDone?'completed':'')} title={`${e.title} · ${eventTime(e,date,data)} · ${duration} minutos${e.note?' · '+e.note:''}`} aria-label={`Abrir ${e.title}, ${eventTime(e,date,data)}, ${duration} minutos`} onClick={()=>this.openDetail(e)} style={{top:((start-origin)/60)*hourHeight,height,left:(lane/lanes*100)+'%',width:width+'%','--block-bg':color,'--block-text':readableOn(color)} as any}><div className='timeline-block-header'><span className='timeline-event-name'>{e.title}</span>{isDone&&<span className='timeline-done'>✓</span>}</div>{style!=='micro'&&<div className='timeline-time'>{eventTime(e,date,data)} · {duration} min {style==='expanded'&&routine?'· '+leafSteps(routine.steps).length+' pasos':''}</div>}{style==='expanded'&&e.note&&<div className='timeline-description'>{e.note}</div>}</button>;})}</div>
       </div>{!es.length&&<div className="timeline-empty"><Icon name="calendar"/><p>Este día todavía no tiene actividades. Empieza creando tu primer bloque.</p><Btn onClick={()=>this.openEvent()}>Añadir bloque</Btn></div>}</section>
       <div className="notice">Los bloques se pueden abrir para consultar cada nivel de detalle. Para cambiar horas, utiliza la edición de la actividad o los controles de ±15 minutos.</div>
     </>;
@@ -509,7 +605,7 @@ class Planner extends React.Component<{},State> {
     const choices=current?(current.children||[]):r?.steps||[];
     const log=d.logs[key(e,date)]||{completed:false,checkedSteps:[]};
     return <div className="detail-zoom"><div className="detail-crumbs"><button onClick={()=>this.setState({detailPath:[]})}>{e.title}</button>{path.map((id,i)=><span key={id}> / <button onClick={()=>this.setState({detailPath:path.slice(0,i+1)})}>{getStepByPath(r?.steps||[],path.slice(0,i+1))?.title||'Paso'}</button></span>)}</div>
-      {path.length===0?<><div className="detail-spotlight"><span className="detail-time"><Icon name="clock"/> {fmtDate(date)} · {eventTime(e,date)} · {durationOn(e,date,d)} min</span><h3>{e.title}</h3><p>{e.note||r?.desc||'Sin descripción adicional para este bloque.'}</p><div className="detail-tags">{g&&<span style={{borderColor:g.color}}><span className="circle-tint" style={{background:g.color}}/>{g.title}</span>}{e.repeat!=='none'&&<span>↻ Recurrente</span>}</div></div><div className="detail-actions"><Btn kind="secondary" onClick={()=>this.openEvent(e)}><Icon name="edit"/> Editar bloque</Btn>{r&&<Btn onClick={()=>this.openExecute(e)}><Icon name="checklist"/> Ejecutar rutina</Btn>}<Btn kind="secondary" onClick={()=>this.toggleEvent(e,date)}>{done(d,e,date)?'Marcar pendiente':'Marcar completada'}</Btn></div></>:<div className="detail-spotlight"><div className="detail-time"><Icon name="clock"/> {current?stepMinutes(current):0} min previstos</div><h3>{current?.title||'Paso'}</h3><p>{current?.desc||'No hay instrucciones adicionales para este paso.'}</p>{current&&!current.children?.length&&<Btn kind="secondary" onClick={()=>this.toggleStep(e,date,current.id)}>{log.checkedSteps.includes(current.id)?'✓ Completado · Desmarcar':'Marcar paso completado'}</Btn>}</div>}
+      {path.length===0?<><div className="detail-spotlight"><span className="detail-time"><Icon name="clock"/> {fmtDate(date)} · {eventTime(e,date,d)} · {durationOn(e,date,d)} min</span><h3>{e.title}</h3><p>{e.note||r?.desc||'Sin descripción adicional para este bloque.'}</p><div className="detail-tags">{g&&<span style={{borderColor:g.color}}><span className="circle-tint" style={{background:g.color}}/>{g.title}</span>}{e.repeat!=='none'&&<span>↻ Recurrente</span>}</div></div><div className="detail-actions"><Btn kind="secondary" onClick={()=>this.openEvent(e)}><Icon name="edit"/> Editar bloque</Btn>{r&&<Btn onClick={()=>this.openExecute(e)}><Icon name="checklist"/> Ejecutar rutina</Btn>}<Btn kind="secondary" onClick={()=>this.toggleEvent(e,date)}>{done(d,e,date)?'Marcar pendiente':'Marcar completada'}</Btn></div></>:<div className="detail-spotlight"><div className="detail-time"><Icon name="clock"/> {current?stepMinutes(current):0} min previstos</div><h3>{current?.title||'Paso'}</h3><p>{current?.desc||'No hay instrucciones adicionales para este paso.'}</p>{current&&!current.children?.length&&<Btn kind="secondary" onClick={()=>this.toggleStep(e,date,current.id)}>{log.checkedSteps.includes(current.id)?'✓ Completado · Desmarcar':'Marcar paso completado'}</Btn>}</div>}
       {choices.length>0&&<><h3 className="detail-section-title">{path.length?'Elementos de '+stepLevelName(path.length-1).toLowerCase():'Dentro de este bloque'}</h3><div className="zoom-children">{choices.map((s,i)=><button key={s.id} className="zoom-child" onClick={()=>this.setState({detailPath:[...path,s.id]})}><span className="zoom-index">{i+1}</span><div className="flex"><strong>{s.title}</strong><div className="caption">{stepMinutes(s)} min · {s.children?.length?s.children.length+' elementos':'Ver instrucciones'}</div></div><Icon name="right" size={18}/></button>)}</div></>}
       {!r&&<div className="notice">Para desglosar este bloque en pasos, asígnale una rutina desde «Editar bloque».</div>}
       {path.length>0&&<Btn kind="ghost" onClick={()=>this.setState({detailPath:path.slice(0,-1)})}><Icon name="left"/> Volver al nivel anterior</Btn>}</div>;
@@ -523,7 +619,7 @@ class Planner extends React.Component<{},State> {
     const content:Record<string,[string,string[]]>={
       inicio:['Inicio y resumen',['Tu panel reúne las metas, rutinas y actividades del día.','El porcentaje de cumplimiento refleja actividades realizadas, no resultados obtenidos.','Usa los accesos rápidos para crear metas, rutinas o programar eventos.']],
       metas:['Metas y tipos de seguimiento',['Numérica: registra un resultado concreto y una cantidad objetivo.','Cualitativa: elige estados de avance y deja reflexiones; es ideal para relaciones, bienestar o aprendizaje.','Por hitos: divide una meta en logros verificables y marca los que completas.','Clasifica tus objetivos por ámbito (Mente, Físico, Propósito, Social), vincula fechas de revisión y explora sus conexiones.']],
-      rutinas:['Rutinas y procedimientos',['Las rutinas son plantillas reutilizables. Arrastra el tirador de cada paso para reordenarlo.','Puedes crear alternativas por días (por ejemplo Upper, Lower o Brazo), con tiempos e instrucciones diferentes.','Para usar una rutina en tu jornada, pulsa «Programar».']],
+      rutinas:['Rutinas y procedimientos',['Las rutinas son plantillas reutilizables. Arrastra el tirador de cada paso para reordenarlo.','Cada paso puede realizarse siempre, aparecer solo ciertos días o presentar opciones distintas según el día, cada una con sus propias instrucciones.','Cada rutina tiene una programación vigente: usa «Reprogramar» para modificar el futuro sin afectar el historial.']],
       horario:['Horario de mañana a noche',['Cada bloque representa una actividad o rutina programada. Su diseño se adapta a la duración disponible.','Haz clic en un bloque para acercarte a su contenido, sus pasos y sus detalles.','Si algo cambia, puedes editar el bloque o moverlo ±15 minutos desde el calendario.']],
       calendario:['Calendario independiente',['Selecciona un día para consultar su agenda.','Las actividades pueden repetirse semanalmente, mensualmente, anualmente, ciertos días, con intervalos o en fechas específicas.','Los movimientos de ±15 minutos aplican solo a ese día, incluso en una rutina recurrente.']],
       progreso:['Progreso y resultados',['Puedes comparar lo planeado con lo realizado durante los últimos siete días.','Las metas numéricas, los hitos y las cualitativas se muestran de forma diferente.','Registrar una actividad completada no modifica automáticamente un resultado personal.']],
@@ -533,28 +629,29 @@ class Planner extends React.Component<{},State> {
     return <div className="help-content"><h3>{title}</h3>{lines.map((line,i)=><div className="help-line" key={i}><span>{i+1}</span><p>{line}</p></div>)}<Btn onClick={()=>{this.setState({helpOpen:false});this.openGuide()}} kind="secondary"><Icon name="help"/> Abrir guía completa</Btn></div>;
   }
   renderHelpPanel():any{if(!this.state.helpOpen)return null;return <aside className={'help-float '+(this.state.modal?'in-modal':'')} role='complementary' aria-label='Ayuda contextual'><div className='help-float-head'><strong><Icon name='help' size={18}/> Ayuda contextual</strong><button className='icon-btn' onClick={()=>this.setState({helpOpen:false})} title='Cerrar ayuda' aria-label='Cerrar ayuda'><Icon name='close' size={16}/></button></div>{this.helpBody()}</aside>;}
-  isCalendarImportant(e:EventItem):boolean{return e.kind==='review'||(!e.routineId&&['none','monthly','yearly','dates'].includes(e.repeat));}
+  isCalendarImportant(e:EventItem):boolean{return e.kind==='review'||e.kind==='occasion'||(!e.routineId&&['none','monthly','yearly','dates'].includes(e.repeat));}
   renderCalendarAgenda(date:string):any{
     const d=this.state.data,all=eventsOn(d,date),important=all.filter(e=>this.isCalendarImportant(e));
     const routines=all.filter(e=>!!e.routineId&&e.repeat!=='none');
-    return <><div className='calendar-agenda-entries'>{important.length?important.map(e=><div className='calendar-agenda-entry' key={e.id}><span className='calendar-agenda-when'>{eventTime(e,date)}</span><div className='flex'><strong>{e.title}</strong><small>{e.kind==='review'?'Revisión de meta':'Fecha importante'} · {durationOn(e,date,d)} min</small>{e.note&&<p>{e.note}</p>}</div><button className='icon-btn' onClick={()=>this.openEvent(e)} title='Editar'><Icon name='edit' size={16}/></button></div>):<div className='empty'><strong>Sin fechas especiales</strong><p>Las tareas diarias se mantienen en Horario. Aquí aparecerán viajes, citas, fechas importantes y revisiones.</p></div>}</div><div className='calendar-routine-summary'><strong><Icon name='checklist' size={16}/> Rutinas de este día</strong><span>{routines.length?`${routines.length} programada${routines.length===1?'':'s'}`:'Sin rutinas recurrentes'}</span><div className='calendar-routine-chips'>{routines.map(e=><span key={e.id} className='calendar-routine-chip'><i style={{background:d.goals.find(g=>g.id===e.goalId)?.color||areaInfo('other').color}}/>{e.title}</span>)}</div></div></>;
+    return <><div className='calendar-agenda-entries'>{important.length?important.map(e=><div className='calendar-agenda-entry' key={e.id}><span className='calendar-agenda-when'>{e.allDay?'Todo el día':eventTime(e,date,d)}</span><div className='flex'><strong>{e.title}</strong><small>{e.kind==='review'?'Revisión de meta':e.kind==='occasion'?'Evento':'Fecha importante'}{e.endDate&&e.kind==='occasion'?' · Hasta '+e.endDate:e.allDay?' · Día completo':' · '+durationOn(e,date,d)+' min'}</small>{e.note&&<p>{e.note}</p>}</div><button className='icon-btn' onClick={()=>this.openEvent(e)} title='Editar'><Icon name='edit' size={16}/></button></div>):<div className='empty'><strong>Sin fechas especiales</strong><p>Las tareas diarias se mantienen en Horario. Aquí aparecerán viajes, citas, fechas importantes y revisiones.</p></div>}</div><div className='calendar-routine-summary'><strong><Icon name='checklist' size={16}/> Rutinas de este día</strong><span>{routines.length?`${routines.length} programada${routines.length===1?'':'s'}`:'Sin rutinas recurrentes'}</span><div className='calendar-routine-chips'>{routines.map(e=><span key={e.id} className='calendar-routine-chip'><i style={{background:d.goals.find(g=>g.id===e.goalId)?.color||areaInfo('other').color}}/>{e.title}</span>)}</div></div></>;
   }
   renderCalendar():any{
     const date=this.state.selectedDate,d=this.state.data;
-    return <>{this.renderHeading('Calendario','Fechas importantes, compromisos y revisiones. Las rutinas se muestran como puntos de referencia.',<Btn onClick={()=>this.openEvent()}><Icon name='plus'/> Nueva fecha</Btn>)}
+    return <>{this.renderHeading('Calendario','Fechas importantes, compromisos y revisiones. Las rutinas se muestran como puntos de referencia.',<Btn onClick={()=>this.openEvent(undefined,'occasion')}><Icon name='plus'/> Nuevo evento</Btn>)}
       <div className='calendar-shortcut'><span><Icon name='spark'/> Las fechas también cuentan tu historia</span><span className='calendar-shortcut-note'>Tus rutinas aparecen como puntos de color; en el calendario destacamos los acontecimientos importantes.</span></div>
       <div className='calendar-layout'><section className='panel'><div className='calendar-toolbar'><div className='month-name'>{fmtMonth(this.state.month)}</div><div className='calendar-nav'><button className='icon-btn' onClick={()=>this.changeMonth(-1)} title='Mes anterior'><Icon name='left'/></button><button className='icon-btn' onClick={()=>this.chooseDay(today())} title='Volver a hoy'><Icon name='sun'/></button><button className='icon-btn' onClick={()=>this.changeMonth(1)} title='Mes siguiente'><Icon name='right'/></button></div></div>
         <div className='weekday-grid'>{weekdays.map((w,i)=><div className='weekday' key={i}>{w}</div>)}</div>
-        <div className='month-grid'>{this.monthDays().map(c=>{const all=eventsOn(d,c.day),important=all.filter(e=>this.isCalendarImportant(e)),repeated=all.filter(e=>!!e.routineId&&e.repeat!=='none');return <button key={c.day} className={`day-cell ${c.inside?'':'outside'} ${c.day===date?'selected':''} ${c.day===today()?'today':''}`} onClick={()=>this.chooseDay(c.day)} aria-label={fmtDate(c.day)+', '+important.length+' fechas importantes, '+repeated.length+' rutinas'}><div className='day-number'>{parseDay(c.day).getDate()}</div>{important.slice(0,2).map(e=><span key={e.id} className='calendar-important-label' title={e.title}>{e.kind==='review'?'✦ ':''}{e.title}</span>)}{repeated.length>0&&<div className='day-dots' aria-label='Rutinas recurrentes'>{repeated.slice(0,5).map(e=><span key={e.id} className='day-dot' style={{background:d.goals.find(g=>g.id===e.goalId)?.color||areaInfo('other').color}}/>)}</div>}</button>})}</div></section>
-        <section className='panel'><div className='panel-head'><div><div className='eyebrow' style={{marginBottom:5}}>FECHAS IMPORTANTES</div><h2 className='selected-date'>{fmtDate(date)}</h2></div><Btn tiny kind='secondary' onClick={()=>this.openEvent()}><Icon name='plus' size={15}/></Btn></div>{this.renderCalendarAgenda(date)}</section></div>
+        <div className='month-grid'>{this.monthDays().map(c=>{const all=eventsOn(d,c.day),important=all.filter(e=>this.isCalendarImportant(e)),repeated=all.filter(e=>!!e.routineId&&e.repeat!=='none');return <button key={c.day} className={`day-cell ${c.inside?'':'outside'} ${c.day===date?'selected':''} ${c.day===today()?'today':''}`} onClick={()=>this.chooseDay(c.day)} aria-label={fmtDate(c.day)+', '+important.length+' fechas importantes, '+repeated.length+' rutinas'}><div className='day-number'>{parseDay(c.day).getDate()}</div>{important.slice(0,2).map(e=><span key={e.id} className='calendar-important-label' title={e.title}>{e.kind==='review'?'✦ ':e.kind==='occasion'?'◆ ':''}{e.title}</span>)}{repeated.length>0&&<div className='day-dots' aria-label='Rutinas recurrentes'>{repeated.slice(0,5).map(e=><span key={e.id} className='day-dot' style={{background:d.goals.find(g=>g.id===e.goalId)?.color||areaInfo('other').color}}/>)}</div>}</button>})}</div></section>
+        <section className='panel'><div className='panel-head'><div><div className='eyebrow' style={{marginBottom:5}}>FECHAS IMPORTANTES</div><h2 className='selected-date'>{fmtDate(date)}</h2></div><Btn tiny kind='secondary' onClick={()=>this.openEvent(undefined,'occasion')}><Icon name='plus' size={15}/></Btn></div>{this.renderCalendarAgenda(date)}</section></div>
     </>;
   }
   renderProgress():any{
     const d=this.state.data;const start=addDays(today(),-6);const days=Array.from({length:7},(_,i)=>addDays(start,i));
-    let weekPlanned=0,weekDone=0;for(const day of days){for(const e of eventsOn(d,day)){weekPlanned++;if(done(d,e,day))weekDone++;}}
+    let weekPlanned=0,weekDone=0;for(const day of days){for(const e of eventsOn(d,day).filter(e=>!e.allDay)){weekPlanned++;if(done(d,e,day))weekDone++;}}
     return <>{this.renderHeading('Mi progreso','Comprende la diferencia entre tu constancia diaria y los resultados que estás consiguiendo.')}
       <div className="cards progress-stats">{this.renderStat('Últimos 7 días',weekPlanned,'Actividades programadas','calendar')}{this.renderStat('Completadas',weekDone,'Registros de ejecución','checklist')}{this.renderStat('Cumplimiento',weekPlanned?Math.round(weekDone/weekPlanned*100)+'%':'—','Últimos 7 días','chart')}{this.renderStat('Metas con medida',d.goals.filter(g=>g.target>0).length,'Objetivos cuantificados','target')}</div>
-      <div className="two-col"><section className="panel"><div className="panel-head"><div><h2>Actividad de la semana</h2><p className="panel-sub">Porcentaje diario de actividades completadas</p></div></div><div className="week-chart">{days.map(day=>{const a=eventsOn(d,day),c=a.filter(e=>done(d,e,day)).length,p=a.length?Math.round(c/a.length*100):0;return <div key={day} className="bar-wrap"><div className="bar-value">{a.length?p+'%':'—'}</div><div className="bar" style={{height:(5+p*.85)+'%',background:day===today()?'#407d5d':'#b7d0b4'}} title={`${c}/${a.length}`}/><div className="bar-label">{longDays[parseDay(day).getDay()].slice(0,3)}</div></div>})}</div></section>
+      
+      <div className="two-col"><section className="panel"><div className="panel-head"><div><h2>Actividad de la semana</h2><p className="panel-sub">Porcentaje diario de actividades completadas</p></div></div><div className="week-chart">{days.map(day=>{const a=eventsOn(d,day).filter(e=>!e.allDay),c=a.filter(e=>done(d,e,day)).length,p=a.length?Math.round(c/a.length*100):0;return <div key={day} className="bar-wrap"><div className="bar-value">{a.length?p+'%':'—'}</div><div className="bar" style={{height:(5+p*.85)+'%',background:day===today()?'#407d5d':'#b7d0b4'}} title={`${c}/${a.length}`}/><div className="bar-label">{longDays[parseDay(day).getDay()].slice(0,3)}</div></div>})}</div></section>
         <section className="panel"><div className="panel-head"><div><h2>Resultados medibles</h2><p className="panel-sub">Actualizados manualmente con su historial</p></div></div>{d.goals.filter(g=>g.target>0).length?d.goals.filter(g=>g.target>0).map(g=><div key={g.id} className="goal-summary"><div className="goal-summary-top"><strong>{g.title}</strong><span>{g.current}/{g.target} {g.unit}</span></div><div className="progress-track"><div className="progress-fill" style={{width:percent(g.current,g.target)+'%',background:g.color}}/></div><div className="actions" style={{marginTop:9}}><Btn kind="ghost" tiny onClick={()=>this.openProgress(g)}>Actualizar resultado</Btn></div></div>):<div className="empty"><strong>No hay indicadores configurados</strong><p>Asigna una cantidad objetivo a una meta para verla aquí.</p></div>}</section></div>
       <div className="section-head"><h2 className="section-title">Metas cualitativas y por hitos</h2>{this.hint('metas')}</div><section className="panel"><div className="qual-list">{d.goals.filter(g=>goalMode(g)!=='numeric').map(g=><div key={g.id} className="qual-row"><span className="goal-color" style={{background:g.color}}/><div className="flex"><strong>{g.title}</strong><div className="caption">{goalMode(g)==='qualitative'?statusLabel(goalStatus(g)):goalMilestones(g).filter(m=>m.done).length+' de '+goalMilestones(g).length+' hitos'}</div></div>{goalMode(g)==='qualitative'&&<Btn tiny kind="secondary" onClick={()=>this.openProgress(g)}>Actualizar</Btn>}</div>)}{!d.goals.some(g=>goalMode(g)!=='numeric')&&<div className="caption">Aún no hay metas de este tipo.</div>}</div></section><div className="section-head"><h2 className="section-title">Últimos registros de resultados</h2></div><section className="panel">{d.goals.flatMap(g=>g.history.map(h=>({...h,goal:g.title,unit:g.unit}))).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,12).map((h,i)=><div className="agenda-item" key={i}><div className="agenda-time">{h.date.slice(5)}</div><div className="agenda-main"><div className="agenda-name">{h.goal} · {h.status?statusLabel(h.status):h.value+' '+h.unit}</div>{h.note&&<div className="agenda-sub">{h.note}</div>}</div></div>)}{!d.goals.some(g=>g.history.length>0)&&<div className="empty"><strong>Aún no hay resultados registrados</strong><p>Desde una meta, pulsa «Registrar avance» para iniciar tu historial.</p></div>}</section>
     </>;
@@ -592,20 +689,43 @@ class Planner extends React.Component<{},State> {
       <div className="field"><label>Color de identificación</label><div className="color-picker">{colorOptions.map(c=><button type="button" key={c} className={'color-dot '+(x.color===c?'active':'')} onClick={()=>{this.updateGoalDraft({color:c});this.setState({hexDraft:c});}} aria-label={'Color '+c} title={c} style={{background:c}}/>)}<button type="button" className={'custom-color '+(this.state.colorEditorOpen?'active':'')} onClick={()=>this.setState({colorEditorOpen:!this.state.colorEditorOpen})}><Icon name="palette" size={18}/> Personalizar</button></div>{this.state.colorEditorOpen&&<div className="custom-color-editor"><div className="custom-color-preview"><span style={{background:x.color}}/><div><strong>Crea tu propio tono</strong><small>{x.color.toUpperCase()}</small></div></div>{(['Tono','Saturación','Luminosidad'] as string[]).map((label,i)=>{const hsl=hexToHsl(x.color);return <div key={label} className="color-slider-row"><label>{label}</label><input type="range" min={0} max={i===0?359:100} value={hsl[i]} className={i===0?'hue-range':'color-range'} onChange={e=>{const values: [number,number,number]=[...hsl] as [number,number,number];values[i]=Number(e.target.value);this.updateGoalDraft({color:hslToHex(values[0],values[1],values[2])});this.setState({hexDraft:hslToHex(values[0],values[1],values[2])});}}/></div>})}<div className="custom-color-actions"><label>Hexadecimal <input value={this.state.hexDraft} maxLength={7} onChange={e=>{const v=e.target.value;this.setState({hexDraft:v});if(/^#[a-fA-F0-9]{6}$/.test(v))this.updateGoalDraft({color:v})}} onBlur={()=>this.setState({hexDraft:this.state.goalDraft.color})} aria-label="Color hexadecimal"/></label><Btn tiny kind="secondary" onClick={()=>this.setState({colorEditorOpen:false})}>Listo</Btn></div></div>}</div>
     </>;
   }
+  weekdayPicker=(days:number[],select:(day:number)=>void):any=><div className='weekday-options'>{weekdayNames.map((day,n)=><button type='button' key={n} className={'weekday-pill '+(days.includes(n)?'active':'')} aria-pressed={days.includes(n)} title={longDays[n]} onClick={()=>select(n)}>{day}</button>)}</div>;
   renderStepEditor=(steps:Step[],level=0):any=>{
     const update=(id:string,patch:Partial<Step>)=>this.updateRoutineDraft({steps:editStepTree(this.state.routineDraft.steps,id,s=>({...s,...patch}))});
-    return <div className={'step-editor-list '+(level?'nested':'')}>{steps.map((s,i)=>{const hasChildren=!!s.children?.length;return <div className={'step-editor-card '+(this.state.dragTargetId===s.id&&this.state.draggedStepId!==s.id?'drop-target':'')} data-step-id={s.id} key={s.id}>
-      <div className="step-edit-head"><span className="step-type-tag">{stepLevelName(level)} {i+1}</span><span className="step-duration-summary"><Icon name="clock" size={14}/> {stepMinutes(s)} min {hasChildren?'(suma automática)':''}</span><button className="drag-handle" title="Arrastra para reordenar en este nivel. Con el teclado usa las flechas." aria-label={'Arrastrar '+stepLevelName(level)+' '+(i+1)} onMouseDown={e=>this.startStepDrag(s.id,e)} onTouchStart={e=>this.startStepDrag(s.id,e)} onKeyDown={e=>{if(e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();this.moveStepDragKeyboard(s.id,e.key==='ArrowUp'?-1:1);}}}><Icon name="grip" size={18}/></button><button className="icon-btn remove-step" title="Eliminar este elemento" onClick={()=>this.updateRoutineDraft({steps:deleteStepTree(this.state.routineDraft.steps,s.id)})}><Icon name="trash" size={15}/></button></div>
-      <div className="step-edit-fields"><input aria-label={'Nombre del '+stepLevelName(level).toLowerCase()+' '+(i+1)} value={s.title} onChange={e=>update(s.id,{title:e.target.value})} placeholder={level===0?'Nombre del paso':'Nombre del '+stepLevelName(level).toLowerCase()}/>{hasChildren?<span className="step-readonly-time" title="La duración se calcula sumando todos los elementos hijos">Σ {stepMinutes(s)} min</span>:<label className='step-time-field'>min <NumberField value={s.min} min={1} max={1440} ariaLabel='Duración en minutos' onCommit={min=>update(s.id,{min})}/></label>}</div>
-      <div className="step-description"><AutoTextarea maxLength={1000} value={s.desc||''} onChange={(e:any)=>update(s.id,{desc:e.target.value})} placeholder="Instrucciones y detalles de este elemento..."/></div>
-      {(s.variants?.length||0)>0&&<div className='step-variants'><div className='step-variants-title'>Variaciones según el día <span>La opción activa reemplaza este paso únicamente en los días elegidos.</span></div>{(s.variants||[]).map((v,vi)=><div className='step-variant' key={v.id}><div className='row spread'><strong>Alternativa {vi+1}</strong><button type='button' className='icon-btn' aria-label='Eliminar alternativa' onClick={()=>update(s.id,{variants:(s.variants||[]).filter(a=>a.id!==v.id)})}><Icon name='trash' size={15}/></button></div><div className='field-grid'><div className='field'><label>Nombre del ejercicio o variante</label><input value={v.title} placeholder='Ej. Upper · Torso' onChange={e=>update(s.id,{variants:(s.variants||[]).map(a=>a.id===v.id?{...a,title:e.target.value}:a)})}/></div><div className='field'><label>Minutos estimados</label>{v.children?.length?<div className='variant-duration'>Σ {v.children.reduce((sum,c)=>sum+stepMinutes(c),0)} min de sus pasos</div>:<NumberField value={v.min} min={1} max={1440} ariaLabel={'Minutos de alternativa '+(vi+1)} onCommit={min=>update(s.id,{variants:(s.variants||[]).map(a=>a.id===v.id?{...a,min}:a)})}/>}</div></div><div className='field'><label>Días en que se utiliza</label><div className='weekday-options'>{(['D','L','M','X','J','V','S']).map((day,n)=><button type='button' key={n} className={'weekday-pill '+(v.days.includes(n)?'active':'')} aria-pressed={v.days.includes(n)} title={longDays[n]} onClick={()=>{const add=!v.days.includes(n);update(s.id,{variants:(s.variants||[]).map(a=>a.id===v.id?{...a,days:add?[...a.days,n]:a.days.filter(x=>x!==n)}:{...a,days:add?a.days.filter(x=>x!==n):a.days})});}}>{day}</button>)}</div></div><div className='field'><label>Instrucciones particulares</label><AutoTextarea value={v.desc||''} onChange={(e:any)=>update(s.id,{variants:(s.variants||[]).map(a=>a.id===v.id?{...a,desc:e.target.value}:a)})} placeholder='Instrucciones para esta variante'/></div>{!!v.children?.length&&<div className='variant-children'>{this.renderStepEditor(v.children||[],level+1)}</div>}<Btn tiny kind='secondary' onClick={()=>update(s.id,{variants:(s.variants||[]).map(a=>a.id===v.id?{...a,children:[...(a.children||[]),{id:uid(),title:'',desc:'',min:5}]}:a)})}><Icon name='plus' size={14}/> Añadir detalle a esta alternativa</Btn></div>)}</div>}
-      <div className='step-alt-action'><Btn kind='ghost' tiny onClick={()=>update(s.id,{variants:[...(s.variants||[]),{id:uid(),title:'',desc:'',min:Math.max(1,s.min),days:[]}]})}><Icon name='repeat' size={14}/> Añadir variante por día</Btn></div>
-      {hasChildren&&this.renderStepEditor(s.children||[],level+1)}<div className="step-subaction"><Btn tiny kind="secondary" onClick={()=>update(s.id,{children:[...(s.children||[]),{id:uid(),title:'',min:5,desc:''}]})}><Icon name="plus" size={14}/> Añadir {nextStepLevelName(level)}</Btn></div>
-    </div>;})}</div>;
+    return <div className={'step-editor-list '+(level?'nested':'')}>{steps.map((s,i)=>{
+      const hasChildren=!!s.children?.length;
+      const mode=s.mode||((s.variants||[]).length?'alternatives':'always');
+      const baseDays=s.days||DAYS.filter(d=>!(s.variants||[]).some(v=>v.days.includes(d)));
+      return <div className={'step-editor-card '+(this.state.dragTargetId===s.id&&this.state.draggedStepId!==s.id?'drop-target':'')} data-step-id={s.id} key={s.id}>
+      <div className='step-edit-head'><span className='step-type-tag'>{stepLevelName(level)} {i+1}</span><span className='step-duration-summary'><Icon name='clock' size={14}/> {stepMinutes(s)} min {hasChildren?'· calculados':''}</span><button className='drag-handle' title='Arrastra para reordenar' aria-label={'Arrastrar '+stepLevelName(level)+' '+(i+1)} onMouseDown={e=>this.startStepDrag(s.id,e)} onTouchStart={e=>this.startStepDrag(s.id,e)} onKeyDown={e=>{if(e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();this.moveStepDragKeyboard(s.id,e.key==='ArrowUp'?-1:1);}}}><Icon name='grip' size={18}/></button><button className='icon-btn remove-step' title='Eliminar este elemento' onClick={()=>this.updateRoutineDraft({steps:deleteStepTree(this.state.routineDraft.steps,s.id)})}><Icon name='trash' size={15}/></button></div>
+      <div className='step-mode-choices'>
+        <button className={mode==='always'?'active':''} onClick={()=>update(s.id,{mode:'always'})}><strong>Siempre</strong><small>Se hace cada vez</small></button>
+        <button className={mode==='selected'?'active':''} onClick={()=>update(s.id,{mode:'selected',days:s.days||[1,3,5]})}><strong>Solo ciertos días</strong><small>Aparece cuando corresponde</small></button>
+        <button className={mode==='alternatives'?'active':''} onClick={()=>update(s.id,{mode:'alternatives',days:s.days||DAYS.filter(n=>!(s.variants||[]).some(v=>v.days.includes(n)))})}><strong>Alternativas</strong><small>Una opción según el día</small></button>
+      </div>
+      {mode==='selected'&&<div className='step-conditional'><label>Días en los que se realiza</label>{this.weekdayPicker(s.days||[],day=>this.updateStepDays(s.id,undefined,day))}</div>}
+      {mode==='alternatives'&&<div className='step-conditional'><div className='step-base-label'><strong>Opción principal</strong><small>Tu paso original ahora es una de las alternativas; elige en qué días se utiliza.</small></div>{this.weekdayPicker(baseDays,day=>this.updateStepDays(s.id,undefined,day))}</div>}
+      <div className='step-edit-fields'><input aria-label={'Nombre de '+stepLevelName(level).toLowerCase()+' '+(i+1)} value={s.title} onChange={e=>update(s.id,{title:e.target.value})} placeholder={mode==='alternatives'?'Nombre de la opción principal':level===0?'Nombre del paso':'Nombre del '+stepLevelName(level).toLowerCase()}/>{hasChildren?<span className='step-readonly-time' title='La duración se calcula sumando los elementos hijos'>Σ {stepMinutes(s)} min</span>:<label className='step-time-field'>min <NumberField value={s.min} min={1} max={1440} ariaLabel='Duración en minutos' onCommit={min=>update(s.id,{min})}/></label>}</div>
+      <div className='step-description'><AutoTextarea maxLength={1000} value={s.desc||''} onChange={(e:any)=>update(s.id,{desc:e.target.value})} placeholder='Instrucciones de este paso u opción...'/></div>
+      {hasChildren&&this.renderStepEditor(s.children||[],level+1)}
+      <div className='step-subaction'><Btn tiny kind='secondary' onClick={()=>update(s.id,{children:[...(s.children||[]),{id:uid(),title:'',min:5,desc:''}]})}><Icon name='plus' size={14}/> Añadir {nextStepLevelName(level)} a esta opción</Btn></div>
+      {mode==='alternatives'&&<div className='step-variants'><div className='step-variants-title'>Otras opciones <span>Un día solo puede tener una alternativa activa. Desmarca todos los días si no se realiza ese paso.</span></div>{(s.variants||[]).map((v,vi)=><div className='step-variant' key={v.id}>
+        <div className='row spread'><strong>Opción {vi+2}</strong><button type='button' className='icon-btn' title='Eliminar opción' aria-label='Eliminar opción' onClick={()=>update(s.id,{variants:(s.variants||[]).filter(a=>a.id!==v.id)})}><Icon name='trash' size={15}/></button></div>
+        <div className='field-grid'><div className='field'><label>Nombre de la opción</label><input value={v.title} placeholder='Ej. Preparar equipaje, estudiar, descansar' onChange={e=>update(s.id,{variants:(s.variants||[]).map(a=>a.id===v.id?{...a,title:e.target.value}:a)})}/></div><div className='field'><label>Tiempo estimado</label>{v.children?.length?<div className='variant-duration'>Σ {v.children.reduce((sum,c)=>sum+stepMinutes(c),0)} min de sus detalles</div>:<NumberField value={v.min} min={1} max={1440} ariaLabel={'Minutos de opción '+(vi+2)} onCommit={min=>update(s.id,{variants:(s.variants||[]).map(a=>a.id===v.id?{...a,min}:a)})}/>}</div></div>
+        <div className='field'><label>Días en los que se utiliza</label>{this.weekdayPicker(v.days,day=>this.updateStepDays(s.id,v.id,day))}</div>
+        <div className='field'><label>Instrucciones particulares</label><AutoTextarea value={v.desc||''} onChange={(e:any)=>update(s.id,{variants:(s.variants||[]).map(a=>a.id===v.id?{...a,desc:e.target.value}:a)})} placeholder='¿Cómo se realiza esta opción?'/></div>
+        {!!v.children?.length&&<div className='variant-children'>{this.renderStepEditor(v.children||[],level+1)}</div>}
+        <Btn tiny kind='secondary' onClick={()=>update(s.id,{variants:(s.variants||[]).map(a=>a.id===v.id?{...a,children:[...(a.children||[]),{id:uid(),title:'',desc:'',min:5}]}:a)})}><Icon name='plus' size={14}/> Añadir {nextStepLevelName(level)} a esta opción</Btn>
+        </div>)}
+        <div className='step-alt-action'><Btn kind='ghost' tiny onClick={()=>update(s.id,{variants:[...(s.variants||[]),{id:uid(),title:'',desc:'',min:Math.max(1,s.min),days:[]}]})}><Icon name='plus' size={14}/> Añadir otra opción</Btn></div>
+      </div>}
+      </div>;
+    })}</div>;
   }
   routineForm():any{
     const r=this.state.routineDraft;
     return <><div className="field"><label>Nombre de la rutina *</label><input maxLength={90} value={r.title} onChange={e=>this.updateRoutineDraft({title:e.target.value})} placeholder="Ej. Preparación para el gimnasio"/></div>
+      <div className='field'><label>Ícono de la rutina</label><div className='routine-icon-grid'>{routineIcons.map(ic=><button type='button' key={ic} title={ic} aria-label={'Ícono '+ic} aria-pressed={(r.icon||'checklist')===ic} className={'routine-icon-choice '+((r.icon||'checklist')===ic?'active':'')} onClick={()=>this.updateRoutineDraft({icon:ic})}><Icon name={ic} size={21}/></button>)}</div></div>
       <div className="field"><label>Descripción {this.hint('rutinas')}</label><AutoTextarea maxLength={1500} value={r.desc} onChange={(e:any)=>this.updateRoutineDraft({desc:e.target.value})} placeholder="¿Qué necesitas lograr al terminar esta rutina?"/></div>
       <div className="field"><div className="row spread"><label style={{margin:0}}>Pasos del procedimiento</label><span className="caption">{routineMinutes(r)} minutos en total</span></div></div>
       {this.renderStepEditor(r.steps)}
@@ -615,18 +735,48 @@ class Planner extends React.Component<{},State> {
   }
   eventForm():any{
     const e=this.state.eventDraft,rs=this.state.data.routines,gs=this.state.data.goals;
-    return <><div className="field"><label>Título de la actividad *</label><input maxLength={100} value={e.title} onChange={v=>this.updateEventDraft({title:v.target.value})} placeholder="Ej. Entrenamiento de fuerza"/></div>
-      <div className="field-grid"><div className="field"><label>Fecha de inicio *</label><input type="date" value={e.date} onChange={v=>this.updateEventDraft({date:v.target.value})}/></div><div className="field"><label>Hora *</label><TimePicker value={e.time} onChange={time=>this.updateEventDraft({time})}/></div></div>
-      <div className="field-grid"><div className="field"><label>Duración estimada (min)</label><NumberField value={e.minutes} min={1} max={1440} onCommit={minutes=>this.updateEventDraft({minutes})}/></div><div className="field"><label>Repetición</label><FriendlySelect value={e.repeat} ariaLabel="Repetición" onChange={value=>this.updateEventDraft({repeat:value as Repeat})} options={[{value:'none',label:'Una sola vez'},{value:'daily',label:'Todos los días'},{value:'weekdays',label:'Lunes a viernes'},{value:'weekly',label:'Semanal (mismo día)'},{value:'custom',label:'Seleccionar días de semana'},{value:'monthly',label:'Mensual (mismo día)'},{value:'yearly',label:'Anual'},{value:'every',label:'Cada cierto número de días'},{value:'dates',label:'En fechas específicas'}]}/></div></div>
-      {e.repeat==='custom'&&<div className='field repeat-detail'><label>¿Qué días de la semana?</label><div className='weekday-options'>{(['D','L','M','X','J','V','S']).map((day,n)=><button type='button' key={n} className={'weekday-pill '+((e.repeatDays||[]).includes(n)?'active':'')} aria-pressed={(e.repeatDays||[]).includes(n)} title={longDays[n]} onClick={()=>this.updateEventDraft({repeatDays:(e.repeatDays||[]).includes(n)?(e.repeatDays||[]).filter(x=>x!==n):[...(e.repeatDays||[]),n]})}>{day}</button>)}</div></div>}
-      {e.repeat==='every'&&<div className='field repeat-detail'><label>Repetir cada cuántos días</label><div style={{maxWidth:180}}><NumberField value={e.everyDays||2} min={1} max={365} onCommit={everyDays=>this.updateEventDraft({everyDays})}/></div></div>}
-      {e.repeat==='dates'&&<div className='field repeat-detail'><label>Fechas adicionales</label><div className='specific-dates'>{(e.specificDates||[]).map((date,i)=><div className='specific-date-row' key={i}><input type='date' min={e.date} value={date} onChange={v=>this.updateEventDraft({specificDates:(e.specificDates||[]).map((d,j)=>j===i?v.target.value:d)})}/><button className='icon-btn' title='Quitar fecha' onClick={()=>this.updateEventDraft({specificDates:(e.specificDates||[]).filter((_,j)=>j!==i)})}><Icon name='trash' size={15}/></button></div>)}</div><Btn kind='secondary' tiny onClick={()=>this.updateEventDraft({specificDates:[...(e.specificDates||[]),addDays(e.date,7)]})}><Icon name='plus' size={14}/> Añadir fecha</Btn><p className='caption'>También incluye la fecha inicial indicada arriba.</p></div>}
-      <div className="field"><label>Rutina o procedimiento (opcional) {this.hint('rutinas')}</label><FriendlySelect value={e.routineId} ariaLabel="Rutina vinculada" onChange={id=>{const r=rs.find(x=>x.id===id);this.updateEventDraft({routineId:id,...(r?{title:r.title,minutes:routineMinutes(r)}:{})})}} options={[{value:'',label:'Actividad sencilla'},...rs.map(r=>({value:r.id,label:r.title}))]}/></div>
-      <div className="field"><label>Meta vinculada (opcional)</label><FriendlySelect value={e.goalId} ariaLabel="Meta vinculada" onChange={goalId=>this.updateEventDraft({goalId})} options={[{value:'',label:'Sin meta asociada'},...gs.map(g=>({value:g.id,label:g.title}))]}/></div>
-      <div className="field"><label>Notas e instrucciones</label><AutoTextarea value={e.note} onChange={(v:any)=>this.updateEventDraft({note:v.target.value})} maxLength={1500} placeholder="Detalles que quieras recordar"/></div>
-      {e.routineId&&<p className="caption">Cada rutina solo puede aparecer una vez por día. Para cambiar su horario, edita esta programación.</p>}
-      {e.id&&e.repeat!=='none'&&<div className="field"><label>Aplicar cambios solo desde esta fecha (opcional)</label><input type="date" min={e.date} value={e.applyFrom||''} onChange={v=>this.updateEventDraft({applyFrom:v.target.value})}/><p className="caption">Vacío: cambia toda la serie. Con fecha: conserva el historial anterior y crea una nueva programación desde el día elegido.</p></div>}
-      {e.id&&<div className="row spread" style={{marginTop:16}}><div className="caption">Editar una actividad recurrente modifica su programación general. Los cambios de ±15 min en el calendario afectan solo al día elegido.</div><Btn kind="danger" tiny onClick={()=>this.deleteEvent(e)}><Icon name="trash" size={14}/> Eliminar</Btn></div>}
+    const isOccasion=e.kind==='occasion';
+    const repeatGroup=e.repeat==='custom'||e.repeat==='daily'||e.repeat==='weekdays'?'days':e.repeat==='weekly'||e.repeat==='monthly'||e.repeat==='yearly'||e.repeat==='every'?'period':'dates';
+    const scheduled=e.routineId?this.routineSchedule(e.routineId):undefined;
+    const changeRepeatGroup=(group:string)=>{
+      if(group==='days')this.updateEventDraft({repeat:'custom',repeatDays:[1,2,3,4,5]});
+      if(group==='period')this.updateEventDraft({repeat:'weekly',repeatDays:[]});
+      if(group==='dates')this.updateEventDraft({repeat:'none',repeatDays:[],specificDates:[]});
+    };
+    const minDate=parseDay(this.state.datePickerMonth);
+    const monthOffset=(minDate.getDay()+6)%7;
+    const visibleDays=Array.from({length:42},(_,i)=>addDays(this.state.datePickerMonth,i-monthOffset));
+    const totalMinutes=e.routineId?Math.max(1,routineMinutesOn(rs.find(x=>x.id===e.routineId)||{id:'',title:'',desc:'',steps:[]},e.date)):e.minutes;
+    const endTime=e.endTime||timeString(minutes(e.time)+totalMinutes);
+    return <>
+      <div className='field'><label>¿Qué quieres programar?</label><div className='event-type-choice'>
+        <button className={!isOccasion?'active':''} type='button' onClick={()=>this.updateEventDraft({kind:undefined,allDay:false,endDate:undefined})}><Icon name='checklist'/> Actividad o rutina<small>Un bloque de tu horario</small></button>
+        <button className={isOccasion?'active':''} type='button' onClick={()=>this.updateEventDraft({kind:'occasion',allDay:true,routineId:'',repeat:'none',specificDates:[]})}><Icon name='calendar'/> Evento o fecha especial<small>Viajes, reuniones, ocasiones importantes</small></button>
+      </div></div>
+      <div className='field'><label>{isOccasion?'Nombre del evento *':'Nombre de la actividad *'}</label><input maxLength={100} value={e.title} onChange={v=>this.updateEventDraft({title:v.target.value})} placeholder={isOccasion?'Ej. Viaje de graduación':'Ej. Preparación matutina'}/></div>
+      <div className='field-grid'><div className='field'><label>Primera fecha *</label><input type='date' value={e.date} onChange={v=>{this.updateEventDraft({date:v.target.value});if(v.target.value)this.setState({datePickerMonth:firstMonth(v.target.value)});}}/></div>
+        {isOccasion&&e.repeat==='none'&&<div className='field'><label>Fecha de finalización (opcional)</label><input type='date' min={e.date} value={e.endDate||''} onChange={v=>this.updateEventDraft({endDate:v.target.value})}/><span className='caption'>Úsala para viajes o eventos que duran varios días.</span></div>}
+      </div>
+      {isOccasion&&<label className='event-allday-toggle'><input type='checkbox' checked={!!e.allDay} onChange={v=>this.updateEventDraft({allDay:v.target.checked})}/> Ocurre durante todo el día (no ocupa un bloque con hora fija)</label>}
+      {!e.allDay&&<><div className='field'><label>¿Con qué hora quieres acomodarla?</label><div className='time-anchor-choice'>
+        <button className={(e.anchor||'start')==='start'?'active':''} onClick={()=>this.updateEventDraft({anchor:'start'})}><Icon name='clock' size={16}/> Hora de inicio</button>
+        <button className={e.anchor==='end'?'active':''} onClick={()=>this.updateEventDraft({anchor:'end',endTime})}><Icon name='clock' size={16}/> Hora de término</button>
+      </div></div>
+      <div className='field-grid'><div className='field'><label>{e.anchor==='end'?'Termina a las':'Comienza a las'} *</label><TimePicker value={e.anchor==='end'?endTime:e.time} onChange={time=>e.anchor==='end'?this.updateEventDraft({endTime:time,time:timeString(Math.max(0,minutes(time)-totalMinutes))}):this.updateEventDraft({time})}/></div>
+        <div className='field'><label>Duración estimada (min)</label>{e.routineId?<div className='calculated-duration'>Σ {totalMinutes} minutos · calculado según la rutina</div>:<NumberField value={e.minutes} min={1} max={1440} onCommit={val=>this.updateEventDraft({minutes:val, ...(e.anchor==='end'?{time:timeString(Math.max(0,minutes(endTime)-val))}:{})})}/>}</div></div>
+      {e.anchor==='end'&&<p className='caption anchor-note'>La hora inicial se calcula restando la duración. Si una variante cambia la duración, la hora de finalización seguirá siendo la elegida.</p>}</>}
+      <div className='field'><label>Cómo se repite</label><div className='repeat-group-choice'>
+        {[{id:'days',title:'Días de semana',desc:'Lunes, martes, etc.'},{id:'period',title:'Por período',desc:'Semanas, meses o años'},{id:'dates',title:'Fechas concretas',desc:'Una o varias fechas'}].map(option=><button type='button' key={option.id} className={repeatGroup===option.id?'active':''} onClick={()=>changeRepeatGroup(option.id)}><strong>{option.title}</strong><small>{option.desc}</small></button>)}
+      </div></div>
+      {repeatGroup==='days'&&<div className='field repeat-detail'><label>Selecciona los días habituales</label><div className='weekday-options'>{weekdayNames.map((day,n)=><button type='button' key={n} className={'weekday-pill '+((e.repeat==='daily'||(e.repeat==='weekdays'&&n>=1&&n<=5)||(e.repeat==='custom'&&(e.repeatDays||[]).includes(n)))?'active':'')} aria-pressed={(e.repeatDays||[]).includes(n)} title={longDays[n]} onClick={()=>{const old=e.repeat==='daily'?DAYS:e.repeat==='weekdays'?[1,2,3,4,5]:e.repeatDays||[];const next=old.includes(n)?old.filter(x=>x!==n):[...old,n];this.updateEventDraft({repeat:'custom',repeatDays:next});}}>{day}</button>)}</div><p className='caption'>Los días seleccionados permanecen marcados. La primera fecha establece desde cuándo se aplican.</p></div>}
+      {repeatGroup==='period'&&<div className='field repeat-detail'><label>Intervalo de repetición</label><FriendlySelect value={e.repeat} ariaLabel='Periodicidad' onChange={value=>this.updateEventDraft({repeat:value as Repeat})} options={[{value:'weekly',label:'Cada semana, el mismo día'},{value:'monthly',label:'Cada mes, la misma fecha'},{value:'yearly',label:'Cada año'},{value:'every',label:'Cada cierto número de días'}]}/>{e.repeat==='every'&&<div className='field' style={{marginTop:12,maxWidth:210}}><label>Intervalo en días</label><NumberField value={e.everyDays||2} min={1} max={365} onCommit={everyDays=>this.updateEventDraft({everyDays})}/></div>}</div>}
+      {repeatGroup==='dates'&&<div className='field repeat-detail'><div className='row spread'><label>Elige las fechas en el calendario</label><span className='caption'>{1+(e.specificDates||[]).filter(d=>d!==e.date).length} seleccionada(s)</span></div><div className='mini-calendar-head'><button className='icon-btn' aria-label='Mes anterior' onClick={()=>this.setState({datePickerMonth:firstMonth(addDays(this.state.datePickerMonth,-1))})}><Icon name='left' size={15}/></button><strong>{fmtMonth(this.state.datePickerMonth)}</strong><button className='icon-btn' aria-label='Mes siguiente' onClick={()=>{const m=parseDay(this.state.datePickerMonth);m.setMonth(m.getMonth()+1);this.setState({datePickerMonth:ymd(m)});}}><Icon name='right' size={15}/></button></div><div className='mini-calendar-grid'>{['L','M','Mié','J','V','S','D'].map((name,i)=><span className='mini-calendar-weekday' key={i}>{name}</span>)}{visibleDays.map((date,i)=>{const selected=date===e.date||(e.specificDates||[]).includes(date),outside=date.slice(0,7)!==this.state.datePickerMonth.slice(0,7),disabled=date<e.date;return <button type='button' key={i} disabled={disabled} className={'mini-calendar-day '+(selected?'active ':'')+(outside?'outside':'')} title={date} onClick={()=>{if(date===e.date)return;const next=(e.specificDates||[]).includes(date)?(e.specificDates||[]).filter(d=>d!==date):[...(e.specificDates||[]),date];this.updateEventDraft({specificDates:next,repeat:next.length?'dates':'none'});}}>{parseDay(date).getDate()}</button>;})}</div><p className='caption'>La fecha inicial siempre está incluida. Puedes añadir o quitar fechas posteriores.</p></div>}
+      {!isOccasion&&<div className='field'><label>Rutina o procedimiento (opcional) {this.hint('rutinas')}</label><FriendlySelect value={e.routineId} ariaLabel='Rutina vinculada' onChange={id=>{const r=rs.find(x=>x.id===id),old=id?this.routineSchedule(id):undefined;if(old&&old.id!==e.id){if(confirm('Esta rutina ya tiene una programación. ¿Quieres reprogramarla a partir de hoy? Su historial quedará intacto.'))this.openEvent(old);return;}this.updateEventDraft({routineId:id,...(r?{title:r.title,minutes:routineMinutes(r)}:{})});}} options={[{value:'',label:'Actividad sencilla'},...rs.map(r=>({value:r.id,label:r.title+(this.routineSchedule(r.id)&&this.routineSchedule(r.id)?.id!==e.id?' · ya programada':'' )}))]}/></div>}
+      <div className='field'><label>Meta vinculada (opcional)</label><FriendlySelect value={e.goalId} ariaLabel='Meta vinculada' onChange={goalId=>this.updateEventDraft({goalId})} options={[{value:'',label:'Sin meta asociada'},...gs.map(g=>({value:g.id,label:g.title}))]}/></div>
+      <div className='field'><label>Descripción e instrucciones</label><AutoTextarea value={e.note} onChange={(v:any)=>this.updateEventDraft({note:v.target.value})} maxLength={1500} placeholder={isOccasion?'Lugar, notas del viaje, recuerdos o preparativos':'Detalles que quieras recordar'}/></div>
+      {e.routineId&&<div className='notice'>Una rutina mantiene una única programación vigente. Si ya existe, utiliza «Reprogramar»: no se crearán copias que compitan entre sí.</div>}
+      {e.id&&<div className='field'><label>Aplicar la reprogramación desde</label><input type='date' min={today()} value={e.applyFrom||today()} onChange={v=>this.updateEventDraft({applyFrom:v.target.value})}/><p className='caption'>Cambia este día y los siguientes; conserva los días anteriores y los registros ya hechos. Antes de guardar verás una confirmación.</p></div>}
+      {e.id&&<div className='row spread' style={{marginTop:16}}><span className='caption'>Editar la programación puede cambiar horas y repeticiones desde la fecha indicada.</span><Btn kind='danger' tiny onClick={()=>this.deleteEvent(e)}><Icon name='trash' size={14}/> Eliminar</Btn></div>}
     </>;
   }
   progressForm():any{
@@ -640,7 +790,7 @@ class Planner extends React.Component<{},State> {
     const date=this.state.selectedDate,e=this.state.data.events.find(x=>x.id===this.state.activeEventId);if(!e)return null;
     const original=this.state.data.routines.find(x=>x.id===e.routineId);if(!original)return <p>La rutina ya no está disponible.</p>;const r={...original,steps:activeSteps(original.steps,date)};
     const log=this.state.data.logs[key(e,date)]||{completed:false,checkedSteps:[]};
-    return <><div className="notice"><strong>{e.title}</strong> · {fmtDate(date)} a las {eventTime(e,date)}. Cada paso marcado se guarda únicamente para esta ejecución.</div><div style={{marginTop:15}}>{this.renderCheckSteps(r.steps,e,date,log)}</div><div className="divider"/><div className="row spread"><span className="caption">{leafSteps(r.steps).filter(s=>log.checkedSteps.includes(s.id)).length} / {leafSteps(r.steps).length} pasos completados</span>{log.completed&&<span className="small-tag">Actividad completada</span>}</div></>;
+    return <><div className="notice"><strong>{e.title}</strong> · {fmtDate(date)} a las {eventTime(e,date,this.state.data)}. Cada paso marcado se guarda únicamente para esta ejecución.</div><div style={{marginTop:15}}>{this.renderCheckSteps(r.steps,e,date,log)}</div><div className="divider"/><div className="row spread"><span className="caption">{leafSteps(r.steps).filter(s=>log.checkedSteps.includes(s.id)).length} / {leafSteps(r.steps).length} pasos completados</span>{log.completed&&<span className="small-tag">Actividad completada</span>}</div></>;
   }
   render():any{
     const title:{[K in Page]:string}={inicio:'Inicio',metas:'Metas',rutinas:'Rutinas',horario:'Horario',calendario:'Calendario',progreso:'Progreso',ajustes:'Ajustes'};
