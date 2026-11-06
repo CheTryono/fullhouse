@@ -1,4 +1,4 @@
-/* Fullhouse · Planificador v0.5 — prototipo local sin servicios externos.
+/* Fullhouse · Planificador v0.6 — prototipo local sin servicios externos.
    Interfaz React + TypeScript. Los datos se guardan en este navegador. */
 type Page = 'inicio' | 'metas' | 'rutinas' | 'horario' | 'calendario' | 'progreso' | 'ajustes';
 type GoalMode = 'numeric' | 'qualitative' | 'milestones';
@@ -11,10 +11,10 @@ type LifeArea = 'mind' | 'physical' | 'purpose' | 'social' | 'other';
 type ReviewPlan = { date:string; time:string; repeat:'none'|'weekly'|'monthly' };
 type StepVariant = { id:string; title:string; desc:string; min:number; days:number[]; children?:Step[] };
 type Goal = { id: string; title: string; desc: string; parentId: string; color: string; area?:LifeArea; review?:ReviewPlan; startDate?: string; dueDate?: string; dependsOn?: string; current: number; target: number; unit: string; mode?: GoalMode; status?: GoalStatus; milestones?: Milestone[]; history: { date: string; value: number; note: string; status?: GoalStatus }[] };
-type Step = { id: string; title: string; min: number; desc?: string; children?: Step[]; variants?:StepVariant[]; mode?:'always'|'selected'|'alternatives'; days?:number[] };
+type Step = { id: string; title: string; min: number; desc?: string; children?: Step[]; variants?:StepVariant[]; mode?:'always'|'selected'|'alternatives'; days?:number[]; chooseWhen?:'weekday'|'execute'; flexible?:boolean };
 type Routine = { id: string; title: string; desc: string; steps: Step[]; icon?:string };
-type EventItem = { id: string; title: string; date: string; endDate?: string; applyFrom?:string; time: string; minutes: number; goalId: string; routineId: string; repeat: Repeat; repeatDays?:number[]; everyDays?:number; specificDates?:string[]; kind?:'review'|'occasion'; allDay?:boolean; anchor?:'start'|'end'; endTime?:string; note: string; overrides: Record<string, { time?: string; skip?: boolean }> };
-type RecordLog = { completed: boolean; checkedSteps: string[]; note?: string };
+type EventItem = { id: string; title: string; date: string; endDate?: string; applyFrom?:string; time: string; minutes: number; goalId: string; routineId: string; repeat: Repeat; repeatDays?:number[]; everyDays?:number; specificDates?:string[]; kind?:'review'|'occasion'; allDay?:boolean; anchor?:'start'|'end'|'between'; endTime?:string; afterRoutineId?:string; beforeRoutineId?:string; overlapMode?:'keep'|'move'; note: string; overrides: Record<string, { time?: string; skip?: boolean }> };
+type RecordLog = { completed: boolean; checkedSteps: string[]; note?: string; stepNotes?:Record<string,string>; choices?:Record<string,string> };
 type Data = { version: number; goals: Goal[]; routines: Routine[]; events: EventItem[]; logs: Record<string, RecordLog> };
 type GoalDraft = Omit<Goal,'history'>;
 type RoutineDraft = Routine;
@@ -139,13 +139,32 @@ function occurs(e:EventItem,date:string):boolean {
   if(e.repeat==='dates')return (e.specificDates||[]).includes(date)||date===e.date;
   return false;
 }
-function eventsOn(data:Data,date:string):EventItem[]{return data.events.filter(e=>occurs(e,date)).sort((a,b)=>eventTime(a,date,data).localeCompare(eventTime(b,date,data)));}
-function eventTime(e:EventItem,date:string,data?:Data):string {
-  if(e.overrides?.[date]?.time)return e.overrides[date].time!;
-  if(e.anchor==='end'&&e.endTime){const length=data?durationOn(e,date,data):e.minutes;return timeString(Math.max(0,minutes(e.endTime)-length));}
-  return e.time;
+type ScheduleFrame={start:number;end:number;length:number};
+function routineForDay(e:EventItem,date:string,data:Data):Step[]{const r=data.routines.find(r=>r.id===e.routineId);return r?activeSteps(r.steps,date,data.logs[key(e,date)]?.choices):[];}
+function baseLength(e:EventItem,date:string,data:Data):number{const r=data.routines.find(x=>x.id===e.routineId);return r?Math.max(1,routineForDay(e,date,data).reduce((n,s)=>n+stepMinutes(s),0)):Math.max(1,e.minutes);}
+/* Las referencias se guardan por RUTINA; siguen válidas al dividir una programación para preservar su historial. */
+function eventFrame(e:EventItem,date:string,data:Data,visited:Set<string>=new Set()):ScheduleFrame|null{
+  if(visited.has(e.id))return null;
+  if(e.allDay)return {start:0,end:1440,length:1440};
+  if(e.anchor==='between'){
+    if(!e.afterRoutineId||!e.beforeRoutineId||e.afterRoutineId===e.beforeRoutineId)return null;
+    const nextVisited=new Set(visited);nextVisited.add(e.id);
+    const find=(rid:string)=>data.events.find(x=>x.id!==e.id&&x.routineId===rid&&occurs(x,date));
+    const after=find(e.afterRoutineId),before=find(e.beforeRoutineId);
+    if(!after||!before)return null;
+    const a=eventFrame(after,date,data,nextVisited),b=eventFrame(before,date,data,nextVisited);
+    if(!a||!b||a.end>=b.start)return null;
+    return {start:a.end,end:b.start,length:b.start-a.end};
+  }
+  const length=baseLength(e,date,data),at=e.overrides?.[date]?.time;
+  const start=at?minutes(at):e.anchor==='end'&&e.endTime?minutes(e.endTime)-length:minutes(e.time);
+  if(start<0||start+length>1440)return null;
+  return {start,end:start+length,length};
 }
-function scheduleStart(e:EventItem,date:string,data:Data):number{return minutes(eventTime(e,date,data));}
+function eventsOn(data:Data,date:string):EventItem[]{return data.events.filter(e=>occurs(e,date)&&(e.allDay||!!eventFrame(e,date,data))).sort((a,b)=>eventTime(a,date,data).localeCompare(eventTime(b,date,data)));}
+function eventTime(e:EventItem,date:string,data?:Data):string {const frame=data?eventFrame(e,date,data):null;return frame?timeString(frame.start):e.overrides?.[date]?.time||e.time;}
+function scheduleStart(e:EventItem,date:string,data:Data):number{return eventFrame(e,date,data)?.start??minutes(e.time);}
+
 function sameScheduleActive(e:EventItem,cutoff:string):boolean{return !!e.routineId && (!e.endDate||e.endDate>=cutoff) && (e.repeat!=='none'||e.date>=cutoff);}
 function reorderByIds<T extends {id:string}>(items:T[],from:string,to:string):T[]{const list=[...items],a=list.findIndex(i=>i.id===from),b=list.findIndex(i=>i.id===to);if(a<0||b<0||a===b)return items;const [m]=list.splice(a,1);list.splice(b,0,m);return list;}
 
@@ -200,21 +219,59 @@ function goalStatus(g:Goal|GoalDraft):GoalStatus{return g.status||'pending';}
 function statusLabel(s:GoalStatus):string{return goalStatuses.find(x=>x.id===s)?.label||'Por comenzar';}
 function goalMilestones(g:Goal|GoalDraft):Milestone[]{return g.milestones||[];}
 function stepMinutes(s:Step):number{return s.children&&s.children.length?s.children.reduce((a,c)=>a+stepMinutes(c),0):s.min;}
-function activeStep(s:Step,date:string):Step|null{
+function activeStep(s:Step,date:string,choices:Record<string,string>={}):Step|null{
   const weekday=parseDay(date).getDay();
   if(s.mode==='selected' && !(s.days||[]).includes(weekday))return null;
   const mode=s.mode||((s.variants||[]).length?'alternatives':'always');
-  const match=mode==='alternatives'?s.variants?.find(v=>v.days.includes(weekday)):undefined;
-  if(s.mode==='alternatives'&&!match){
+  const match=mode==='alternatives'?s.chooseWhen==='execute'?s.variants?.find(v=>v.id===choices[s.id]):s.variants?.find(v=>v.days.includes(weekday)):undefined;
+  if(s.mode==='alternatives'&&s.chooseWhen!=='execute'&&!match){
     const baseDays=s.days||DAYS.filter(n=>!(s.variants||[]).some(v=>v.days.includes(n)));
     if(!baseDays.includes(weekday))return null;
   }
   const chosen=match?{...s,title:match.title||s.title,desc:match.desc||'',min:match.min,children:match.children||[]}:s;
-  return {...chosen,children:chosen.children?.map(c=>activeStep(c,date)).filter(Boolean) as Step[]};
+  return {...chosen,children:chosen.children?.map(c=>activeStep(c,date,choices)).filter(Boolean) as Step[]};
 }
-function activeSteps(steps:Step[],date:string):Step[]{return steps.map(s=>activeStep(s,date)).filter(Boolean) as Step[];}
+function activeSteps(steps:Step[],date:string,choices:Record<string,string>={}):Step[]{return steps.map(s=>activeStep(s,date,choices)).filter(Boolean) as Step[];}
 function routineMinutesOn(r:Routine,date:string):number{return activeSteps(r.steps,date).reduce((total,s)=>total+stepMinutes(s),0);}
-function durationOn(e:EventItem,date:string,data:Data):number{const r=data.routines.find(r=>r.id===e.routineId);return r?Math.max(1,routineMinutesOn(r,date)):e.minutes;}
+function durationOn(e:EventItem,date:string,data:Data):number{return eventFrame(e,date,data)?.length??baseLength(e,date,data);}
+function leafAllocation(steps:Step[],available:number):Record<string,number>{
+  const leaves=leafSteps(steps);const fixed=leaves.filter(s=>!s.flexible).reduce((n,s)=>n+s.min,0);
+  const flex=leaves.filter(s=>s.flexible);const remaining=Math.max(0,available-fixed),result:Record<string,number>={};
+  flex.forEach((s,i)=>{result[s.id]=Math.floor(remaining/flex.length)+(i<remaining%flex.length?1:0)});return result;
+}
+function effectiveStepMinutes(s:Step,alloc:Record<string,number>):number{
+  return s.children?.length?s.children.reduce((n,c)=>n+effectiveStepMinutes(c,alloc),0):s.flexible?(alloc[s.id]??s.min):s.min;
+}
+function fixedStepMinutes(steps:Step[]):number{return leafSteps(steps).filter(s=>!s.flexible).reduce((n,s)=>n+s.min,0);}
+function unresolvedManual(steps:Step[],choices:Record<string,string>={}):Step[]{const result:Step[]=[];
+  const walk=(items:Step[])=>items.forEach(s=>{if(s.mode==='alternatives'&&s.chooseWhen==='execute'&&!choices[s.id])result.push(s);walk(s.children||[]);});walk(steps);return result;
+}
+function upcomingNote(data:Data,e:EventItem,date:string,stepId?:string):string{
+  /* Solo el siguiente día en el que realmente aparece este paso/bloque. */
+  const refs=data.events.filter(item=>e.routineId?item.routineId===e.routineId:item.id===e.id);
+  const candidates=Object.entries(data.logs).flatMap(([logKey,log])=>{
+    const i=logKey.lastIndexOf('@'),id=logKey.slice(0,i),at=logKey.slice(i+1);
+    const value=stepId?log.stepNotes?.[stepId]:log.note;
+    return value&&at<date&&refs.some(item=>item.id===id)?[{at,value}]:[];
+  }).sort((a,b)=>b.at.localeCompare(a.at));
+  for(const item of candidates){
+    let next=addDays(item.at,1);let count=0;
+    while(next<=date&&count++<3660){
+      const valid=refs.find(v=>occurs(v,next)&&!!eventFrame(v,next,data));
+      const active=valid?(!stepId||routineForDay(valid,next,data).some(s=>stepPresent(s,stepId))):false;
+      if(active)return next===date?item.value:'';
+      next=addDays(next,1);
+    }
+  }
+  return '';
+}
+function originalStepTitle(data:Data,routineId:string,id:string):string{
+  const routine=data.routines.find(r=>r.id===routineId);if(!routine)return '';
+  const find=(steps:Step[]):string=>{for(const s of steps){if(s.id===id)return s.title;const child=find(s.children||[]);if(child)return child;for(const v of s.variants||[]){const alt=find(v.children||[]);if(alt)return alt;}}return '';};
+  return find(routine.steps);
+}
+function stepPresent(s:Step,id:string):boolean{return s.id===id||!!s.children?.some(c=>stepPresent(c,id));}
+
 function readableOn(color:string):string{const rgb=[1,3,5].map(i=>parseInt(color.slice(i,i+2),16)/255).map(x=>x<=.04045?x/12.92:Math.pow((x+.055)/1.055,2.4));return rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722>.36?'#201b2e':'#fff';} 
 function routineMinutes(r:Routine):number{return r.steps.reduce((a,s)=>a+stepMinutes(s),0);}
 function leafSteps(steps:Step[]):Step[]{return steps.flatMap(s=>s.children&&s.children.length?leafSteps(s.children):[s]);}
@@ -236,6 +293,17 @@ class NumberField extends React.Component<{value:number;min?:number;max?:number;
   render(){return <input type="text" inputMode="decimal" aria-label={this.props.ariaLabel||'Cantidad'} value={this.state.text} onFocus={()=>this.setState({editing:true})} onChange={(e:any)=>{if(/^\d*([.,]\d*)?$/.test(e.target.value))this.setState({text:e.target.value});}} onBlur={this.commit}/>;}
 }
 
+class NoteEditor extends React.Component<{value:string;carry?:string;label:string;onSave:(value:string)=>void},{text:string;open:boolean}>{
+  constructor(props:any){super(props);this.state={text:props.value||'',open:false};}
+  componentDidUpdate(prev:any){if(prev.value!==this.props.value)this.setState({text:this.props.value||''});}
+  render():any{return <div className={'day-note-editor '+(this.state.open?'is-expanded':'is-collapsed')}>
+    <div className='row spread'><div className='day-note-title'><Icon name='book' size={17}/><strong>{this.props.label}</strong></div><Btn tiny kind='secondary' onClick={()=>this.setState({open:!this.state.open,text:this.props.value||''})}>{this.state.open?'Cerrar':this.props.value?'Ver / editar nota':'Añadir nota'}</Btn></div>
+    {!!this.props.value&&!this.state.open&&<p className='saved-note-excerpt'>✎ {this.props.value}</p>}
+    {this.props.carry&&<div className='note-from-previous'><strong>✦ Nota de la ocasión anterior</strong><p>{this.props.carry}</p><small>Aparece solamente esta vez; no cambia las instrucciones permanentes.</small></div>}
+    {this.state.open&&<><AutoTextarea value={this.state.text} onChange={(ev:any)=>this.setState({text:ev.target.value})} placeholder='¿Qué sucedió? ¿Qué mejorarías o recordarías la próxima vez?' maxLength={2000}/>
+    <div className='row spread'><span className='caption'>Se conserva en esta fecha y aparecerá una vez en la próxima ocasión.</span><Btn tiny kind='secondary' disabled={this.state.text===(this.props.value||'')} onClick={()=>{this.props.onSave(this.state.text);this.setState({open:false})}}>Guardar nota</Btn></div></>}
+  </div>}
+}
 class FriendlySelect extends React.Component<{value:string;options:SelectOption[];onChange:(value:string)=>void;ariaLabel?:string},{open:boolean;index:number;style:any}>{
  root:HTMLElement|null=null;menuEl:HTMLElement|null=null;
  constructor(props:any){super(props);this.state={open:false,index:0,style:{}};}
@@ -357,8 +425,8 @@ class Planner extends React.Component<{},State> {
   }
   saveRoutine=():void=>{
     const x=this.state.routineDraft;if(!x.title.trim()){this.setState({toast:'Escribe un nombre para la rutina'});return;}
-    if((function invalid(steps:Step[]):boolean{return steps.some(s=>!s.title.trim()||(s.children&&invalid(s.children))||((s.variants||[]).some(v=>!!v.title.trim()&&!!v.days.length&&v.children&&invalid(v.children))))})(x.steps)){this.setState({toast:'Todos los pasos necesitan un nombre'});return;}
-    const data=this.state.data;const clean=(steps:Step[]):Step[]=>steps.map(s=>{const children=s.children?clean(s.children):undefined;return {...s,title:s.title.trim(),children,variants:s.variants?.filter(v=>v.title.trim()&&v.days.length).map(v=>({...v,title:v.title.trim(),days:[...new Set(v.days)],children:v.children?clean(v.children):undefined,min:Math.max(1,v.min)})),min:children&&children.length?children.reduce((a,c)=>a+stepMinutes(c),0):Math.max(1,s.min),mode:s.mode||((s.variants||[]).length?'alternatives':'always')};});const result:Routine={...x,id:x.id||uid(),title:x.title.trim(),steps:clean(x.steps)};
+    if((function invalid(steps:Step[]):boolean{return steps.some(s=>!s.title.trim()||(s.children&&invalid(s.children))||((s.variants||[]).some(v=>!!v.title.trim()&&(s.chooseWhen==='execute'||!!v.days.length)&&v.children&&invalid(v.children))))})(x.steps)){this.setState({toast:'Todos los pasos necesitan un nombre'});return;}
+    const data=this.state.data;const clean=(steps:Step[]):Step[]=>steps.map(s=>{const children=s.children?clean(s.children):undefined;return {...s,title:s.title.trim(),children,variants:s.variants?.filter(v=>v.title.trim()&&(s.chooseWhen==='execute'||v.days.length)).map(v=>({...v,title:v.title.trim(),days:[...new Set(v.days)],children:v.children?clean(v.children):undefined,min:Math.max(0,v.min)})),min:children&&children.length?children.reduce((a,c)=>a+stepMinutes(c),0):s.flexible?Math.max(5,s.min):Math.max(1,s.min),mode:s.mode||((s.variants||[]).length?'alternatives':'always')};});const result:Routine={...x,id:x.id||uid(),title:x.title.trim(),steps:clean(x.steps)};
     this.save({...data,routines:x.id?data.routines.map(r=>r.id===x.id?result:r):[...data.routines,result],events:data.events.map(e=>e.routineId===result.id?{...e,minutes:routineMinutes(result)}:e)});this.close(true);
   }
   saveEvent=():void=>{
@@ -370,8 +438,9 @@ class Planner extends React.Component<{},State> {
     const data=this.state.data;
     const original=data.events.find(e=>e.id===x.id);
     if(original?.kind==='review'){this.notice('Las revisiones se editan desde la meta.');return;}
-    const scheduleChanged=!!original&&(original.time!==x.time||original.endTime!==x.endTime||original.anchor!==x.anchor||original.date!==x.date||original.endDate!==x.endDate||original.repeat!==x.repeat||JSON.stringify(original.repeatDays||[])!==JSON.stringify(x.repeatDays||[])||original.everyDays!==x.everyDays||JSON.stringify(original.specificDates||[])!==JSON.stringify(x.specificDates||[]));
-    if(original&&scheduleChanged&&!confirm('¿Confirmas la reprogramación? Se actualizarán las próximas fechas y el resto de hoy desde la fecha elegida, sin modificar días anteriores ni sus registros.'))return;
+    const scheduleChanged=!!original&&(original.time!==x.time||original.endTime!==x.endTime||original.anchor!==x.anchor||original.afterRoutineId!==x.afterRoutineId||original.beforeRoutineId!==x.beforeRoutineId||original.date!==x.date||original.endDate!==x.endDate||original.repeat!==x.repeat||JSON.stringify(original.repeatDays||[])!==JSON.stringify(x.repeatDays||[])||original.everyDays!==x.everyDays||JSON.stringify(original.specificDates||[])!==JSON.stringify(x.specificDates||[]));
+    const impacted=original?.routineId?data.events.filter(item=>item.anchor==='between'&&(item.afterRoutineId===original.routineId||item.beforeRoutineId===original.routineId)&&sameScheduleActive(item,today())):[];
+    if(original&&scheduleChanged&&!confirm('¿Confirmas la reprogramación? Se actualizarán las próximas fechas y el resto de hoy desde la fecha elegida, sin modificar días anteriores ni sus registros.'+(impacted.length?'\n\n⚠ '+impacted.length+' bloque(s) dependiente(s) se reajustarán automáticamente. Si sus límites dejan de coincidir, se ocultarán ese día hasta corregir su programación.':'') ))return;
     const startChange=original ? (x.applyFrom||today()) : x.date;
     if(original&&startChange<today()){this.notice('La reprogramación debe aplicarse desde hoy o una fecha posterior.');return;}
     const cut=original&&original.date<startChange;
@@ -389,16 +458,49 @@ class Planner extends React.Component<{},State> {
       if(conflict){this.notice('Esta rutina ya tiene una programación futura. Utiliza Reprogramar desde la tarjeta de rutinas.');return;}
     }
     const cleanFuture={...future,applyFrom:undefined};
+    if(cleanFuture.anchor==='between'){
+      if(!cleanFuture.routineId||!cleanFuture.afterRoutineId||!cleanFuture.beforeRoutineId||cleanFuture.afterRoutineId===cleanFuture.beforeRoutineId||[cleanFuture.afterRoutineId,cleanFuture.beforeRoutineId].includes(cleanFuture.routineId)){
+        this.notice('Elige una rutina para este bloque y dos rutinas límite diferentes.');return;
+      }
+      const hypothetical={...data,events:[...data.events.filter(e=>e.id!==original?.id&&e.id!==cleanFuture.id),cleanFuture]};
+      if(!eventFrame(cleanFuture,cleanFuture.date,hypothetical)){
+        this.notice('No hay un intervalo válido entre las dos rutinas en la fecha inicial. Revisa días, horarios y dependencias circulares.');return;
+      }
+      const steps=routineForDay(cleanFuture,cleanFuture.date,hypothetical),frame=eventFrame(cleanFuture,cleanFuture.date,hypothetical)!;
+      if(fixedStepMinutes(steps)>frame.length){this.notice('Los pasos de duración fija superan el intervalo disponible. Reduce su duración o cambia los límites.');return;}
+    }
+    const withOverlap=(next:Data):Data|null=>{
+      const target=next.events.find(item=>item.id===cleanFuture.id);if(!target||target.overlapMode!=='move'||target.repeat!=='none'||target.allDay||target.anchor==='between')return next;
+      const date=target.date,span=eventFrame(target,date,next);if(!span)return next;
+      const clashes=eventsOn(next,date).filter(item=>item.id!==target.id&&!item.allDay&&!!eventFrame(item,date,next)&&eventFrame(item,date,next)!.start<span.end&&eventFrame(item,date,next)!.end>span.start);
+      if(!clashes.length)return next;
+      if(clashes.some(item=>item.anchor==='between')){this.notice('Un bloque flexible coincide con el evento. Elige mantener el solapamiento o cambia los límites.');return null;}
+      if(!confirm('¿Mover los bloques solapados solamente el '+date+'? Se conservará su orden y sus duraciones en ese día. Otros días no cambiarán.'))return null;
+      let cursor=span.end;
+      let updated=next.events.map(item=>({...item,overrides:{...item.overrides}}));
+      const others=eventsOn(next,date).filter(item=>item.id!==target.id&&!item.allDay&&item.anchor!=='between').sort((a,b)=>scheduleStart(a,date,next)-scheduleStart(b,date,next));
+      for(const item of others){const f=eventFrame(item,date,{...next,events:updated});if(!f)continue;if(f.end<=span.start)continue;
+        if(f.start<cursor){if(cursor+f.length>1440){this.notice('No es posible posponer los bloques sin salir del día. Mantén el solapamiento o elige otra hora.');return null;}
+          updated=updated.map(x=>x.id===item.id?{...x,overrides:{...x.overrides,[date]:{...x.overrides[date],time:timeString(cursor)}}}:x);
+          cursor+=f.length;
+        }else cursor=f.end;
+      }
+      const adjusted={...next,events:updated};
+      const broken=next.events.filter(item=>item.anchor==='between'&&occurs(item,date)&&!!eventFrame(item,date,next)&&!eventFrame(item,date,adjusted));
+      if(broken.length){this.notice('El desplazamiento dejaría sin intervalo a «'+broken[0].title+'». Mantén el solapamiento o ajusta las rutinas límite.');return null;}
+      return adjusted;
+    };
+
     if(cut&&original){
       const endDate=addDays(finalStart,-1);
       const history:EventItem={...original,endDate:original.endDate&&original.endDate<endDate?original.endDate:endDate,overrides:Object.fromEntries(Object.entries(original.overrides||{}).filter(([day])=>day<finalStart))};
       const logs={...data.logs};
       Object.keys(logs).filter(k=>k.startsWith(original.id+'@')&&k.split('@')[1]>=finalStart).forEach(k=>{logs[cleanFuture.id+'@'+k.split('@')[1]]=logs[k];delete logs[k];});
       const nextData={...data,events:[...data.events.map(e=>e.id===original.id?history:e),cleanFuture],logs};
-      this.save(nextData,'Programación actualizada desde '+finalStart);
+      const planned=withOverlap(nextData);if(!planned)return;this.save(planned,'Programación actualizada desde '+finalStart);
     }else{
       if(future.routineId&&data.events.some(other=>other.id!==result.id&&other.routineId===future.routineId&&sameScheduleActive(other,today()))){this.notice('Esta rutina ya está programada. Reprograma la existente.');return;}
-      this.save({...data,events:x.id?data.events.map(e=>e.id===x.id?cleanFuture:e):[...data.events,cleanFuture]},'Actividad guardada');
+      const planned=withOverlap({...data,events:x.id?data.events.map(e=>e.id===x.id?cleanFuture:e):[...data.events,cleanFuture]});if(!planned)return;this.save(planned,'Actividad guardada');
     }
     this.close(true);
     if(this.state.guideOpen){if(this.state.guideStep===3&&result.goalId===this.state.guideGoalId)this.setState({guideStep:4,page:'rutinas'});else if(this.state.guideStep===4&&result.routineId){this.setState({guideStep:5,page:'horario',selectedDate:result.date,month:firstMonth(result.date),guideEventId:cleanFuture.id});}}
@@ -407,27 +509,64 @@ class Planner extends React.Component<{},State> {
     if(!confirm(`¿Eliminar la meta «${g.title}»? Las sub-metas pasarán a ser independientes.`))return;
     const d=this.state.data;this.save({...d,goals:d.goals.filter(x=>x.id!==g.id).map(x=>x.parentId===g.id?{...x,parentId:''}:x),events:d.events.filter(e=>e.id!=='review-'+g.id).map(e=>e.goalId===g.id?{...e,goalId:''}:e)});
   }
+  /* Eliminar una programación conserva el pasado y cancela los bloques que dependen de ella. */
+  cancelFutureDependencies=(d:Data,routineId:string,from=today()):Data=>{
+    const selected=new Set<string>([routineId]);let progress=true;
+    while(progress){progress=false;d.events.forEach(e=>{if(e.routineId&&!selected.has(e.routineId)&&e.anchor==='between'&&(selected.has(e.afterRoutineId||'')||selected.has(e.beforeRoutineId||''))){selected.add(e.routineId);progress=true;}});}
+    const remove=d.events.filter(e=>e.anchor==='between'&&e.routineId&&selected.has(e.routineId));
+    const removes=new Set(remove.map(e=>e.id));
+    const revised=d.events.flatMap(e=>{
+      if(!removes.has(e.id))return [e];
+      if(e.date>=from)return [];
+      const end=addDays(from,-1);return [{...e,endDate:e.endDate&&e.endDate<end?e.endDate:end}];
+    });
+    return {...d,events:revised};
+  };
   deleteRoutine=(r:Routine):void=>{
-    if(!confirm(`¿Eliminar «${r.title}»? Las actividades programadas conservarán su nombre, pero perderán sus pasos.`))return;
-    const d=this.state.data;this.save({...d,routines:d.routines.filter(x=>x.id!==r.id),events:d.events.map(e=>e.routineId===r.id?{...e,routineId:''}:e)});
+    const dependents=this.state.data.events.filter(e=>e.anchor==='between'&&(e.afterRoutineId===r.id||e.beforeRoutineId===r.id));
+    if(!confirm(`¿Eliminar «${r.title}»? Las actividades conservarán su nombre pero perderán sus pasos.${dependents.length?'\n\n⚠ Se cancelarán las programaciones futuras de '+dependents.length+' bloque(s) dependiente(s), conservando su historial.':''}`))return;
+    const d=this.state.data;
+    const next=this.cancelFutureDependencies({...d,routines:d.routines.filter(x=>x.id!==r.id),events:d.events.map(e=>e.routineId===r.id?{...e,routineId:''}:e)},r.id);
+    this.save(next);this.close(true);
   }
   deleteEvent=(e:EventItem):void=>{
-    if(!confirm(e.repeat==='none'?'¿Eliminar esta actividad?':'¿Eliminar esta actividad recurrente y todas sus próximas apariciones?'))return;
-    const d=this.state.data;const logs={...d.logs};Object.keys(logs).filter(k=>k.startsWith(e.id+'@')).forEach(k=>delete logs[k]);
-    this.save({...d,events:d.events.filter(x=>x.id!==e.id),goals:e.kind==='review'?d.goals.map(g=>g.id===e.goalId?{...g,review:undefined}:g):d.goals,logs});this.close(true);
+    const dependents=e.routineId?this.state.data.events.filter(x=>x.anchor==='between'&&(x.afterRoutineId===e.routineId||x.beforeRoutineId===e.routineId)):[];
+    if(!confirm((e.repeat==='none'?'¿Eliminar esta actividad?':'¿Eliminar esta programación y sus próximas apariciones?')+(dependents.length?'\n\n⚠ Se cancelarán los bloques dependientes futuros ('+dependents.length+'). Sus registros anteriores se conservarán.':'')))return;
+    const d=this.state.data,from=today();const logs={...d.logs};
+    // Si hoy ya tiene un registro, conservar también esa ejecución en el historial.
+    const cutoff=logs[key(e,from)]?addDays(from,1):from;
+    const old=e.date<cutoff;
+    const updated=d.events.flatMap(item=>item.id!==e.id?[item]:old?[{...item,endDate:addDays(cutoff,-1)}]:[]);
+    const next=(e.routineId&&sameScheduleActive(e,from)?this.cancelFutureDependencies({...d,events:updated,goals:e.kind==='review'?d.goals.map(g=>g.id===e.goalId?{...g,review:undefined}:g):d.goals,logs},e.routineId,cutoff):{...d,events:updated,goals:e.kind==='review'?d.goals.map(g=>g.id===e.goalId?{...g,review:undefined}:g):d.goals,logs});
+    this.save(next);this.close(true);
   }
   toggleEvent=(e:EventItem,date:string):void=>{
-    const d=this.state.data,k=key(e,date),r=d.logs[k]||{completed:false,checkedSteps:[]};this.save({...d,logs:{...d.logs,[k]:{...r,completed:!r.completed}}},'Actividad actualizada');
+    const d=this.state.data,k=key(e,date),r=d.logs[k]||{completed:false,checkedSteps:[]};
+    const original=d.routines.find(x=>x.id===e.routineId);
+    if(!r.completed&&original&&unresolvedManual(activeSteps(original.steps,date,r.choices||{}),r.choices||{}).length){this.notice('Antes de completar la rutina, elige las alternativas desde Ejecutar rutina.');return;}this.save({...d,logs:{...d.logs,[k]:{...r,completed:!r.completed}}},'Actividad actualizada');
   }
   toggleStep=(e:EventItem,date:string,stepId:string):void=>{
     const d=this.state.data,k=key(e,date),r=d.logs[k]||{completed:false,checkedSteps:[]};const routine=d.routines.find(x=>x.id===e.routineId);
     const checked=r.checkedSteps.includes(stepId)?r.checkedSteps.filter(s=>s!==stepId):[...r.checkedSteps,stepId];
-    const leaves=routine?leafSteps(activeSteps(routine.steps,date)):[];const completed=leaves.length>0&&leaves.every(s=>checked.includes(s.id));
+    const choices=r.choices||{};const leaves=routine?leafSteps(activeSteps(routine.steps,date,choices)):[];const pending=routine?unresolvedManual(activeSteps(routine.steps,date,choices),choices):[];const completed=leaves.length>0&&pending.length===0&&leaves.every(s=>checked.includes(s.id));
     this.save({...d,logs:{...d.logs,[k]:{...r,checkedSteps:checked,completed}}},'Paso actualizado');
   }
+  saveOccurrenceNote=(e:EventItem,date:string,text:string,stepId?:string):void=>{
+    const d=this.state.data,k=key(e,date),log=d.logs[k]||{completed:false,checkedSteps:[]};
+    const value=text.trim();const updated:RecordLog=stepId?{...log,stepNotes:{...log.stepNotes,[stepId]:value}}:{...log,note:value};
+    this.save({...d,logs:{...d.logs,[k]:updated}},'Nota guardada en el historial');
+  };
+  selectVariant=(e:EventItem,date:string,stepId:string,choice:string):void=>{
+    const d=this.state.data,k=key(e,date),r=d.logs[k]||{completed:false,checkedSteps:[]};
+    this.save({...d,logs:{...d.logs,[k]:{...r,choices:{...r.choices,[stepId]:choice},checkedSteps:[],completed:false}}},'Elección guardada solo para este día');
+  };
   shiftEvent=(e:EventItem,date:string,delta:number):void=>{
+    if(e.anchor==='between'){this.notice('Este bloque depende de dos rutinas. Para moverlo, reprograma alguna de sus rutinas límite.');return;}
     const d=this.state.data;const newTime=timeString(bound(minutes(eventTime(e,date,d))+delta,0,1439));const next={...e,overrides:{...e.overrides,[date]:{...e.overrides[date],time:newTime}}};
-    this.save({...d,events:d.events.map(x=>x.id===e.id?next:x)},`Actividad movida a las ${newTime}`);
+    const newData={...d,events:d.events.map(x=>x.id===e.id?next:x)};
+    const affected=e.routineId?d.events.filter(x=>x.anchor==='between'&&(x.afterRoutineId===e.routineId||x.beforeRoutineId===e.routineId)&&occurs(x,date)):[];
+    if(affected.some(x=>!!eventFrame(x,date,d)&&!eventFrame(x,date,newData))){this.notice('El cambio dejaría sin espacio a un bloque dependiente. Edita las horas de sus rutinas límite.');return;}
+    this.save(newData,`Actividad movida a las ${newTime}`+(affected.length?' · Bloques dependientes ajustados':''));
   }
   saveProgress=():void=>{
     const d=this.state.data,g=d.goals.find(x=>x.id===this.state.progressGoalId);if(!g)return;
@@ -485,7 +624,7 @@ class Planner extends React.Component<{},State> {
         <div className="brand"><img className="brand-logo" src="logo.svg" alt="Logo Fullhouse"/><div><div className="brand-name">FULLHOUSE</div><div className="brand-sub">Tu espacio, completo</div></div></div>
         <div className="side-section">Mi espacio</div>
         <nav>{links.map(l=><button key={l.id} className={`nav-item ${this.state.page===l.id?'active':''}`} onClick={()=>this.route(l.id)}><Icon name={l.icon}/>{l.label}</button>)}</nav>
-        <div className="sidebar-bottom"><button className="nav-item nav-help" onClick={this.openGuide}><Icon name="help"/> Guía paso a paso</button><div className="profile-mini"><div className="avatar">✦</div><div><div className="profile-name">Mi espacio privado</div><div className="profile-meta">Fullhouse · 0.5</div></div></div><small>Organiza · Actúa · Progresa. Los datos se guardan en este navegador.</small></div>
+        <div className="sidebar-bottom"><button className="nav-item nav-help" onClick={this.openGuide}><Icon name="help"/> Guía paso a paso</button><div className="profile-mini"><div className="avatar">✦</div><div><div className="profile-name">Mi espacio privado</div><div className="profile-meta">Fullhouse · 0.6</div></div></div><small>Organiza · Actúa · Progresa. Los datos se guardan en este navegador.</small></div>
       </aside>
       <nav className="mobile-nav" aria-label="Navegación móvil">{links.filter(l=>l.id!=='ajustes'&&l.id!=='calendario').map(l=><button key={l.id} className={`mobile-item ${this.state.page===l.id?'active':''}`} onClick={()=>this.route(l.id)}><Icon name={l.icon}/>{l.label.replace('Mis ','')}</button>)}</nav>
     </>;
@@ -499,7 +638,7 @@ class Planner extends React.Component<{},State> {
     return <div>{es.map(e=>{
       const isDone=done(d,e,date),routine=d.routines.find(r=>r.id===e.routineId),log=d.logs[key(e,date)];
       return compact?<div key={e.id} className={`agenda-item ${isDone?'is-done':''}`}><div className="agenda-time">{eventTime(e,date,d)}</div><div className="agenda-main"><div className="agenda-name">{e.title}</div><div className="agenda-sub">{durationOn(e,date,d)} min {routine?'· '+routine.steps.length+' pasos':''}</div></div><button className={`check-circle ${isDone?'checked':''}`} onClick={()=>this.toggleEvent(e,date)} aria-label={isDone?'Marcar pendiente':'Marcar completado'}>{isDone&&<Icon name="check" size={13}/>}</button></div>
-      :<div key={e.id} className={`schedule-line ${isDone?'is-done':''}`}><div className="schedule-time">{eventTime(e,date,d)}</div><div className="schedule-body"><div className="schedule-name">{e.title}</div><div className="schedule-meta"><span>{durationOn(e,date,d)} min</span>{e.repeat!=='none'&&<span>↻ Recurrente</span>}{routine&&<span>{routine.steps.length} pasos</span>}</div>{e.note&&<div className="schedule-notes">{e.note}</div>}<div className="actions" style={{marginTop:9}}>{routine&&<Btn tiny kind="secondary" onClick={()=>this.openExecute(e)}>Abrir pasos</Btn>}<Btn tiny kind="ghost" title="Mover 15 minutos antes (solo este día)" onClick={()=>this.shiftEvent(e,date,-15)}>−15 min</Btn><Btn tiny kind="ghost" title="Mover 15 minutos después (solo este día)" onClick={()=>this.shiftEvent(e,date,15)}>+15 min</Btn></div></div><div className="mini-actions"><button className={`check-circle ${isDone?'checked':''}`} onClick={()=>this.toggleEvent(e,date)} aria-label={isDone?'Marcar pendiente':'Marcar completado'}>{isDone&&<Icon name="check" size={13}/>}</button><Btn tiny kind="ghost" onClick={()=>this.openEvent(e)} title="Editar actividad"><Icon name="edit" size={14}/></Btn></div></div>
+      :<div key={e.id} className={`schedule-line ${isDone?'is-done':''}`}><div className="schedule-time">{eventTime(e,date,d)}</div><div className="schedule-body"><div className="schedule-name">{e.title}</div><div className="schedule-meta"><span>{durationOn(e,date,d)} min</span>{e.repeat!=='none'&&<span>↻ Recurrente</span>}{routine&&<span>{routine.steps.length} pasos</span>}</div>{e.note&&<div className="schedule-notes">{e.note}</div>}<div className="actions" style={{marginTop:9}}>{routine&&<Btn tiny kind="secondary" onClick={()=>this.openExecute(e)}>Abrir pasos</Btn>}{e.anchor!=='between'&&<Btn tiny kind="ghost" title="Mover 15 minutos antes (solo este día)" onClick={()=>this.shiftEvent(e,date,-15)}>−15 min</Btn>}{e.anchor!=='between'&&<Btn tiny kind="ghost" title="Mover 15 minutos después (solo este día)" onClick={()=>this.shiftEvent(e,date,15)}>+15 min</Btn>}</div></div><div className="mini-actions"><button className={`check-circle ${isDone?'checked':''}`} onClick={()=>this.toggleEvent(e,date)} aria-label={isDone?'Marcar pendiente':'Marcar completado'}>{isDone&&<Icon name="check" size={13}/>}</button><Btn tiny kind="ghost" onClick={()=>this.openEvent(e)} title="Editar actividad"><Icon name="edit" size={14}/></Btn></div></div>
     })}</div>;
   }
   renderHome():any{
@@ -594,19 +733,21 @@ class Planner extends React.Component<{},State> {
       <section className="timeline-panel"><div className="timeline-head"><div><Icon name="sun"/> Tu jornada</div><p>Desplázate por el horario y abre los bloques para consultar sus pasos e instrucciones.</p></div>
       <div className="timeline-canvas" style={{height:(endHour-startHour)*hourHeight+24}}>
         {Array.from({length:endHour-startHour+1},(_,i)=>i+startHour).map(hour=><div key={hour} className="timeline-gridline" style={{top:(hour-startHour)*hourHeight}}><span>{String(hour).padStart(2,'0')}:00</span><div/></div>)}
-        <div className="timeline-events">{placed.map(({event:e,start,end,lane,lanes})=>{const goal=data.goals.find(g=>g.id===e.goalId),routine=data.routines.find(r=>r.id===e.routineId),isDone=done(data,e,date),color=goal?.color||'#a477ec';const duration=durationOn(e,date,data),height=Math.max(16,((end-start)/60)*hourHeight-3),width=100/lanes;const style=height<38||width<26?'micro':height<84||width<44?'compact':'expanded';return <button key={e.id} className={'timeline-block '+style+' '+(isDone?'completed':'')} title={`${e.title} · ${eventTime(e,date,data)} · ${duration} minutos${e.note?' · '+e.note:''}`} aria-label={`Abrir ${e.title}, ${eventTime(e,date,data)}, ${duration} minutos`} onClick={()=>this.openDetail(e)} style={{top:((start-origin)/60)*hourHeight,height,left:(lane/lanes*100)+'%',width:width+'%','--block-bg':color,'--block-text':readableOn(color)} as any}><div className='timeline-block-header'><span className='timeline-event-name'>{e.title}</span>{isDone&&<span className='timeline-done'>✓</span>}</div>{style!=='micro'&&<div className='timeline-time'>{eventTime(e,date,data)} · {duration} min {style==='expanded'&&routine?'· '+leafSteps(routine.steps).length+' pasos':''}</div>}{style==='expanded'&&e.note&&<div className='timeline-description'>{e.note}</div>}</button>;})}</div>
+        <div className="timeline-events">{placed.map(({event:e,start,end,lane,lanes})=>{const goal=data.goals.find(g=>g.id===e.goalId),routine=data.routines.find(r=>r.id===e.routineId),isDone=done(data,e,date),color=goal?.color||'#a477ec';const duration=durationOn(e,date,data),hasNote=!!data.logs[key(e,date)]?.note||!!Object.values(data.logs[key(e,date)]?.stepNotes||{}).filter(Boolean).length,hasCarry=!!upcomingNote(data,e,date),height=Math.max(16,((end-start)/60)*hourHeight-3),width=100/lanes;const style=height<38||width<26?'micro':height<84||width<44?'compact':'expanded';return <button key={e.id} className={'timeline-block '+style+' '+(isDone?'completed':'')} title={`${e.title} · ${eventTime(e,date,data)} · ${duration} minutos${e.note?' · '+e.note:''}`} aria-label={`Abrir ${e.title}, ${eventTime(e,date,data)}, ${duration} minutos`} onClick={()=>this.openDetail(e)} style={{top:((start-origin)/60)*hourHeight,height,left:(lane/lanes*100)+'%',width:width+'%','--block-bg':color,'--block-text':readableOn(color)} as any}><div className='timeline-block-header'><span className='timeline-event-name'>{e.title}</span><span className='timeline-markers'>{(hasNote||hasCarry)&&<span title={hasNote?'Nota guardada este día':'Nota de la ocasión anterior'} className='timeline-note-icon'>✎</span>}{isDone&&<span className='timeline-done'>✓</span>}</span></div>{style!=='micro'&&<div className='timeline-time'>{eventTime(e,date,data)} · {duration} min {style==='expanded'&&routine?'· '+leafSteps(routine.steps).length+' pasos':''}</div>}{style==='expanded'&&e.note&&<div className='timeline-description'>{e.note}</div>}</button>;})}</div>
       </div>{!es.length&&<div className="timeline-empty"><Icon name="calendar"/><p>Este día todavía no tiene actividades. Empieza creando tu primer bloque.</p><Btn onClick={()=>this.openEvent()}>Añadir bloque</Btn></div>}</section>
       <div className="notice">Los bloques se pueden abrir para consultar cada nivel de detalle. Para cambiar horas, utiliza la edición de la actividad o los controles de ±15 minutos.</div>
     </>;
   }
   renderDetail():any{
     const date=this.state.selectedDate,d=this.state.data,e=d.events.find(x=>x.id===this.state.activeEventId);if(!e)return <p>No se encontró el bloque seleccionado.</p>;
-    const r0=d.routines.find(x=>x.id===e.routineId),r=r0?{...r0,steps:activeSteps(r0.steps,date)}:undefined,g=d.goals.find(x=>x.id===e.goalId),path=this.state.detailPath,current=r?getStepByPath(r.steps,path):undefined;
+    const r0=d.routines.find(x=>x.id===e.routineId),r=r0?{...r0,steps:activeSteps(r0.steps,date,d.logs[key(e,date)]?.choices||{})}:undefined,g=d.goals.find(x=>x.id===e.goalId),path=this.state.detailPath,current=r?getStepByPath(r.steps,path):undefined;
     const choices=current?(current.children||[]):r?.steps||[];
     const log=d.logs[key(e,date)]||{completed:false,checkedSteps:[]};
+    const allocation=leafAllocation(r?.steps||[],durationOn(e,date,d));
     return <div className="detail-zoom"><div className="detail-crumbs"><button onClick={()=>this.setState({detailPath:[]})}>{e.title}</button>{path.map((id,i)=><span key={id}> / <button onClick={()=>this.setState({detailPath:path.slice(0,i+1)})}>{getStepByPath(r?.steps||[],path.slice(0,i+1))?.title||'Paso'}</button></span>)}</div>
-      {path.length===0?<><div className="detail-spotlight"><span className="detail-time"><Icon name="clock"/> {fmtDate(date)} · {eventTime(e,date,d)} · {durationOn(e,date,d)} min</span><h3>{e.title}</h3><p>{e.note||r?.desc||'Sin descripción adicional para este bloque.'}</p><div className="detail-tags">{g&&<span style={{borderColor:g.color}}><span className="circle-tint" style={{background:g.color}}/>{g.title}</span>}{e.repeat!=='none'&&<span>↻ Recurrente</span>}</div></div><div className="detail-actions"><Btn kind="secondary" onClick={()=>this.openEvent(e)}><Icon name="edit"/> Editar bloque</Btn>{r&&<Btn onClick={()=>this.openExecute(e)}><Icon name="checklist"/> Ejecutar rutina</Btn>}<Btn kind="secondary" onClick={()=>this.toggleEvent(e,date)}>{done(d,e,date)?'Marcar pendiente':'Marcar completada'}</Btn></div></>:<div className="detail-spotlight"><div className="detail-time"><Icon name="clock"/> {current?stepMinutes(current):0} min previstos</div><h3>{current?.title||'Paso'}</h3><p>{current?.desc||'No hay instrucciones adicionales para este paso.'}</p>{current&&!current.children?.length&&<Btn kind="secondary" onClick={()=>this.toggleStep(e,date,current.id)}>{log.checkedSteps.includes(current.id)?'✓ Completado · Desmarcar':'Marcar paso completado'}</Btn>}</div>}
-      {choices.length>0&&<><h3 className="detail-section-title">{path.length?'Elementos de '+stepLevelName(path.length-1).toLowerCase():'Dentro de este bloque'}</h3><div className="zoom-children">{choices.map((s,i)=><button key={s.id} className="zoom-child" onClick={()=>this.setState({detailPath:[...path,s.id]})}><span className="zoom-index">{i+1}</span><div className="flex"><strong>{s.title}</strong><div className="caption">{stepMinutes(s)} min · {s.children?.length?s.children.length+' elementos':'Ver instrucciones'}</div></div><Icon name="right" size={18}/></button>)}</div></>}
+      {path.length===0?<><div className="detail-spotlight"><span className="detail-time"><Icon name="clock"/> {fmtDate(date)} · {eventTime(e,date,d)} · {durationOn(e,date,d)} min</span><h3>{e.title}</h3><p>{e.note||r?.desc||'Sin descripción adicional para este bloque.'}</p><div className="detail-tags">{g&&<span style={{borderColor:g.color}}><span className="circle-tint" style={{background:g.color}}/>{g.title}</span>}{e.repeat!=='none'&&<span>↻ Recurrente</span>}</div></div><div className="detail-actions"><Btn kind="secondary" onClick={()=>this.openEvent(e)}><Icon name="edit"/> Editar bloque</Btn>{r&&<Btn onClick={()=>this.openExecute(e)}><Icon name="checklist"/> Ejecutar rutina</Btn>}<Btn kind="secondary" onClick={()=>this.toggleEvent(e,date)}>{done(d,e,date)?'Marcar pendiente':'Marcar completada'}</Btn></div></>:<div className="detail-spotlight"><div className="detail-time"><Icon name="clock"/> {current?effectiveStepMinutes(current,allocation):0} min previstos</div><h3>{current?.title||'Paso'}</h3><p>{current?.desc||'No hay instrucciones adicionales para este paso.'}</p>{current&&!current.children?.length&&<Btn kind="secondary" onClick={()=>this.toggleStep(e,date,current.id)}>{log.checkedSteps.includes(current.id)?'✓ Completado · Desmarcar':'Marcar paso completado'}</Btn>}</div>}
+      {choices.length>0&&<><h3 className="detail-section-title">{path.length?'Elementos de '+stepLevelName(path.length-1).toLowerCase():'Dentro de este bloque'}</h3><div className="zoom-children">{choices.map((s,i)=><button key={s.id} className="zoom-child" onClick={()=>this.setState({detailPath:[...path,s.id]})}><span className="zoom-index">{i+1}</span><div className="flex"><strong>{s.title}</strong><div className="caption">{effectiveStepMinutes(s,allocation)} min · {s.children?.length?s.children.length+' elementos':'Ver instrucciones'}</div></div><Icon name="right" size={18}/></button>)}</div></>}
+      <NoteEditor key={e.id+'-'+date+'-'+(current?.id||'block')} value={current?log.stepNotes?.[current.id]||'':log.note||''} carry={upcomingNote(d,e,date,current?.id)} label={current?'Nota de este paso':'Nota de esta actividad o rutina'} onSave={text=>this.saveOccurrenceNote(e,date,text,current?.id)}/>
       {!r&&<div className="notice">Para desglosar este bloque en pasos, asígnale una rutina desde «Editar bloque».</div>}
       {path.length>0&&<Btn kind="ghost" onClick={()=>this.setState({detailPath:path.slice(0,-1)})}><Icon name="left"/> Volver al nivel anterior</Btn>}</div>;
   }
@@ -697,22 +838,23 @@ class Planner extends React.Component<{},State> {
       const mode=s.mode||((s.variants||[]).length?'alternatives':'always');
       const baseDays=s.days||DAYS.filter(d=>!(s.variants||[]).some(v=>v.days.includes(d)));
       return <div className={'step-editor-card '+(this.state.dragTargetId===s.id&&this.state.draggedStepId!==s.id?'drop-target':'')} data-step-id={s.id} key={s.id}>
-      <div className='step-edit-head'><span className='step-type-tag'>{stepLevelName(level)} {i+1}</span><span className='step-duration-summary'><Icon name='clock' size={14}/> {stepMinutes(s)} min {hasChildren?'· calculados':''}</span><button className='drag-handle' title='Arrastra para reordenar' aria-label={'Arrastrar '+stepLevelName(level)+' '+(i+1)} onMouseDown={e=>this.startStepDrag(s.id,e)} onTouchStart={e=>this.startStepDrag(s.id,e)} onKeyDown={e=>{if(e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();this.moveStepDragKeyboard(s.id,e.key==='ArrowUp'?-1:1);}}}><Icon name='grip' size={18}/></button><button className='icon-btn remove-step' title='Eliminar este elemento' onClick={()=>this.updateRoutineDraft({steps:deleteStepTree(this.state.routineDraft.steps,s.id)})}><Icon name='trash' size={15}/></button></div>
+      <div className='step-edit-head'><span className='step-type-tag'>{stepLevelName(level)} {i+1}</span><span className='step-duration-summary'><Icon name='clock' size={14}/> {s.flexible?'Tiempo variable':stepMinutes(s)+' min'} {hasChildren?'· calculados':''}</span><button className='drag-handle' title='Arrastra para reordenar' aria-label={'Arrastrar '+stepLevelName(level)+' '+(i+1)} onMouseDown={e=>this.startStepDrag(s.id,e)} onTouchStart={e=>this.startStepDrag(s.id,e)} onKeyDown={e=>{if(e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();this.moveStepDragKeyboard(s.id,e.key==='ArrowUp'?-1:1);}}}><Icon name='grip' size={18}/></button><button className='icon-btn remove-step' title='Eliminar este elemento' onClick={()=>this.updateRoutineDraft({steps:deleteStepTree(this.state.routineDraft.steps,s.id)})}><Icon name='trash' size={15}/></button></div>
       <div className='step-mode-choices'>
         <button className={mode==='always'?'active':''} onClick={()=>update(s.id,{mode:'always'})}><strong>Siempre</strong><small>Se hace cada vez</small></button>
         <button className={mode==='selected'?'active':''} onClick={()=>update(s.id,{mode:'selected',days:s.days||[1,3,5]})}><strong>Solo ciertos días</strong><small>Aparece cuando corresponde</small></button>
-        <button className={mode==='alternatives'?'active':''} onClick={()=>update(s.id,{mode:'alternatives',days:s.days||DAYS.filter(n=>!(s.variants||[]).some(v=>v.days.includes(n)))})}><strong>Alternativas</strong><small>Una opción según el día</small></button>
+        <button className={mode==='alternatives'?'active':''} onClick={()=>update(s.id,{mode:'alternatives',days:s.days||DAYS.filter(n=>!(s.variants||[]).some(v=>v.days.includes(n)))})}><strong>Alternativas</strong><small>Según el día o al ejecutar</small></button>
       </div>
       {mode==='selected'&&<div className='step-conditional'><label>Días en los que se realiza</label>{this.weekdayPicker(s.days||[],day=>this.updateStepDays(s.id,undefined,day))}</div>}
-      {mode==='alternatives'&&<div className='step-conditional'><div className='step-base-label'><strong>Opción principal</strong><small>Tu paso original ahora es una de las alternativas; elige en qué días se utiliza.</small></div>{this.weekdayPicker(baseDays,day=>this.updateStepDays(s.id,undefined,day))}</div>}
-      <div className='step-edit-fields'><input aria-label={'Nombre de '+stepLevelName(level).toLowerCase()+' '+(i+1)} value={s.title} onChange={e=>update(s.id,{title:e.target.value})} placeholder={mode==='alternatives'?'Nombre de la opción principal':level===0?'Nombre del paso':'Nombre del '+stepLevelName(level).toLowerCase()}/>{hasChildren?<span className='step-readonly-time' title='La duración se calcula sumando los elementos hijos'>Σ {stepMinutes(s)} min</span>:<label className='step-time-field'>min <NumberField value={s.min} min={1} max={1440} ariaLabel='Duración en minutos' onCommit={min=>update(s.id,{min})}/></label>}</div>
+      {mode==='alternatives'&&<div className='step-conditional'><div className='alternative-frequency'><strong>¿Cómo se elige la alternativa?</strong><div className='time-anchor-choice'><button type='button' className={s.chooseWhen!=='execute'?'active':''} onClick={()=>update(s.id,{chooseWhen:'weekday'})}>Por día de semana</button><button type='button' className={s.chooseWhen==='execute'?'active':''} onClick={()=>update(s.id,{chooseWhen:'execute'})}>Al ejecutar la rutina</button></div></div>{s.chooseWhen!=='execute'&&<><div className='step-base-label'><strong>Alternativa 1 · {s.title||'sin nombre'}</strong><small>Es una opción más, con el mismo valor que las demás.</small></div>{this.weekdayPicker(baseDays,day=>this.updateStepDays(s.id,undefined,day))}</>}</div>}
+      <div className='step-edit-fields'><input aria-label={'Nombre de '+stepLevelName(level).toLowerCase()+' '+(i+1)} value={s.title} onChange={e=>update(s.id,{title:e.target.value})} placeholder={mode==='alternatives'?'Nombre de la alternativa 1':level===0?'Nombre del paso':'Nombre del '+stepLevelName(level).toLowerCase()}/>{hasChildren?<span className='step-readonly-time' title='La duración se calcula sumando los elementos hijos'>Σ {stepMinutes(s)} min</span>:s.flexible?<span className='step-readonly-time'>↔ Variable (30 min estimados)</span>:<label className='step-time-field'>min <NumberField value={s.min} min={1} max={1440} ariaLabel='Duración en minutos' onCommit={min=>update(s.id,{min})}/></label>}</div>
+      {!hasChildren&&<label className='step-flex-toggle'><input type='checkbox' checked={!!s.flexible} onChange={e=>update(s.id,{flexible:e.target.checked,min:e.target.checked?30:Math.max(5,s.min)})}/><span><strong>Tiempo flexible</strong><small>Este paso ocupa el tiempo libre del bloque (ideal para tareas de duración variable entre dos rutinas).</small></span></label>}
       <div className='step-description'><AutoTextarea maxLength={1000} value={s.desc||''} onChange={(e:any)=>update(s.id,{desc:e.target.value})} placeholder='Instrucciones de este paso u opción...'/></div>
       {hasChildren&&this.renderStepEditor(s.children||[],level+1)}
       <div className='step-subaction'><Btn tiny kind='secondary' onClick={()=>update(s.id,{children:[...(s.children||[]),{id:uid(),title:'',min:5,desc:''}]})}><Icon name='plus' size={14}/> Añadir {nextStepLevelName(level)} a esta opción</Btn></div>
-      {mode==='alternatives'&&<div className='step-variants'><div className='step-variants-title'>Otras opciones <span>Un día solo puede tener una alternativa activa. Desmarca todos los días si no se realiza ese paso.</span></div>{(s.variants||[]).map((v,vi)=><div className='step-variant' key={v.id}>
-        <div className='row spread'><strong>Opción {vi+2}</strong><button type='button' className='icon-btn' title='Eliminar opción' aria-label='Eliminar opción' onClick={()=>update(s.id,{variants:(s.variants||[]).filter(a=>a.id!==v.id)})}><Icon name='trash' size={15}/></button></div>
+      {mode==='alternatives'&&<div className='step-variants'><div className='step-variants-title'>Más alternativas <span>Todas tienen la misma importancia. Cada ocasión puede usar solo una.</span></div>{(s.variants||[]).map((v,vi)=><div className='step-variant' key={v.id}>
+        <div className='row spread'><strong>Alternativa {vi+2} · {v.title||'sin nombre'}</strong><button type='button' className='icon-btn' title='Eliminar opción' aria-label='Eliminar opción' onClick={()=>update(s.id,{variants:(s.variants||[]).filter(a=>a.id!==v.id)})}><Icon name='trash' size={15}/></button></div>
         <div className='field-grid'><div className='field'><label>Nombre de la opción</label><input value={v.title} placeholder='Ej. Preparar equipaje, estudiar, descansar' onChange={e=>update(s.id,{variants:(s.variants||[]).map(a=>a.id===v.id?{...a,title:e.target.value}:a)})}/></div><div className='field'><label>Tiempo estimado</label>{v.children?.length?<div className='variant-duration'>Σ {v.children.reduce((sum,c)=>sum+stepMinutes(c),0)} min de sus detalles</div>:<NumberField value={v.min} min={1} max={1440} ariaLabel={'Minutos de opción '+(vi+2)} onCommit={min=>update(s.id,{variants:(s.variants||[]).map(a=>a.id===v.id?{...a,min}:a)})}/>}</div></div>
-        <div className='field'><label>Días en los que se utiliza</label>{this.weekdayPicker(v.days,day=>this.updateStepDays(s.id,v.id,day))}</div>
+        {s.chooseWhen!=='execute'&&<div className='field'><label>Días en los que se utiliza</label>{this.weekdayPicker(v.days,day=>this.updateStepDays(s.id,v.id,day))}</div>}
         <div className='field'><label>Instrucciones particulares</label><AutoTextarea value={v.desc||''} onChange={(e:any)=>update(s.id,{variants:(s.variants||[]).map(a=>a.id===v.id?{...a,desc:e.target.value}:a)})} placeholder='¿Cómo se realiza esta opción?'/></div>
         {!!v.children?.length&&<div className='variant-children'>{this.renderStepEditor(v.children||[],level+1)}</div>}
         <Btn tiny kind='secondary' onClick={()=>update(s.id,{variants:(s.variants||[]).map(a=>a.id===v.id?{...a,children:[...(a.children||[]),{id:uid(),title:'',desc:'',min:5}]}:a)})}><Icon name='plus' size={14}/> Añadir {nextStepLevelName(level)} a esta opción</Btn>
@@ -730,7 +872,7 @@ class Planner extends React.Component<{},State> {
       <div className="field"><div className="row spread"><label style={{margin:0}}>Pasos del procedimiento</label><span className="caption">{routineMinutes(r)} minutos en total</span></div></div>
       {this.renderStepEditor(r.steps)}
       <div style={{marginTop:13}}><Btn kind="secondary" tiny onClick={()=>this.updateRoutineDraft({steps:[...r.steps,{id:uid(),title:'',min:5,desc:''}]})}><Icon name="plus" size={14}/> Agregar paso</Btn></div>
-      <div className="notice" style={{marginTop:18}}>Puedes añadir instrucciones y subpasos. Cada elemento calcula su duración a partir de los hijos; las variantes por día pueden reemplazar títulos, instrucciones, duración y subpasos. Las actividades programadas usarán la versión actual de la rutina.</div>
+      <div className="notice" style={{marginTop:18}}>Cada paso puede tener tiempo fijo o flexible. Las alternativas pueden asignarse a días concretos o elegirse en el momento de ejecución. El tiempo flexible se repartirá automáticamente cuando programes el bloque entre dos rutinas.</div>
     </>;
   }
   eventForm():any{
@@ -748,7 +890,12 @@ class Planner extends React.Component<{},State> {
     const visibleDays=Array.from({length:42},(_,i)=>addDays(this.state.datePickerMonth,i-monthOffset));
     const totalMinutes=e.routineId?Math.max(1,routineMinutesOn(rs.find(x=>x.id===e.routineId)||{id:'',title:'',desc:'',steps:[]},e.date)):e.minutes;
     const endTime=e.endTime||timeString(minutes(e.time)+totalMinutes);
-    return <>
+    const anchors=this.state.data.events.filter(item=>item.routineId&&item.routineId!==e.routineId&&sameScheduleActive(item,e.date));
+    const preview=e.anchor==='between'?eventFrame(e,e.date,{...this.state.data,events:[...this.state.data.events.filter(item=>item.id!==e.id),e]}):null;
+    const avail=preview?.length||0;
+    const estimate=e.routineId?fixedStepMinutes(activeSteps(rs.find(r=>r.id===e.routineId)?.steps||[],e.date)):0;
+    return <div className='event-form-v06'>
+      <section className='event-editor-section'><div className='event-section-heading'><span>01</span><div><strong>Identidad del bloque</strong><small>Qué es y cuándo debe aparecer</small></div></div>
       <div className='field'><label>¿Qué quieres programar?</label><div className='event-type-choice'>
         <button className={!isOccasion?'active':''} type='button' onClick={()=>this.updateEventDraft({kind:undefined,allDay:false,endDate:undefined})}><Icon name='checklist'/> Actividad o rutina<small>Un bloque de tu horario</small></button>
         <button className={isOccasion?'active':''} type='button' onClick={()=>this.updateEventDraft({kind:'occasion',allDay:true,routineId:'',repeat:'none',specificDates:[]})}><Icon name='calendar'/> Evento o fecha especial<small>Viajes, reuniones, ocasiones importantes</small></button>
@@ -757,27 +904,34 @@ class Planner extends React.Component<{},State> {
       <div className='field-grid'><div className='field'><label>Primera fecha *</label><input type='date' value={e.date} onChange={v=>{this.updateEventDraft({date:v.target.value});if(v.target.value)this.setState({datePickerMonth:firstMonth(v.target.value)});}}/></div>
         {isOccasion&&e.repeat==='none'&&<div className='field'><label>Fecha de finalización (opcional)</label><input type='date' min={e.date} value={e.endDate||''} onChange={v=>this.updateEventDraft({endDate:v.target.value})}/><span className='caption'>Úsala para viajes o eventos que duran varios días.</span></div>}
       </div>
+      </section>
+      <section className='event-editor-section'><div className='event-section-heading'><span>02</span><div><strong>Tiempo y duración</strong><small>Fija una hora o haz que la calculen otros bloques</small></div></div>
       {isOccasion&&<label className='event-allday-toggle'><input type='checkbox' checked={!!e.allDay} onChange={v=>this.updateEventDraft({allDay:v.target.checked})}/> Ocurre durante todo el día (no ocupa un bloque con hora fija)</label>}
       {!e.allDay&&<><div className='field'><label>¿Con qué hora quieres acomodarla?</label><div className='time-anchor-choice'>
         <button className={(e.anchor||'start')==='start'?'active':''} onClick={()=>this.updateEventDraft({anchor:'start'})}><Icon name='clock' size={16}/> Hora de inicio</button>
         <button className={e.anchor==='end'?'active':''} onClick={()=>this.updateEventDraft({anchor:'end',endTime})}><Icon name='clock' size={16}/> Hora de término</button>
+        {!isOccasion&&<button className={e.anchor==='between'?'active':''} onClick={()=>this.updateEventDraft({anchor:'between'})}><Icon name='calendar' size={16}/> Entre dos rutinas</button>}
       </div></div>
-      <div className='field-grid'><div className='field'><label>{e.anchor==='end'?'Termina a las':'Comienza a las'} *</label><TimePicker value={e.anchor==='end'?endTime:e.time} onChange={time=>e.anchor==='end'?this.updateEventDraft({endTime:time,time:timeString(Math.max(0,minutes(time)-totalMinutes))}):this.updateEventDraft({time})}/></div>
-        <div className='field'><label>Duración estimada (min)</label>{e.routineId?<div className='calculated-duration'>Σ {totalMinutes} minutos · calculado según la rutina</div>:<NumberField value={e.minutes} min={1} max={1440} onCommit={val=>this.updateEventDraft({minutes:val, ...(e.anchor==='end'?{time:timeString(Math.max(0,minutes(endTime)-val))}:{})})}/>}</div></div>
+      {e.anchor!=='between'&&<div className='field-grid'><div className='field'><label>{e.anchor==='end'?'Termina a las':'Comienza a las'} *</label><TimePicker value={e.anchor==='end'?endTime:e.time} onChange={time=>e.anchor==='end'?this.updateEventDraft({endTime:time,time:timeString(Math.max(0,minutes(time)-totalMinutes))}):this.updateEventDraft({time})}/></div>
+        <div className='field'><label>Duración estimada (min)</label>{e.routineId?<div className='calculated-duration'>Σ {totalMinutes} minutos · calculado según la rutina</div>:<NumberField value={e.minutes} min={1} max={1440} onCommit={val=>this.updateEventDraft({minutes:val, ...(e.anchor==='end'?{time:timeString(Math.max(0,minutes(endTime)-val))}:{})})}/>}</div></div>}
+      {e.anchor==='between'&&<div className='between-editor'><p>Fullhouse calcula automáticamente el espacio entre el <strong>final</strong> de una rutina y el <strong>inicio</strong> de otra. Cuando una cambie, este bloque también cambiará.</p><div className='field-grid'><div className='field'><label>Después de finalizar…</label><FriendlySelect value={e.afterRoutineId||''} ariaLabel='Rutina límite anterior' onChange={afterRoutineId=>this.updateEventDraft({afterRoutineId})} options={[{value:'',label:'Selecciona una rutina'},...anchors.map(x=>({value:x.routineId,label:x.title}))]}/></div><div className='field'><label>Antes de comenzar…</label><FriendlySelect value={e.beforeRoutineId||''} ariaLabel='Rutina límite posterior' onChange={beforeRoutineId=>this.updateEventDraft({beforeRoutineId})} options={[{value:'',label:'Selecciona una rutina'},...anchors.map(x=>({value:x.routineId,label:x.title}))]}/></div></div>{preview?<div className={'calculated-duration '+(avail<estimate?'time-warning':'')}>↔ {timeString(preview.start)} – {timeString(preview.end)} · {avail} minutos disponibles. Pasos fijos: {estimate} min · tiempo libre: {Math.max(0,avail-estimate)} min.</div>:<div className='notice'>Selecciona dos rutinas que ocurran ese día y no se superpongan. El bloque aparecerá solo cuando ambas estén programadas y haya espacio entre ellas.</div>}</div>}
       {e.anchor==='end'&&<p className='caption anchor-note'>La hora inicial se calcula restando la duración. Si una variante cambia la duración, la hora de finalización seguirá siendo la elegida.</p>}</>}
+      </section><section className='event-editor-section'><div className='event-section-heading'><span>03</span><div><strong>Repetición</strong><small>Define los días o fechas en que aparecerá</small></div></div>
       <div className='field'><label>Cómo se repite</label><div className='repeat-group-choice'>
         {[{id:'days',title:'Días de semana',desc:'Lunes, martes, etc.'},{id:'period',title:'Por período',desc:'Semanas, meses o años'},{id:'dates',title:'Fechas concretas',desc:'Una o varias fechas'}].map(option=><button type='button' key={option.id} className={repeatGroup===option.id?'active':''} onClick={()=>changeRepeatGroup(option.id)}><strong>{option.title}</strong><small>{option.desc}</small></button>)}
       </div></div>
       {repeatGroup==='days'&&<div className='field repeat-detail'><label>Selecciona los días habituales</label><div className='weekday-options'>{weekdayNames.map((day,n)=><button type='button' key={n} className={'weekday-pill '+((e.repeat==='daily'||(e.repeat==='weekdays'&&n>=1&&n<=5)||(e.repeat==='custom'&&(e.repeatDays||[]).includes(n)))?'active':'')} aria-pressed={(e.repeatDays||[]).includes(n)} title={longDays[n]} onClick={()=>{const old=e.repeat==='daily'?DAYS:e.repeat==='weekdays'?[1,2,3,4,5]:e.repeatDays||[];const next=old.includes(n)?old.filter(x=>x!==n):[...old,n];this.updateEventDraft({repeat:'custom',repeatDays:next});}}>{day}</button>)}</div><p className='caption'>Los días seleccionados permanecen marcados. La primera fecha establece desde cuándo se aplican.</p></div>}
       {repeatGroup==='period'&&<div className='field repeat-detail'><label>Intervalo de repetición</label><FriendlySelect value={e.repeat} ariaLabel='Periodicidad' onChange={value=>this.updateEventDraft({repeat:value as Repeat})} options={[{value:'weekly',label:'Cada semana, el mismo día'},{value:'monthly',label:'Cada mes, la misma fecha'},{value:'yearly',label:'Cada año'},{value:'every',label:'Cada cierto número de días'}]}/>{e.repeat==='every'&&<div className='field' style={{marginTop:12,maxWidth:210}}><label>Intervalo en días</label><NumberField value={e.everyDays||2} min={1} max={365} onCommit={everyDays=>this.updateEventDraft({everyDays})}/></div>}</div>}
       {repeatGroup==='dates'&&<div className='field repeat-detail'><div className='row spread'><label>Elige las fechas en el calendario</label><span className='caption'>{1+(e.specificDates||[]).filter(d=>d!==e.date).length} seleccionada(s)</span></div><div className='mini-calendar-head'><button className='icon-btn' aria-label='Mes anterior' onClick={()=>this.setState({datePickerMonth:firstMonth(addDays(this.state.datePickerMonth,-1))})}><Icon name='left' size={15}/></button><strong>{fmtMonth(this.state.datePickerMonth)}</strong><button className='icon-btn' aria-label='Mes siguiente' onClick={()=>{const m=parseDay(this.state.datePickerMonth);m.setMonth(m.getMonth()+1);this.setState({datePickerMonth:ymd(m)});}}><Icon name='right' size={15}/></button></div><div className='mini-calendar-grid'>{['L','M','Mié','J','V','S','D'].map((name,i)=><span className='mini-calendar-weekday' key={i}>{name}</span>)}{visibleDays.map((date,i)=>{const selected=date===e.date||(e.specificDates||[]).includes(date),outside=date.slice(0,7)!==this.state.datePickerMonth.slice(0,7),disabled=date<e.date;return <button type='button' key={i} disabled={disabled} className={'mini-calendar-day '+(selected?'active ':'')+(outside?'outside':'')} title={date} onClick={()=>{if(date===e.date)return;const next=(e.specificDates||[]).includes(date)?(e.specificDates||[]).filter(d=>d!==date):[...(e.specificDates||[]),date];this.updateEventDraft({specificDates:next,repeat:next.length?'dates':'none'});}}>{parseDay(date).getDate()}</button>;})}</div><p className='caption'>La fecha inicial siempre está incluida. Puedes añadir o quitar fechas posteriores.</p></div>}
+      </section><section className='event-editor-section'><div className='event-section-heading'><span>04</span><div><strong>Detalles y relaciones</strong><small>Rutina, meta e información adicional</small></div></div>
       {!isOccasion&&<div className='field'><label>Rutina o procedimiento (opcional) {this.hint('rutinas')}</label><FriendlySelect value={e.routineId} ariaLabel='Rutina vinculada' onChange={id=>{const r=rs.find(x=>x.id===id),old=id?this.routineSchedule(id):undefined;if(old&&old.id!==e.id){if(confirm('Esta rutina ya tiene una programación. ¿Quieres reprogramarla a partir de hoy? Su historial quedará intacto.'))this.openEvent(old);return;}this.updateEventDraft({routineId:id,...(r?{title:r.title,minutes:routineMinutes(r)}:{})});}} options={[{value:'',label:'Actividad sencilla'},...rs.map(r=>({value:r.id,label:r.title+(this.routineSchedule(r.id)&&this.routineSchedule(r.id)?.id!==e.id?' · ya programada':'' )}))]}/></div>}
       <div className='field'><label>Meta vinculada (opcional)</label><FriendlySelect value={e.goalId} ariaLabel='Meta vinculada' onChange={goalId=>this.updateEventDraft({goalId})} options={[{value:'',label:'Sin meta asociada'},...gs.map(g=>({value:g.id,label:g.title}))]}/></div>
       <div className='field'><label>Descripción e instrucciones</label><AutoTextarea value={e.note} onChange={(v:any)=>this.updateEventDraft({note:v.target.value})} maxLength={1500} placeholder={isOccasion?'Lugar, notas del viaje, recuerdos o preparativos':'Detalles que quieras recordar'}/></div>
+      {!e.allDay&&e.repeat==='none'&&e.anchor!=='between'&&<div className='overlap-editor'><strong>Si este bloque se solapa con otro, ¿qué hacemos?</strong><div className='time-anchor-choice'><button type='button' className={(e.overlapMode||'keep')==='keep'?'active':''} onClick={()=>this.updateEventDraft({overlapMode:'keep'})}>Mantener solapamiento</button><button type='button' className={e.overlapMode==='move'?'active':''} onClick={()=>this.updateEventDraft({overlapMode:'move'})}>Posponer bloques ese día</button></div><p className='caption'>Al posponer, Fullhouse pide confirmación y aplica desplazamientos únicamente en esta fecha. Las rutinas entre dos límites conservan sus dependencias.</p></div>}
       {e.routineId&&<div className='notice'>Una rutina mantiene una única programación vigente. Si ya existe, utiliza «Reprogramar»: no se crearán copias que compitan entre sí.</div>}
       {e.id&&<div className='field'><label>Aplicar la reprogramación desde</label><input type='date' min={today()} value={e.applyFrom||today()} onChange={v=>this.updateEventDraft({applyFrom:v.target.value})}/><p className='caption'>Cambia este día y los siguientes; conserva los días anteriores y los registros ya hechos. Antes de guardar verás una confirmación.</p></div>}
       {e.id&&<div className='row spread' style={{marginTop:16}}><span className='caption'>Editar la programación puede cambiar horas y repeticiones desde la fecha indicada.</span><Btn kind='danger' tiny onClick={()=>this.deleteEvent(e)}><Icon name='trash' size={14}/> Eliminar</Btn></div>}
-    </>;
+      </section></div>;
   }
   progressForm():any{
     const g=this.state.data.goals.find(x=>x.id===this.state.progressGoalId);if(!g)return null;const mode=goalMode(g);
@@ -785,12 +939,23 @@ class Planner extends React.Component<{},State> {
       {mode==='qualitative'?<div className="field" style={{marginTop:18}}><label>¿En qué estado se encuentra esta meta?</label><FriendlySelect value={this.state.progressStatus} ariaLabel="Estado del progreso" onChange={status=>this.setState({progressStatus:status as GoalStatus})} options={goalStatuses.map(s=>({value:s.id,label:s.label+' · '+s.desc}))}/></div>:<div className="field" style={{marginTop:18}}><label>Nuevo resultado</label><input type='text' inputMode='decimal' value={this.state.progressValue} onChange={e=>this.setState({progressValue:e.target.value})}/></div>}
       <div className="field"><label>{mode==='qualitative'?'¿Qué cambió? Describe tus avances':'Nota del registro (opcional)'}</label><AutoTextarea value={this.state.progressNote} onChange={(e:any)=>this.setState({progressNote:e.target.value})} placeholder="Reflexiones, aprendizajes o cambios desde el registro anterior"/></div><p className="caption">El resultado se guarda en el historial de la meta con la fecha de hoy.</p></>;
   }
-  renderCheckSteps=(steps:Step[],e:EventItem,date:string,log:RecordLog,level=0):any=><div className={level?'check-child-steps':''}>{steps.map((s,i)=><div key={s.id}><div className="routine-step"><button className={'check-circle '+(log.checkedSteps.includes(s.id)?'checked':'')} onClick={()=>this.toggleStep(e,date,s.id)} aria-label={'Marcar '+s.title} disabled={!!(s.children&&s.children.length)}>{log.checkedSteps.includes(s.id)&&<Icon name="check" size={13}/>}</button><div className="flex"><div className="agenda-name">{i+1}. {s.title}</div>{s.desc&&<div className="agenda-sub">{s.desc}</div>}<div className="agenda-sub">{stepMinutes(s)} min · {s.children?.length?'Incluye '+s.children.length+' elementos':'Paso individual'}</div></div></div>{s.children&&s.children.length>0&&this.renderCheckSteps(s.children,e,date,log,level+1)}</div>)}</div>;
+  renderCheckSteps=(steps:Step[],e:EventItem,date:string,log:RecordLog,allocation:Record<string,number>,level=0):any=><div className={level?'check-child-steps':''}>{steps.map((s,i)=>{
+    const manual=s.mode==='alternatives'&&s.chooseWhen==='execute';const chosen=log.choices?.[s.id]||'';
+    return <div className='execution-step' key={s.id}><div className="routine-step"><button className={'check-circle '+(log.checkedSteps.includes(s.id)?'checked':'')} onClick={()=>this.toggleStep(e,date,s.id)} aria-label={'Marcar '+s.title} disabled={!!(s.children&&s.children.length)||(manual&&!chosen)}>{log.checkedSteps.includes(s.id)&&<Icon name="check" size={13}/>}</button><div className="flex"><div className="agenda-name">{i+1}. {manual&&!chosen?'Elige una alternativa':s.title}</div>{s.desc&&<div className="agenda-sub">{s.desc}</div>}<div className="agenda-sub">{effectiveStepMinutes(s,allocation)} min {s.flexible?'· flexible':''} · {s.children?.length?'Incluye '+s.children.length+' elementos':'Paso individual'}</div></div></div>
+    {manual&&<div className='execution-choice'><strong>¿Qué opción realizarás hoy?</strong><div className='execution-options'>{[{id:'__base',title:originalStepTitle(this.state.data,e.routineId,s.id)||s.title},...(s.variants||[]).map(v=>({id:v.id,title:v.title}))].map(v=><button key={v.id} className={chosen===v.id?'active':''} type='button' onClick={()=>this.selectVariant(e,date,s.id,v.id)}>{v.title}</button>)}</div>{!chosen&&<p className='caption'>Selecciona una alternativa antes de marcar este paso.</p>}</div>}
+    {(!manual||!!chosen)&&<NoteEditor key={e.id+'-'+date+'-'+s.id} label={'Nota de '+(s.title||'este paso')} value={log.stepNotes?.[s.id]||''} carry={upcomingNote(this.state.data,e,date,s.id)} onSave={text=>this.saveOccurrenceNote(e,date,text,s.id)}/>}
+    {s.children&&s.children.length>0&&(!manual||!!chosen)&&this.renderCheckSteps(s.children,e,date,log,allocation,level+1)}
+    </div>})}</div>;
   executeForm():any{
     const date=this.state.selectedDate,e=this.state.data.events.find(x=>x.id===this.state.activeEventId);if(!e)return null;
-    const original=this.state.data.routines.find(x=>x.id===e.routineId);if(!original)return <p>La rutina ya no está disponible.</p>;const r={...original,steps:activeSteps(original.steps,date)};
+    const original=this.state.data.routines.find(x=>x.id===e.routineId);if(!original)return <p>La rutina ya no está disponible.</p>;
     const log=this.state.data.logs[key(e,date)]||{completed:false,checkedSteps:[]};
-    return <><div className="notice"><strong>{e.title}</strong> · {fmtDate(date)} a las {eventTime(e,date,this.state.data)}. Cada paso marcado se guarda únicamente para esta ejecución.</div><div style={{marginTop:15}}>{this.renderCheckSteps(r.steps,e,date,log)}</div><div className="divider"/><div className="row spread"><span className="caption">{leafSteps(r.steps).filter(s=>log.checkedSteps.includes(s.id)).length} / {leafSteps(r.steps).length} pasos completados</span>{log.completed&&<span className="small-tag">Actividad completada</span>}</div></>;
+    const r={...original,steps:activeSteps(original.steps,date,log.choices||{})};
+    const allocation=leafAllocation(r.steps,durationOn(e,date,this.state.data));
+    const missing=unresolvedManual(r.steps,log.choices||{});
+    return <><div className="notice"><strong>{e.title}</strong> · {fmtDate(date)} a las {eventTime(e,date,this.state.data)}. Las alternativas, notas y pasos marcados se guardan solo para este día.</div>{missing.length>0&&<div className='manual-warning'>✦ Hay {missing.length} paso(s) con alternativas pendientes de elegir.</div>}
+      <NoteEditor key={e.id+'-'+date+'-routine'} label='Nota general de esta ejecución' value={log.note||''} carry={upcomingNote(this.state.data,e,date)} onSave={text=>this.saveOccurrenceNote(e,date,text)}/>
+      <div style={{marginTop:15}}>{this.renderCheckSteps(r.steps,e,date,log,allocation)}</div><div className="divider"/><div className="row spread"><span className="caption">{leafSteps(r.steps).filter(s=>log.checkedSteps.includes(s.id)).length} / {leafSteps(r.steps).length} pasos completados</span>{log.completed&&<span className="small-tag">Actividad completada</span>}</div></>;
   }
   render():any{
     const title:{[K in Page]:string}={inicio:'Inicio',metas:'Metas',rutinas:'Rutinas',horario:'Horario',calendario:'Calendario',progreso:'Progreso',ajustes:'Ajustes'};

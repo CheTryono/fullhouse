@@ -122,3 +122,15 @@ Los datos existentes de 0.1 se conservan al actualizar porque seguimos usando la
 ### Compatibilidad y límites
 
 El almacén `fullhouse-v01` y la versión base JSON `1` permanecen iguales; los nuevos atributos son opcionales. La herramienta continúa guardando **solo localmente** y sin cuentas, sincronización o copias automáticas. Antes de modificar muchas rutinas o metas, exporta un JSON desde Ajustes. No publiques datos personales en el repositorio.
+
+## Fullhouse 0.6 — planificación enlazada, ejecución y notas
+
+- **Editor de actividades** organizado en cuatro secciones visuales: identidad, horarios, repeticiones, relaciones.
+- **Bloques entre rutinas:** edita una actividad, vincúlala a su rutina y elige «Entre dos rutinas». Debes seleccionar una rutina límite anterior y una posterior que tengan programación ese día. El bloque comenzará al terminar la primera y acabará al iniciar la segunda. Cada rutina puede seguir usando una sola programación futura.
+- **Pasos flexibles:** en el editor de rutinas marca «Tiempo flexible». Los pasos fijos se descuentan del intervalo y el tiempo restante se reparte entre los pasos flexibles. Fuera de intervalos, estos pasos utilizan una estimación inicial de 30 minutos. Los intervalos se calculan **dentro del mismo día**; no hay gestión de bloques que crucen medianoche.
+- **Reprogramación y dependencias:** al mover una rutina que define un límite, se avisa que otros bloques se reajustarán. Se conservan las versiones pasadas. Al eliminar una programación límite, se cancelan las programaciones futuras dependientes, se mantienen registros históricos y la rutina dependiente se puede volver a programar manualmente. Los días en los que falte un límite válido no muestran el bloque flexible.
+- **Eventos imprevistos:** en una actividad de una sola fecha con horario, elige «Mantener solapamiento» o «Posponer bloques ese día». La segunda opción requiere confirmación y crea excepciones horarias solo para la fecha afectada. Si algún bloque flexible se quedara sin intervalo, no se aplica el desplazamiento.
+- **Alternativas por ejecución:** en el editor de pasos elige «Alternativas → Al ejecutar la rutina» para decidir qué opción hacer en ese momento. Todas las alternativas son equivalentes. La elección se guarda por fecha y no impone preferencias a otros días.
+- **Notas de día:** desde la ejecución o el detalle del horario se pueden escribir notas para una actividad o cada paso. Permanecen en el historial del día y se vuelven a mostrar únicamente en la siguiente aparición del mismo bloque/paso. El horario indica con ✎ los bloques que tienen notas o una nota pendiente de la ocasión anterior.
+
+**Datos y compatibilidad:** mantiene `version: 1`, `localStorage` con clave `fullhouse-v01` y los respaldos JSON anteriores. Los nuevos campos son opcionales. Sigue siendo una aplicación local y no sincroniza calendarios ni otros servicios. Exporta respaldos antes de hacer cambios importantes.

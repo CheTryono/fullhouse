@@ -142,18 +142,38 @@ function occurs(e, date) {
         return (e.specificDates || []).includes(date) || date === e.date;
     return false;
 }
-function eventsOn(data, date) { return data.events.filter(e => occurs(e, date)).sort((a, b) => eventTime(a, date, data).localeCompare(eventTime(b, date, data))); }
-function eventTime(e, date, data) {
+function routineForDay(e, date, data) { var _a; const r = data.routines.find(r => r.id === e.routineId); return r ? activeSteps(r.steps, date, (_a = data.logs[key(e, date)]) === null || _a === void 0 ? void 0 : _a.choices) : []; }
+function baseLength(e, date, data) { const r = data.routines.find(x => x.id === e.routineId); return r ? Math.max(1, routineForDay(e, date, data).reduce((n, s) => n + stepMinutes(s), 0)) : Math.max(1, e.minutes); }
+/* Las referencias se guardan por RUTINA; siguen válidas al dividir una programación para preservar su historial. */
+function eventFrame(e, date, data, visited = new Set()) {
     var _a, _b;
-    if ((_b = (_a = e.overrides) === null || _a === void 0 ? void 0 : _a[date]) === null || _b === void 0 ? void 0 : _b.time)
-        return e.overrides[date].time;
-    if (e.anchor === 'end' && e.endTime) {
-        const length = data ? durationOn(e, date, data) : e.minutes;
-        return timeString(Math.max(0, minutes(e.endTime) - length));
+    if (visited.has(e.id))
+        return null;
+    if (e.allDay)
+        return { start: 0, end: 1440, length: 1440 };
+    if (e.anchor === 'between') {
+        if (!e.afterRoutineId || !e.beforeRoutineId || e.afterRoutineId === e.beforeRoutineId)
+            return null;
+        const nextVisited = new Set(visited);
+        nextVisited.add(e.id);
+        const find = (rid) => data.events.find(x => x.id !== e.id && x.routineId === rid && occurs(x, date));
+        const after = find(e.afterRoutineId), before = find(e.beforeRoutineId);
+        if (!after || !before)
+            return null;
+        const a = eventFrame(after, date, data, nextVisited), b = eventFrame(before, date, data, nextVisited);
+        if (!a || !b || a.end >= b.start)
+            return null;
+        return { start: a.end, end: b.start, length: b.start - a.end };
     }
-    return e.time;
+    const length = baseLength(e, date, data), at = (_b = (_a = e.overrides) === null || _a === void 0 ? void 0 : _a[date]) === null || _b === void 0 ? void 0 : _b.time;
+    const start = at ? minutes(at) : e.anchor === 'end' && e.endTime ? minutes(e.endTime) - length : minutes(e.time);
+    if (start < 0 || start + length > 1440)
+        return null;
+    return { start, end: start + length, length };
 }
-function scheduleStart(e, date, data) { return minutes(eventTime(e, date, data)); }
+function eventsOn(data, date) { return data.events.filter(e => occurs(e, date) && (e.allDay || !!eventFrame(e, date, data))).sort((a, b) => eventTime(a, date, data).localeCompare(eventTime(b, date, data))); }
+function eventTime(e, date, data) { var _a, _b; const frame = data ? eventFrame(e, date, data) : null; return frame ? timeString(frame.start) : ((_b = (_a = e.overrides) === null || _a === void 0 ? void 0 : _a[date]) === null || _b === void 0 ? void 0 : _b.time) || e.time; }
+function scheduleStart(e, date, data) { var _a, _b; return (_b = (_a = eventFrame(e, date, data)) === null || _a === void 0 ? void 0 : _a.start) !== null && _b !== void 0 ? _b : minutes(e.time); }
 function sameScheduleActive(e, cutoff) { return !!e.routineId && (!e.endDate || e.endDate >= cutoff) && (e.repeat !== 'none' || e.date >= cutoff); }
 function reorderByIds(items, from, to) { const list = [...items], a = list.findIndex(i => i.id === from), b = list.findIndex(i => i.id === to); if (a < 0 || b < 0 || a === b)
     return items; const [m] = list.splice(a, 1); list.splice(b, 0, m); return list; }
@@ -260,24 +280,85 @@ function goalStatus(g) { return g.status || 'pending'; }
 function statusLabel(s) { var _a; return ((_a = goalStatuses.find(x => x.id === s)) === null || _a === void 0 ? void 0 : _a.label) || 'Por comenzar'; }
 function goalMilestones(g) { return g.milestones || []; }
 function stepMinutes(s) { return s.children && s.children.length ? s.children.reduce((a, c) => a + stepMinutes(c), 0) : s.min; }
-function activeStep(s, date) {
-    var _a, _b;
+function activeStep(s, date, choices = {}) {
+    var _a, _b, _c;
     const weekday = parseDay(date).getDay();
     if (s.mode === 'selected' && !(s.days || []).includes(weekday))
         return null;
     const mode = s.mode || ((s.variants || []).length ? 'alternatives' : 'always');
-    const match = mode === 'alternatives' ? (_a = s.variants) === null || _a === void 0 ? void 0 : _a.find(v => v.days.includes(weekday)) : undefined;
-    if (s.mode === 'alternatives' && !match) {
+    const match = mode === 'alternatives' ? s.chooseWhen === 'execute' ? (_a = s.variants) === null || _a === void 0 ? void 0 : _a.find(v => v.id === choices[s.id]) : (_b = s.variants) === null || _b === void 0 ? void 0 : _b.find(v => v.days.includes(weekday)) : undefined;
+    if (s.mode === 'alternatives' && s.chooseWhen !== 'execute' && !match) {
         const baseDays = s.days || DAYS.filter(n => !(s.variants || []).some(v => v.days.includes(n)));
         if (!baseDays.includes(weekday))
             return null;
     }
     const chosen = match ? { ...s, title: match.title || s.title, desc: match.desc || '', min: match.min, children: match.children || [] } : s;
-    return { ...chosen, children: (_b = chosen.children) === null || _b === void 0 ? void 0 : _b.map(c => activeStep(c, date)).filter(Boolean) };
+    return { ...chosen, children: (_c = chosen.children) === null || _c === void 0 ? void 0 : _c.map(c => activeStep(c, date, choices)).filter(Boolean) };
 }
-function activeSteps(steps, date) { return steps.map(s => activeStep(s, date)).filter(Boolean); }
+function activeSteps(steps, date, choices = {}) { return steps.map(s => activeStep(s, date, choices)).filter(Boolean); }
 function routineMinutesOn(r, date) { return activeSteps(r.steps, date).reduce((total, s) => total + stepMinutes(s), 0); }
-function durationOn(e, date, data) { const r = data.routines.find(r => r.id === e.routineId); return r ? Math.max(1, routineMinutesOn(r, date)) : e.minutes; }
+function durationOn(e, date, data) { var _a, _b; return (_b = (_a = eventFrame(e, date, data)) === null || _a === void 0 ? void 0 : _a.length) !== null && _b !== void 0 ? _b : baseLength(e, date, data); }
+function leafAllocation(steps, available) {
+    const leaves = leafSteps(steps);
+    const fixed = leaves.filter(s => !s.flexible).reduce((n, s) => n + s.min, 0);
+    const flex = leaves.filter(s => s.flexible);
+    const remaining = Math.max(0, available - fixed), result = {};
+    flex.forEach((s, i) => { result[s.id] = Math.floor(remaining / flex.length) + (i < remaining % flex.length ? 1 : 0); });
+    return result;
+}
+function effectiveStepMinutes(s, alloc) {
+    var _a, _b;
+    return ((_a = s.children) === null || _a === void 0 ? void 0 : _a.length) ? s.children.reduce((n, c) => n + effectiveStepMinutes(c, alloc), 0) : s.flexible ? ((_b = alloc[s.id]) !== null && _b !== void 0 ? _b : s.min) : s.min;
+}
+function fixedStepMinutes(steps) { return leafSteps(steps).filter(s => !s.flexible).reduce((n, s) => n + s.min, 0); }
+function unresolvedManual(steps, choices = {}) {
+    const result = [];
+    const walk = (items) => items.forEach(s => { if (s.mode === 'alternatives' && s.chooseWhen === 'execute' && !choices[s.id])
+        result.push(s); walk(s.children || []); });
+    walk(steps);
+    return result;
+}
+function upcomingNote(data, e, date, stepId) {
+    /* Solo el siguiente día en el que realmente aparece este paso/bloque. */
+    const refs = data.events.filter(item => e.routineId ? item.routineId === e.routineId : item.id === e.id);
+    const candidates = Object.entries(data.logs).flatMap(([logKey, log]) => {
+        var _a;
+        const i = logKey.lastIndexOf('@'), id = logKey.slice(0, i), at = logKey.slice(i + 1);
+        const value = stepId ? (_a = log.stepNotes) === null || _a === void 0 ? void 0 : _a[stepId] : log.note;
+        return value && at < date && refs.some(item => item.id === id) ? [{ at, value }] : [];
+    }).sort((a, b) => b.at.localeCompare(a.at));
+    for (const item of candidates) {
+        let next = addDays(item.at, 1);
+        let count = 0;
+        while (next <= date && count++ < 3660) {
+            const valid = refs.find(v => occurs(v, next) && !!eventFrame(v, next, data));
+            const active = valid ? (!stepId || routineForDay(valid, next, data).some(s => stepPresent(s, stepId))) : false;
+            if (active)
+                return next === date ? item.value : '';
+            next = addDays(next, 1);
+        }
+    }
+    return '';
+}
+function originalStepTitle(data, routineId, id) {
+    const routine = data.routines.find(r => r.id === routineId);
+    if (!routine)
+        return '';
+    const find = (steps) => { for (const s of steps) {
+        if (s.id === id)
+            return s.title;
+        const child = find(s.children || []);
+        if (child)
+            return child;
+        for (const v of s.variants || []) {
+            const alt = find(v.children || []);
+            if (alt)
+                return alt;
+        }
+    } return ''; };
+    return find(routine.steps);
+}
+function stepPresent(s, id) { var _a; return s.id === id || !!((_a = s.children) === null || _a === void 0 ? void 0 : _a.some(c => stepPresent(c, id))); }
 function readableOn(color) { const rgb = [1, 3, 5].map(i => parseInt(color.slice(i, i + 2), 16) / 255).map(x => x <= .04045 ? x / 12.92 : Math.pow((x + .055) / 1.055, 2.4)); return rgb[0] * .2126 + rgb[1] * .7152 + rgb[2] * .0722 > .36 ? '#201b2e' : '#fff'; }
 function routineMinutes(r) { return r.steps.reduce((a, s) => a + stepMinutes(s), 0); }
 function leafSteps(steps) { return steps.flatMap(s => s.children && s.children.length ? leafSteps(s.children) : [s]); }
@@ -319,6 +400,31 @@ class NumberField extends React.Component {
         this.setState({ text: String((_a = this.props.value) !== null && _a !== void 0 ? _a : '') }); }
     render() { return React.createElement("input", { type: "text", inputMode: "decimal", "aria-label": this.props.ariaLabel || 'Cantidad', value: this.state.text, onFocus: () => this.setState({ editing: true }), onChange: (e) => { if (/^\d*([.,]\d*)?$/.test(e.target.value))
             this.setState({ text: e.target.value }); }, onBlur: this.commit }); }
+}
+class NoteEditor extends React.Component {
+    constructor(props) { super(props); this.state = { text: props.value || '', open: false }; }
+    componentDidUpdate(prev) { if (prev.value !== this.props.value)
+        this.setState({ text: this.props.value || '' }); }
+    render() {
+        return React.createElement("div", { className: 'day-note-editor ' + (this.state.open ? 'is-expanded' : 'is-collapsed') },
+            React.createElement("div", { className: 'row spread' },
+                React.createElement("div", { className: 'day-note-title' },
+                    React.createElement(Icon, { name: 'book', size: 17 }),
+                    React.createElement("strong", null, this.props.label)),
+                React.createElement(Btn, { tiny: true, kind: 'secondary', onClick: () => this.setState({ open: !this.state.open, text: this.props.value || '' }) }, this.state.open ? 'Cerrar' : this.props.value ? 'Ver / editar nota' : 'Añadir nota')),
+            !!this.props.value && !this.state.open && React.createElement("p", { className: 'saved-note-excerpt' },
+                "\u270E ",
+                this.props.value),
+            this.props.carry && React.createElement("div", { className: 'note-from-previous' },
+                React.createElement("strong", null, "\u2726 Nota de la ocasi\u00F3n anterior"),
+                React.createElement("p", null, this.props.carry),
+                React.createElement("small", null, "Aparece solamente esta vez; no cambia las instrucciones permanentes.")),
+            this.state.open && React.createElement(React.Fragment, null,
+                React.createElement(AutoTextarea, { value: this.state.text, onChange: (ev) => this.setState({ text: ev.target.value }), placeholder: '\u00BFQu\u00E9 sucedi\u00F3? \u00BFQu\u00E9 mejorar\u00EDas o recordar\u00EDas la pr\u00F3xima vez?', maxLength: 2000 }),
+                React.createElement("div", { className: 'row spread' },
+                    React.createElement("span", { className: 'caption' }, "Se conserva en esta fecha y aparecer\u00E1 una vez en la pr\u00F3xima ocasi\u00F3n."),
+                    React.createElement(Btn, { tiny: true, kind: 'secondary', disabled: this.state.text === (this.props.value || ''), onClick: () => { this.props.onSave(this.state.text); this.setState({ open: false }); } }, "Guardar nota"))));
+    }
 }
 class FriendlySelect extends React.Component {
     constructor(props) {
@@ -541,12 +647,12 @@ class Planner extends React.Component {
                 this.setState({ toast: 'Escribe un nombre para la rutina' });
                 return;
             }
-            if ((function invalid(steps) { return steps.some(s => !s.title.trim() || (s.children && invalid(s.children)) || ((s.variants || []).some(v => !!v.title.trim() && !!v.days.length && v.children && invalid(v.children)))); })(x.steps)) {
+            if ((function invalid(steps) { return steps.some(s => !s.title.trim() || (s.children && invalid(s.children)) || ((s.variants || []).some(v => !!v.title.trim() && (s.chooseWhen === 'execute' || !!v.days.length) && v.children && invalid(v.children)))); })(x.steps)) {
                 this.setState({ toast: 'Todos los pasos necesitan un nombre' });
                 return;
             }
             const data = this.state.data;
-            const clean = (steps) => steps.map(s => { var _a; const children = s.children ? clean(s.children) : undefined; return { ...s, title: s.title.trim(), children, variants: (_a = s.variants) === null || _a === void 0 ? void 0 : _a.filter(v => v.title.trim() && v.days.length).map(v => ({ ...v, title: v.title.trim(), days: [...new Set(v.days)], children: v.children ? clean(v.children) : undefined, min: Math.max(1, v.min) })), min: children && children.length ? children.reduce((a, c) => a + stepMinutes(c), 0) : Math.max(1, s.min), mode: s.mode || ((s.variants || []).length ? 'alternatives' : 'always') }; });
+            const clean = (steps) => steps.map(s => { var _a; const children = s.children ? clean(s.children) : undefined; return { ...s, title: s.title.trim(), children, variants: (_a = s.variants) === null || _a === void 0 ? void 0 : _a.filter(v => v.title.trim() && (s.chooseWhen === 'execute' || v.days.length)).map(v => ({ ...v, title: v.title.trim(), days: [...new Set(v.days)], children: v.children ? clean(v.children) : undefined, min: Math.max(0, v.min) })), min: children && children.length ? children.reduce((a, c) => a + stepMinutes(c), 0) : s.flexible ? Math.max(5, s.min) : Math.max(1, s.min), mode: s.mode || ((s.variants || []).length ? 'alternatives' : 'always') }; });
             const result = { ...x, id: x.id || uid(), title: x.title.trim(), steps: clean(x.steps) };
             this.save({ ...data, routines: x.id ? data.routines.map(r => r.id === x.id ? result : r) : [...data.routines, result], events: data.events.map(e => e.routineId === result.id ? { ...e, minutes: routineMinutes(result) } : e) });
             this.close(true);
@@ -575,8 +681,9 @@ class Planner extends React.Component {
                 this.notice('Las revisiones se editan desde la meta.');
                 return;
             }
-            const scheduleChanged = !!original && (original.time !== x.time || original.endTime !== x.endTime || original.anchor !== x.anchor || original.date !== x.date || original.endDate !== x.endDate || original.repeat !== x.repeat || JSON.stringify(original.repeatDays || []) !== JSON.stringify(x.repeatDays || []) || original.everyDays !== x.everyDays || JSON.stringify(original.specificDates || []) !== JSON.stringify(x.specificDates || []));
-            if (original && scheduleChanged && !confirm('¿Confirmas la reprogramación? Se actualizarán las próximas fechas y el resto de hoy desde la fecha elegida, sin modificar días anteriores ni sus registros.'))
+            const scheduleChanged = !!original && (original.time !== x.time || original.endTime !== x.endTime || original.anchor !== x.anchor || original.afterRoutineId !== x.afterRoutineId || original.beforeRoutineId !== x.beforeRoutineId || original.date !== x.date || original.endDate !== x.endDate || original.repeat !== x.repeat || JSON.stringify(original.repeatDays || []) !== JSON.stringify(x.repeatDays || []) || original.everyDays !== x.everyDays || JSON.stringify(original.specificDates || []) !== JSON.stringify(x.specificDates || []));
+            const impacted = (original === null || original === void 0 ? void 0 : original.routineId) ? data.events.filter(item => item.anchor === 'between' && (item.afterRoutineId === original.routineId || item.beforeRoutineId === original.routineId) && sameScheduleActive(item, today())) : [];
+            if (original && scheduleChanged && !confirm('¿Confirmas la reprogramación? Se actualizarán las próximas fechas y el resto de hoy desde la fecha elegida, sin modificar días anteriores ni sus registros.' + (impacted.length ? '\n\n⚠ ' + impacted.length + ' bloque(s) dependiente(s) se reajustarán automáticamente. Si sus límites dejan de coincidir, se ocultarán ese día hasta corregir su programación.' : '')))
                 return;
             const startChange = original ? (x.applyFrom || today()) : x.date;
             if (original && startChange < today()) {
@@ -607,20 +714,86 @@ class Planner extends React.Component {
                 }
             }
             const cleanFuture = { ...future, applyFrom: undefined };
+            if (cleanFuture.anchor === 'between') {
+                if (!cleanFuture.routineId || !cleanFuture.afterRoutineId || !cleanFuture.beforeRoutineId || cleanFuture.afterRoutineId === cleanFuture.beforeRoutineId || [cleanFuture.afterRoutineId, cleanFuture.beforeRoutineId].includes(cleanFuture.routineId)) {
+                    this.notice('Elige una rutina para este bloque y dos rutinas límite diferentes.');
+                    return;
+                }
+                const hypothetical = { ...data, events: [...data.events.filter(e => e.id !== (original === null || original === void 0 ? void 0 : original.id) && e.id !== cleanFuture.id), cleanFuture] };
+                if (!eventFrame(cleanFuture, cleanFuture.date, hypothetical)) {
+                    this.notice('No hay un intervalo válido entre las dos rutinas en la fecha inicial. Revisa días, horarios y dependencias circulares.');
+                    return;
+                }
+                const steps = routineForDay(cleanFuture, cleanFuture.date, hypothetical), frame = eventFrame(cleanFuture, cleanFuture.date, hypothetical);
+                if (fixedStepMinutes(steps) > frame.length) {
+                    this.notice('Los pasos de duración fija superan el intervalo disponible. Reduce su duración o cambia los límites.');
+                    return;
+                }
+            }
+            const withOverlap = (next) => {
+                const target = next.events.find(item => item.id === cleanFuture.id);
+                if (!target || target.overlapMode !== 'move' || target.repeat !== 'none' || target.allDay || target.anchor === 'between')
+                    return next;
+                const date = target.date, span = eventFrame(target, date, next);
+                if (!span)
+                    return next;
+                const clashes = eventsOn(next, date).filter(item => item.id !== target.id && !item.allDay && !!eventFrame(item, date, next) && eventFrame(item, date, next).start < span.end && eventFrame(item, date, next).end > span.start);
+                if (!clashes.length)
+                    return next;
+                if (clashes.some(item => item.anchor === 'between')) {
+                    this.notice('Un bloque flexible coincide con el evento. Elige mantener el solapamiento o cambia los límites.');
+                    return null;
+                }
+                if (!confirm('¿Mover los bloques solapados solamente el ' + date + '? Se conservará su orden y sus duraciones en ese día. Otros días no cambiarán.'))
+                    return null;
+                let cursor = span.end;
+                let updated = next.events.map(item => ({ ...item, overrides: { ...item.overrides } }));
+                const others = eventsOn(next, date).filter(item => item.id !== target.id && !item.allDay && item.anchor !== 'between').sort((a, b) => scheduleStart(a, date, next) - scheduleStart(b, date, next));
+                for (const item of others) {
+                    const f = eventFrame(item, date, { ...next, events: updated });
+                    if (!f)
+                        continue;
+                    if (f.end <= span.start)
+                        continue;
+                    if (f.start < cursor) {
+                        if (cursor + f.length > 1440) {
+                            this.notice('No es posible posponer los bloques sin salir del día. Mantén el solapamiento o elige otra hora.');
+                            return null;
+                        }
+                        updated = updated.map(x => x.id === item.id ? { ...x, overrides: { ...x.overrides, [date]: { ...x.overrides[date], time: timeString(cursor) } } } : x);
+                        cursor += f.length;
+                    }
+                    else
+                        cursor = f.end;
+                }
+                const adjusted = { ...next, events: updated };
+                const broken = next.events.filter(item => item.anchor === 'between' && occurs(item, date) && !!eventFrame(item, date, next) && !eventFrame(item, date, adjusted));
+                if (broken.length) {
+                    this.notice('El desplazamiento dejaría sin intervalo a «' + broken[0].title + '». Mantén el solapamiento o ajusta las rutinas límite.');
+                    return null;
+                }
+                return adjusted;
+            };
             if (cut && original) {
                 const endDate = addDays(finalStart, -1);
                 const history = { ...original, endDate: original.endDate && original.endDate < endDate ? original.endDate : endDate, overrides: Object.fromEntries(Object.entries(original.overrides || {}).filter(([day]) => day < finalStart)) };
                 const logs = { ...data.logs };
                 Object.keys(logs).filter(k => k.startsWith(original.id + '@') && k.split('@')[1] >= finalStart).forEach(k => { logs[cleanFuture.id + '@' + k.split('@')[1]] = logs[k]; delete logs[k]; });
                 const nextData = { ...data, events: [...data.events.map(e => e.id === original.id ? history : e), cleanFuture], logs };
-                this.save(nextData, 'Programación actualizada desde ' + finalStart);
+                const planned = withOverlap(nextData);
+                if (!planned)
+                    return;
+                this.save(planned, 'Programación actualizada desde ' + finalStart);
             }
             else {
                 if (future.routineId && data.events.some(other => other.id !== result.id && other.routineId === future.routineId && sameScheduleActive(other, today()))) {
                     this.notice('Esta rutina ya está programada. Reprograma la existente.');
                     return;
                 }
-                this.save({ ...data, events: x.id ? data.events.map(e => e.id === x.id ? cleanFuture : e) : [...data.events, cleanFuture] }, 'Actividad guardada');
+                const planned = withOverlap({ ...data, events: x.id ? data.events.map(e => e.id === x.id ? cleanFuture : e) : [...data.events, cleanFuture] });
+                if (!planned)
+                    return;
+                this.save(planned, 'Actividad guardada');
             }
             this.close(true);
             if (this.state.guideOpen) {
@@ -637,38 +810,96 @@ class Planner extends React.Component {
             const d = this.state.data;
             this.save({ ...d, goals: d.goals.filter(x => x.id !== g.id).map(x => x.parentId === g.id ? { ...x, parentId: '' } : x), events: d.events.filter(e => e.id !== 'review-' + g.id).map(e => e.goalId === g.id ? { ...e, goalId: '' } : e) });
         };
+        /* Eliminar una programación conserva el pasado y cancela los bloques que dependen de ella. */
+        this.cancelFutureDependencies = (d, routineId, from = today()) => {
+            const selected = new Set([routineId]);
+            let progress = true;
+            while (progress) {
+                progress = false;
+                d.events.forEach(e => { if (e.routineId && !selected.has(e.routineId) && e.anchor === 'between' && (selected.has(e.afterRoutineId || '') || selected.has(e.beforeRoutineId || ''))) {
+                    selected.add(e.routineId);
+                    progress = true;
+                } });
+            }
+            const remove = d.events.filter(e => e.anchor === 'between' && e.routineId && selected.has(e.routineId));
+            const removes = new Set(remove.map(e => e.id));
+            const revised = d.events.flatMap(e => {
+                if (!removes.has(e.id))
+                    return [e];
+                if (e.date >= from)
+                    return [];
+                const end = addDays(from, -1);
+                return [{ ...e, endDate: e.endDate && e.endDate < end ? e.endDate : end }];
+            });
+            return { ...d, events: revised };
+        };
         this.deleteRoutine = (r) => {
-            if (!confirm(`¿Eliminar «${r.title}»? Las actividades programadas conservarán su nombre, pero perderán sus pasos.`))
+            const dependents = this.state.data.events.filter(e => e.anchor === 'between' && (e.afterRoutineId === r.id || e.beforeRoutineId === r.id));
+            if (!confirm(`¿Eliminar «${r.title}»? Las actividades conservarán su nombre pero perderán sus pasos.${dependents.length ? '\n\n⚠ Se cancelarán las programaciones futuras de ' + dependents.length + ' bloque(s) dependiente(s), conservando su historial.' : ''}`))
                 return;
             const d = this.state.data;
-            this.save({ ...d, routines: d.routines.filter(x => x.id !== r.id), events: d.events.map(e => e.routineId === r.id ? { ...e, routineId: '' } : e) });
+            const next = this.cancelFutureDependencies({ ...d, routines: d.routines.filter(x => x.id !== r.id), events: d.events.map(e => e.routineId === r.id ? { ...e, routineId: '' } : e) }, r.id);
+            this.save(next);
+            this.close(true);
         };
         this.deleteEvent = (e) => {
-            if (!confirm(e.repeat === 'none' ? '¿Eliminar esta actividad?' : '¿Eliminar esta actividad recurrente y todas sus próximas apariciones?'))
+            const dependents = e.routineId ? this.state.data.events.filter(x => x.anchor === 'between' && (x.afterRoutineId === e.routineId || x.beforeRoutineId === e.routineId)) : [];
+            if (!confirm((e.repeat === 'none' ? '¿Eliminar esta actividad?' : '¿Eliminar esta programación y sus próximas apariciones?') + (dependents.length ? '\n\n⚠ Se cancelarán los bloques dependientes futuros (' + dependents.length + '). Sus registros anteriores se conservarán.' : '')))
                 return;
-            const d = this.state.data;
+            const d = this.state.data, from = today();
             const logs = { ...d.logs };
-            Object.keys(logs).filter(k => k.startsWith(e.id + '@')).forEach(k => delete logs[k]);
-            this.save({ ...d, events: d.events.filter(x => x.id !== e.id), goals: e.kind === 'review' ? d.goals.map(g => g.id === e.goalId ? { ...g, review: undefined } : g) : d.goals, logs });
+            // Si hoy ya tiene un registro, conservar también esa ejecución en el historial.
+            const cutoff = logs[key(e, from)] ? addDays(from, 1) : from;
+            const old = e.date < cutoff;
+            const updated = d.events.flatMap(item => item.id !== e.id ? [item] : old ? [{ ...item, endDate: addDays(cutoff, -1) }] : []);
+            const next = (e.routineId && sameScheduleActive(e, from) ? this.cancelFutureDependencies({ ...d, events: updated, goals: e.kind === 'review' ? d.goals.map(g => g.id === e.goalId ? { ...g, review: undefined } : g) : d.goals, logs }, e.routineId, cutoff) : { ...d, events: updated, goals: e.kind === 'review' ? d.goals.map(g => g.id === e.goalId ? { ...g, review: undefined } : g) : d.goals, logs });
+            this.save(next);
             this.close(true);
         };
         this.toggleEvent = (e, date) => {
             const d = this.state.data, k = key(e, date), r = d.logs[k] || { completed: false, checkedSteps: [] };
+            const original = d.routines.find(x => x.id === e.routineId);
+            if (!r.completed && original && unresolvedManual(activeSteps(original.steps, date, r.choices || {}), r.choices || {}).length) {
+                this.notice('Antes de completar la rutina, elige las alternativas desde Ejecutar rutina.');
+                return;
+            }
             this.save({ ...d, logs: { ...d.logs, [k]: { ...r, completed: !r.completed } } }, 'Actividad actualizada');
         };
         this.toggleStep = (e, date, stepId) => {
             const d = this.state.data, k = key(e, date), r = d.logs[k] || { completed: false, checkedSteps: [] };
             const routine = d.routines.find(x => x.id === e.routineId);
             const checked = r.checkedSteps.includes(stepId) ? r.checkedSteps.filter(s => s !== stepId) : [...r.checkedSteps, stepId];
-            const leaves = routine ? leafSteps(activeSteps(routine.steps, date)) : [];
-            const completed = leaves.length > 0 && leaves.every(s => checked.includes(s.id));
+            const choices = r.choices || {};
+            const leaves = routine ? leafSteps(activeSteps(routine.steps, date, choices)) : [];
+            const pending = routine ? unresolvedManual(activeSteps(routine.steps, date, choices), choices) : [];
+            const completed = leaves.length > 0 && pending.length === 0 && leaves.every(s => checked.includes(s.id));
             this.save({ ...d, logs: { ...d.logs, [k]: { ...r, checkedSteps: checked, completed } } }, 'Paso actualizado');
         };
+        this.saveOccurrenceNote = (e, date, text, stepId) => {
+            const d = this.state.data, k = key(e, date), log = d.logs[k] || { completed: false, checkedSteps: [] };
+            const value = text.trim();
+            const updated = stepId ? { ...log, stepNotes: { ...log.stepNotes, [stepId]: value } } : { ...log, note: value };
+            this.save({ ...d, logs: { ...d.logs, [k]: updated } }, 'Nota guardada en el historial');
+        };
+        this.selectVariant = (e, date, stepId, choice) => {
+            const d = this.state.data, k = key(e, date), r = d.logs[k] || { completed: false, checkedSteps: [] };
+            this.save({ ...d, logs: { ...d.logs, [k]: { ...r, choices: { ...r.choices, [stepId]: choice }, checkedSteps: [], completed: false } } }, 'Elección guardada solo para este día');
+        };
         this.shiftEvent = (e, date, delta) => {
+            if (e.anchor === 'between') {
+                this.notice('Este bloque depende de dos rutinas. Para moverlo, reprograma alguna de sus rutinas límite.');
+                return;
+            }
             const d = this.state.data;
             const newTime = timeString(bound(minutes(eventTime(e, date, d)) + delta, 0, 1439));
             const next = { ...e, overrides: { ...e.overrides, [date]: { ...e.overrides[date], time: newTime } } };
-            this.save({ ...d, events: d.events.map(x => x.id === e.id ? next : x) }, `Actividad movida a las ${newTime}`);
+            const newData = { ...d, events: d.events.map(x => x.id === e.id ? next : x) };
+            const affected = e.routineId ? d.events.filter(x => x.anchor === 'between' && (x.afterRoutineId === e.routineId || x.beforeRoutineId === e.routineId) && occurs(x, date)) : [];
+            if (affected.some(x => !!eventFrame(x, date, d) && !eventFrame(x, date, newData))) {
+                this.notice('El cambio dejaría sin espacio a un bloque dependiente. Edita las horas de sus rutinas límite.');
+                return;
+            }
+            this.save(newData, `Actividad movida a las ${newTime}` + (affected.length ? ' · Bloques dependientes ajustados' : ''));
         };
         this.saveProgress = () => {
             const d = this.state.data, g = d.goals.find(x => x.id === this.state.progressGoalId);
@@ -766,8 +997,7 @@ class Planner extends React.Component {
                     this.openRoutine();
                     this.setState({ toast: 'Crea una rutina antes de programarla.' });
                     return;
-                }
-                this.useRoutineForGuide(r);
+                }                this.useRoutineForGuide(r);
                 return;
             }
             if (step === 5) {
@@ -813,8 +1043,8 @@ class Planner extends React.Component {
                         React.createElement("span", { className: 'step-duration-summary' },
                             React.createElement(Icon, { name: 'clock', size: 14 }),
                             " ",
-                            stepMinutes(s),
-                            " min ",
+                            s.flexible ? 'Tiempo variable' : stepMinutes(s) + ' min',
+                            " ",
                             hasChildren ? '· calculados' : ''),
                         React.createElement("button", { className: 'drag-handle', title: 'Arrastra para reordenar', "aria-label": 'Arrastrar ' + stepLevelName(level) + ' ' + (i + 1), onMouseDown: e => this.startStepDrag(s.id, e), onTouchStart: e => this.startStepDrag(s.id, e), onKeyDown: e => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
                                 e.preventDefault();
@@ -832,23 +1062,36 @@ class Planner extends React.Component {
                             React.createElement("small", null, "Aparece cuando corresponde")),
                         React.createElement("button", { className: mode === 'alternatives' ? 'active' : '', onClick: () => update(s.id, { mode: 'alternatives', days: s.days || DAYS.filter(n => !(s.variants || []).some(v => v.days.includes(n))) }) },
                             React.createElement("strong", null, "Alternativas"),
-                            React.createElement("small", null, "Una opci\u00F3n seg\u00FAn el d\u00EDa"))),
+                            React.createElement("small", null, "Seg\u00FAn el d\u00EDa o al ejecutar"))),
                     mode === 'selected' && React.createElement("div", { className: 'step-conditional' },
                         React.createElement("label", null, "D\u00EDas en los que se realiza"),
                         this.weekdayPicker(s.days || [], day => this.updateStepDays(s.id, undefined, day))),
                     mode === 'alternatives' && React.createElement("div", { className: 'step-conditional' },
-                        React.createElement("div", { className: 'step-base-label' },
-                            React.createElement("strong", null, "Opci\u00F3n principal"),
-                            React.createElement("small", null, "Tu paso original ahora es una de las alternativas; elige en qu\u00E9 d\u00EDas se utiliza.")),
-                        this.weekdayPicker(baseDays, day => this.updateStepDays(s.id, undefined, day))),
+                        React.createElement("div", { className: 'alternative-frequency' },
+                            React.createElement("strong", null, "\u00BFC\u00F3mo se elige la alternativa?"),
+                            React.createElement("div", { className: 'time-anchor-choice' },
+                                React.createElement("button", { type: 'button', className: s.chooseWhen !== 'execute' ? 'active' : '', onClick: () => update(s.id, { chooseWhen: 'weekday' }) }, "Por d\u00EDa de semana"),
+                                React.createElement("button", { type: 'button', className: s.chooseWhen === 'execute' ? 'active' : '', onClick: () => update(s.id, { chooseWhen: 'execute' }) }, "Al ejecutar la rutina"))),
+                        s.chooseWhen !== 'execute' && React.createElement(React.Fragment, null,
+                            React.createElement("div", { className: 'step-base-label' },
+                                React.createElement("strong", null,
+                                    "Alternativa 1 \u00B7 ",
+                                    s.title || 'sin nombre'),
+                                React.createElement("small", null, "Es una opci\u00F3n m\u00E1s, con el mismo valor que las dem\u00E1s.")),
+                            this.weekdayPicker(baseDays, day => this.updateStepDays(s.id, undefined, day)))),
                     React.createElement("div", { className: 'step-edit-fields' },
-                        React.createElement("input", { "aria-label": 'Nombre de ' + stepLevelName(level).toLowerCase() + ' ' + (i + 1), value: s.title, onChange: e => update(s.id, { title: e.target.value }), placeholder: mode === 'alternatives' ? 'Nombre de la opción principal' : level === 0 ? 'Nombre del paso' : 'Nombre del ' + stepLevelName(level).toLowerCase() }),
+                        React.createElement("input", { "aria-label": 'Nombre de ' + stepLevelName(level).toLowerCase() + ' ' + (i + 1), value: s.title, onChange: e => update(s.id, { title: e.target.value }), placeholder: mode === 'alternatives' ? 'Nombre de la alternativa 1' : level === 0 ? 'Nombre del paso' : 'Nombre del ' + stepLevelName(level).toLowerCase() }),
                         hasChildren ? React.createElement("span", { className: 'step-readonly-time', title: 'La duraci\u00F3n se calcula sumando los elementos hijos' },
                             "\u03A3 ",
                             stepMinutes(s),
-                            " min") : React.createElement("label", { className: 'step-time-field' },
+                            " min") : s.flexible ? React.createElement("span", { className: 'step-readonly-time' }, "\u2194 Variable (30 min estimados)") : React.createElement("label", { className: 'step-time-field' },
                             "min ",
                             React.createElement(NumberField, { value: s.min, min: 1, max: 1440, ariaLabel: 'Duraci\u00F3n en minutos', onCommit: min => update(s.id, { min }) }))),
+                    !hasChildren && React.createElement("label", { className: 'step-flex-toggle' },
+                        React.createElement("input", { type: 'checkbox', checked: !!s.flexible, onChange: e => update(s.id, { flexible: e.target.checked, min: e.target.checked ? 30 : Math.max(5, s.min) }) }),
+                        React.createElement("span", null,
+                            React.createElement("strong", null, "Tiempo flexible"),
+                            React.createElement("small", null, "Este paso ocupa el tiempo libre del bloque (ideal para tareas de duraci\u00F3n variable entre dos rutinas)."))),
                     React.createElement("div", { className: 'step-description' },
                         React.createElement(AutoTextarea, { maxLength: 1000, value: s.desc || '', onChange: (e) => update(s.id, { desc: e.target.value }), placeholder: 'Instrucciones de este paso u opci\u00F3n...' })),
                     hasChildren && this.renderStepEditor(s.children || [], level + 1),
@@ -860,15 +1103,17 @@ class Planner extends React.Component {
                             " a esta opci\u00F3n")),
                     mode === 'alternatives' && React.createElement("div", { className: 'step-variants' },
                         React.createElement("div", { className: 'step-variants-title' },
-                            "Otras opciones ",
-                            React.createElement("span", null, "Un d\u00EDa solo puede tener una alternativa activa. Desmarca todos los d\u00EDas si no se realiza ese paso.")),
+                            "M\u00E1s alternativas ",
+                            React.createElement("span", null, "Todas tienen la misma importancia. Cada ocasi\u00F3n puede usar solo una.")),
                         (s.variants || []).map((v, vi) => {
                             var _a, _b;
                             return React.createElement("div", { className: 'step-variant', key: v.id },
                                 React.createElement("div", { className: 'row spread' },
                                     React.createElement("strong", null,
-                                        "Opci\u00F3n ",
-                                        vi + 2),
+                                        "Alternativa ",
+                                        vi + 2,
+                                        " \u00B7 ",
+                                        v.title || 'sin nombre'),
                                     React.createElement("button", { type: 'button', className: 'icon-btn', title: 'Eliminar opci\u00F3n', "aria-label": 'Eliminar opci\u00F3n', onClick: () => update(s.id, { variants: (s.variants || []).filter(a => a.id !== v.id) }) },
                                         React.createElement(Icon, { name: 'trash', size: 15 }))),
                                 React.createElement("div", { className: 'field-grid' },
@@ -881,7 +1126,7 @@ class Planner extends React.Component {
                                             "\u03A3 ",
                                             v.children.reduce((sum, c) => sum + stepMinutes(c), 0),
                                             " min de sus detalles") : React.createElement(NumberField, { value: v.min, min: 1, max: 1440, ariaLabel: 'Minutos de opción ' + (vi + 2), onCommit: min => update(s.id, { variants: (s.variants || []).map(a => a.id === v.id ? { ...a, min } : a) }) }))),
-                                React.createElement("div", { className: 'field' },
+                                s.chooseWhen !== 'execute' && React.createElement("div", { className: 'field' },
                                     React.createElement("label", null, "D\u00EDas en los que se utiliza"),
                                     this.weekdayPicker(v.days, day => this.updateStepDays(s.id, v.id, day))),
                                 React.createElement("div", { className: 'field' },
@@ -900,20 +1145,32 @@ class Planner extends React.Component {
                                 " A\u00F1adir otra opci\u00F3n"))));
             }));
         };
-        this.renderCheckSteps = (steps, e, date, log, level = 0) => React.createElement("div", { className: level ? 'check-child-steps' : '' }, steps.map((s, i) => { var _a; return React.createElement("div", { key: s.id },
-            React.createElement("div", { className: "routine-step" },
-                React.createElement("button", { className: 'check-circle ' + (log.checkedSteps.includes(s.id) ? 'checked' : ''), onClick: () => this.toggleStep(e, date, s.id), "aria-label": 'Marcar ' + s.title, disabled: !!(s.children && s.children.length) }, log.checkedSteps.includes(s.id) && React.createElement(Icon, { name: "check", size: 13 })),
-                React.createElement("div", { className: "flex" },
-                    React.createElement("div", { className: "agenda-name" },
-                        i + 1,
-                        ". ",
-                        s.title),
-                    s.desc && React.createElement("div", { className: "agenda-sub" }, s.desc),
-                    React.createElement("div", { className: "agenda-sub" },
-                        stepMinutes(s),
-                        " min \u00B7 ",
-                        ((_a = s.children) === null || _a === void 0 ? void 0 : _a.length) ? 'Incluye ' + s.children.length + ' elementos' : 'Paso individual'))),
-            s.children && s.children.length > 0 && this.renderCheckSteps(s.children, e, date, log, level + 1)); }));
+        this.renderCheckSteps = (steps, e, date, log, allocation, level = 0) => React.createElement("div", { className: level ? 'check-child-steps' : '' }, steps.map((s, i) => {
+            var _a, _b, _c;
+            const manual = s.mode === 'alternatives' && s.chooseWhen === 'execute';
+            const chosen = ((_a = log.choices) === null || _a === void 0 ? void 0 : _a[s.id]) || '';
+            return React.createElement("div", { className: 'execution-step', key: s.id },
+                React.createElement("div", { className: "routine-step" },
+                    React.createElement("button", { className: 'check-circle ' + (log.checkedSteps.includes(s.id) ? 'checked' : ''), onClick: () => this.toggleStep(e, date, s.id), "aria-label": 'Marcar ' + s.title, disabled: !!(s.children && s.children.length) || (manual && !chosen) }, log.checkedSteps.includes(s.id) && React.createElement(Icon, { name: "check", size: 13 })),
+                    React.createElement("div", { className: "flex" },
+                        React.createElement("div", { className: "agenda-name" },
+                            i + 1,
+                            ". ",
+                            manual && !chosen ? 'Elige una alternativa' : s.title),
+                        s.desc && React.createElement("div", { className: "agenda-sub" }, s.desc),
+                        React.createElement("div", { className: "agenda-sub" },
+                            effectiveStepMinutes(s, allocation),
+                            " min ",
+                            s.flexible ? '· flexible' : '',
+                            " \u00B7 ",
+                            ((_b = s.children) === null || _b === void 0 ? void 0 : _b.length) ? 'Incluye ' + s.children.length + ' elementos' : 'Paso individual'))),
+                manual && React.createElement("div", { className: 'execution-choice' },
+                    React.createElement("strong", null, "\u00BFQu\u00E9 opci\u00F3n realizar\u00E1s hoy?"),
+                    React.createElement("div", { className: 'execution-options' }, [{ id: '__base', title: originalStepTitle(this.state.data, e.routineId, s.id) || s.title }, ...(s.variants || []).map(v => ({ id: v.id, title: v.title }))].map(v => React.createElement("button", { key: v.id, className: chosen === v.id ? 'active' : '', type: 'button', onClick: () => this.selectVariant(e, date, s.id, v.id) }, v.title))),
+                    !chosen && React.createElement("p", { className: 'caption' }, "Selecciona una alternativa antes de marcar este paso.")),
+                (!manual || !!chosen) && React.createElement(NoteEditor, { key: e.id + '-' + date + '-' + s.id, label: 'Nota de ' + (s.title || 'este paso'), value: ((_c = log.stepNotes) === null || _c === void 0 ? void 0 : _c[s.id]) || '', carry: upcomingNote(this.state.data, e, date, s.id), onSave: text => this.saveOccurrenceNote(e, date, text, s.id) }),
+                s.children && s.children.length > 0 && (!manual || !!chosen) && this.renderCheckSteps(s.children, e, date, log, allocation, level + 1));
+        }));
         const d = today();
         this.state = { data: load(), page: 'inicio', selectedDate: d, month: firstMonth(d), modal: null, goalDraft: gDraft(), routineDraft: rDraft(), eventDraft: eDraft(d), activeEventId: '', detailPath: [], progressValue: '', progressNote: '', progressStatus: 'pending', progressGoalId: '', toast: '', theme: (themeOptions.some(x => x.id === getPreference(THEME_STORE)) ? getPreference(THEME_STORE) : 'aurora'), modalLayout: getPreference(LAYOUT_STORE) === 'horizontal' ? 'horizontal' : 'vertical', guideOpen: getPreference(GUIDE_STORE) !== 'yes', guideStep: 0, guideGoalId: '', guideEventId: '', helpTopic: '', helpOpen: false, areaFilter: 'all', goalView: 'cards', mapGrouping: 'structure', colorEditorOpen: false, hexDraft: colorOptions[0], draggedStepId: '', dragTargetId: '', draggedCardType: '', draggedCardId: '', datePickerMonth: firstMonth(d) };
     }
@@ -952,7 +1209,7 @@ class Planner extends React.Component {
                         React.createElement("div", { className: "avatar" }, "\u2726"),
                         React.createElement("div", null,
                             React.createElement("div", { className: "profile-name" }, "Mi espacio privado"),
-                            React.createElement("div", { className: "profile-meta" }, "Fullhouse \u00B7 0.5"))),
+                            React.createElement("div", { className: "profile-meta" }, "Fullhouse \u00B7 0.6"))),
                     React.createElement("small", null, "Organiza \u00B7 Act\u00FAa \u00B7 Progresa. Los datos se guardan en este navegador."))),
             React.createElement("nav", { className: "mobile-nav", "aria-label": "Navegaci\u00F3n m\u00F3vil" }, links.filter(l => l.id !== 'ajustes' && l.id !== 'calendario').map(l => React.createElement("button", { key: l.id, className: `mobile-item ${this.state.page === l.id ? 'active' : ''}`, onClick: () => this.route(l.id) },
                 React.createElement(Icon, { name: l.icon }),
@@ -1013,8 +1270,8 @@ class Planner extends React.Component {
                         e.note && React.createElement("div", { className: "schedule-notes" }, e.note),
                         React.createElement("div", { className: "actions", style: { marginTop: 9 } },
                             routine && React.createElement(Btn, { tiny: true, kind: "secondary", onClick: () => this.openExecute(e) }, "Abrir pasos"),
-                            React.createElement(Btn, { tiny: true, kind: "ghost", title: "Mover 15 minutos antes (solo este d\u00EDa)", onClick: () => this.shiftEvent(e, date, -15) }, "\u221215 min"),
-                            React.createElement(Btn, { tiny: true, kind: "ghost", title: "Mover 15 minutos despu\u00E9s (solo este d\u00EDa)", onClick: () => this.shiftEvent(e, date, 15) }, "+15 min"))),
+                            e.anchor !== 'between' && React.createElement(Btn, { tiny: true, kind: "ghost", title: "Mover 15 minutos antes (solo este d\u00EDa)", onClick: () => this.shiftEvent(e, date, -15) }, "\u221215 min"),
+                            e.anchor !== 'between' && React.createElement(Btn, { tiny: true, kind: "ghost", title: "Mover 15 minutos despu\u00E9s (solo este d\u00EDa)", onClick: () => this.shiftEvent(e, date, 15) }, "+15 min"))),
                     React.createElement("div", { className: "mini-actions" },
                         React.createElement("button", { className: `check-circle ${isDone ? 'checked' : ''}`, onClick: () => this.toggleEvent(e, date), "aria-label": isDone ? 'Marcar pendiente' : 'Marcar completado' }, isDone && React.createElement(Icon, { name: "check", size: 13 })),
                         React.createElement(Btn, { tiny: true, kind: "ghost", onClick: () => this.openEvent(e), title: "Editar actividad" },
@@ -1408,10 +1665,12 @@ class Planner extends React.Component {
                             String(hour).padStart(2, '0'),
                             ":00"),
                         React.createElement("div", null))),
-                    React.createElement("div", { className: "timeline-events" }, placed.map(({ event: e, start, end, lane, lanes }) => { const goal = data.goals.find(g => g.id === e.goalId), routine = data.routines.find(r => r.id === e.routineId), isDone = done(data, e, date), color = (goal === null || goal === void 0 ? void 0 : goal.color) || '#a477ec'; const duration = durationOn(e, date, data), height = Math.max(16, ((end - start) / 60) * hourHeight - 3), width = 100 / lanes; const style = height < 38 || width < 26 ? 'micro' : height < 84 || width < 44 ? 'compact' : 'expanded'; return React.createElement("button", { key: e.id, className: 'timeline-block ' + style + ' ' + (isDone ? 'completed' : ''), title: `${e.title} · ${eventTime(e, date, data)} · ${duration} minutos${e.note ? ' · ' + e.note : ''}`, "aria-label": `Abrir ${e.title}, ${eventTime(e, date, data)}, ${duration} minutos`, onClick: () => this.openDetail(e), style: { top: ((start - origin) / 60) * hourHeight, height, left: (lane / lanes * 100) + '%', width: width + '%', '--block-bg': color, '--block-text': readableOn(color) } },
+                    React.createElement("div", { className: "timeline-events" }, placed.map(({ event: e, start, end, lane, lanes }) => { var _a, _b; const goal = data.goals.find(g => g.id === e.goalId), routine = data.routines.find(r => r.id === e.routineId), isDone = done(data, e, date), color = (goal === null || goal === void 0 ? void 0 : goal.color) || '#a477ec'; const duration = durationOn(e, date, data), hasNote = !!((_a = data.logs[key(e, date)]) === null || _a === void 0 ? void 0 : _a.note) || !!Object.values(((_b = data.logs[key(e, date)]) === null || _b === void 0 ? void 0 : _b.stepNotes) || {}).filter(Boolean).length, hasCarry = !!upcomingNote(data, e, date), height = Math.max(16, ((end - start) / 60) * hourHeight - 3), width = 100 / lanes; const style = height < 38 || width < 26 ? 'micro' : height < 84 || width < 44 ? 'compact' : 'expanded'; return React.createElement("button", { key: e.id, className: 'timeline-block ' + style + ' ' + (isDone ? 'completed' : ''), title: `${e.title} · ${eventTime(e, date, data)} · ${duration} minutos${e.note ? ' · ' + e.note : ''}`, "aria-label": `Abrir ${e.title}, ${eventTime(e, date, data)}, ${duration} minutos`, onClick: () => this.openDetail(e), style: { top: ((start - origin) / 60) * hourHeight, height, left: (lane / lanes * 100) + '%', width: width + '%', '--block-bg': color, '--block-text': readableOn(color) } },
                         React.createElement("div", { className: 'timeline-block-header' },
                             React.createElement("span", { className: 'timeline-event-name' }, e.title),
-                            isDone && React.createElement("span", { className: 'timeline-done' }, "\u2713")),
+                            React.createElement("span", { className: 'timeline-markers' },
+                                (hasNote || hasCarry) && React.createElement("span", { title: hasNote ? 'Nota guardada este día' : 'Nota de la ocasión anterior', className: 'timeline-note-icon' }, "\u270E"),
+                                isDone && React.createElement("span", { className: 'timeline-done' }, "\u2713"))),
                         style !== 'micro' && React.createElement("div", { className: 'timeline-time' },
                             eventTime(e, date, data),
                             " \u00B7 ",
@@ -1426,13 +1685,14 @@ class Planner extends React.Component {
             React.createElement("div", { className: "notice" }, "Los bloques se pueden abrir para consultar cada nivel de detalle. Para cambiar horas, utiliza la edici\u00F3n de la actividad o los controles de \u00B115 minutos."));
     }
     renderDetail() {
-        var _a;
+        var _a, _b, _c;
         const date = this.state.selectedDate, d = this.state.data, e = d.events.find(x => x.id === this.state.activeEventId);
         if (!e)
             return React.createElement("p", null, "No se encontr\u00F3 el bloque seleccionado.");
-        const r0 = d.routines.find(x => x.id === e.routineId), r = r0 ? { ...r0, steps: activeSteps(r0.steps, date) } : undefined, g = d.goals.find(x => x.id === e.goalId), path = this.state.detailPath, current = r ? getStepByPath(r.steps, path) : undefined;
+        const r0 = d.routines.find(x => x.id === e.routineId), r = r0 ? { ...r0, steps: activeSteps(r0.steps, date, ((_a = d.logs[key(e, date)]) === null || _a === void 0 ? void 0 : _a.choices) || {}) } : undefined, g = d.goals.find(x => x.id === e.goalId), path = this.state.detailPath, current = r ? getStepByPath(r.steps, path) : undefined;
         const choices = current ? (current.children || []) : (r === null || r === void 0 ? void 0 : r.steps) || [];
         const log = d.logs[key(e, date)] || { completed: false, checkedSteps: [] };
+        const allocation = leafAllocation((r === null || r === void 0 ? void 0 : r.steps) || [], durationOn(e, date, d));
         return React.createElement("div", { className: "detail-zoom" },
             React.createElement("div", { className: "detail-crumbs" },
                 React.createElement("button", { onClick: () => this.setState({ detailPath: [] }) }, e.title),
@@ -1468,11 +1728,11 @@ class Planner extends React.Component {
                 React.createElement("div", { className: "detail-time" },
                     React.createElement(Icon, { name: "clock" }),
                     " ",
-                    current ? stepMinutes(current) : 0,
+                    current ? effectiveStepMinutes(current, allocation) : 0,
                     " min previstos"),
                 React.createElement("h3", null, (current === null || current === void 0 ? void 0 : current.title) || 'Paso'),
                 React.createElement("p", null, (current === null || current === void 0 ? void 0 : current.desc) || 'No hay instrucciones adicionales para este paso.'),
-                current && !((_a = current.children) === null || _a === void 0 ? void 0 : _a.length) && React.createElement(Btn, { kind: "secondary", onClick: () => this.toggleStep(e, date, current.id) }, log.checkedSteps.includes(current.id) ? '✓ Completado · Desmarcar' : 'Marcar paso completado')),
+                current && !((_b = current.children) === null || _b === void 0 ? void 0 : _b.length) && React.createElement(Btn, { kind: "secondary", onClick: () => this.toggleStep(e, date, current.id) }, log.checkedSteps.includes(current.id) ? '✓ Completado · Desmarcar' : 'Marcar paso completado')),
             choices.length > 0 && React.createElement(React.Fragment, null,
                 React.createElement("h3", { className: "detail-section-title" }, path.length ? 'Elementos de ' + stepLevelName(path.length - 1).toLowerCase() : 'Dentro de este bloque'),
                 React.createElement("div", { className: "zoom-children" }, choices.map((s, i) => { var _a; return React.createElement("button", { key: s.id, className: "zoom-child", onClick: () => this.setState({ detailPath: [...path, s.id] }) },
@@ -1480,10 +1740,11 @@ class Planner extends React.Component {
                     React.createElement("div", { className: "flex" },
                         React.createElement("strong", null, s.title),
                         React.createElement("div", { className: "caption" },
-                            stepMinutes(s),
+                            effectiveStepMinutes(s, allocation),
                             " min \u00B7 ",
                             ((_a = s.children) === null || _a === void 0 ? void 0 : _a.length) ? s.children.length + ' elementos' : 'Ver instrucciones')),
                     React.createElement(Icon, { name: "right", size: 18 })); }))),
+            React.createElement(NoteEditor, { key: e.id + '-' + date + '-' + ((current === null || current === void 0 ? void 0 : current.id) || 'block'), value: current ? ((_c = log.stepNotes) === null || _c === void 0 ? void 0 : _c[current.id]) || '' : log.note || '', carry: upcomingNote(d, e, date, current === null || current === void 0 ? void 0 : current.id), label: current ? 'Nota de este paso' : 'Nota de esta actividad o rutina', onSave: text => this.saveOccurrenceNote(e, date, text, current === null || current === void 0 ? void 0 : current.id) }),
             !r && React.createElement("div", { className: "notice" }, "Para desglosar este bloque en pasos, as\u00EDgnale una rutina desde \u00ABEditar bloque\u00BB."),
             path.length > 0 && React.createElement(Btn, { kind: "ghost", onClick: () => this.setState({ detailPath: path.slice(0, -1) }) },
                 React.createElement(Icon, { name: "left" }),
@@ -1735,8 +1996,7 @@ class Planner extends React.Component {
                 React.createElement(Btn, { onClick: this.exportData },
                     React.createElement(Icon, { name: "download", size: 16 }),
                     " Descargar respaldo")),
-            React.createElement("div", { className: "settings-box" },
-                React.createElement("h2", null, "Restaurar un respaldo"),
+            React.createElement("div", { className: "settings-box" },                React.createElement("h2", null, "Restaurar un respaldo"),
                 React.createElement("p", null,
                     "Importa un archivo JSON exportado anteriormente. ",
                     React.createElement("strong", null, "Esto reemplazar\u00E1 los datos actuales"),
@@ -1933,9 +2193,10 @@ class Planner extends React.Component {
                 React.createElement(Btn, { kind: "secondary", tiny: true, onClick: () => this.updateRoutineDraft({ steps: [...r.steps, { id: uid(), title: '', min: 5, desc: '' }] }) },
                     React.createElement(Icon, { name: "plus", size: 14 }),
                     " Agregar paso")),
-            React.createElement("div", { className: "notice", style: { marginTop: 18 } }, "Puedes a\u00F1adir instrucciones y subpasos. Cada elemento calcula su duraci\u00F3n a partir de los hijos; las variantes por d\u00EDa pueden reemplazar t\u00EDtulos, instrucciones, duraci\u00F3n y subpasos. Las actividades programadas usar\u00E1n la versi\u00F3n actual de la rutina."));
+            React.createElement("div", { className: "notice", style: { marginTop: 18 } }, "Cada paso puede tener tiempo fijo o flexible. Las alternativas pueden asignarse a d\u00EDas concretos o elegirse en el momento de ejecuci\u00F3n. El tiempo flexible se repartir\u00E1 autom\u00E1ticamente cuando programes el bloque entre dos rutinas."));
     }
     eventForm() {
+        var _a;
         const e = this.state.eventDraft, rs = this.state.data.routines, gs = this.state.data.goals;
         const isOccasion = e.kind === 'occasion';
         const repeatGroup = e.repeat === 'custom' || e.repeat === 'daily' || e.repeat === 'weekdays' ? 'days' : e.repeat === 'weekly' || e.repeat === 'monthly' || e.repeat === 'yearly' || e.repeat === 'every' ? 'period' : 'dates';
@@ -1953,113 +2214,176 @@ class Planner extends React.Component {
         const visibleDays = Array.from({ length: 42 }, (_, i) => addDays(this.state.datePickerMonth, i - monthOffset));
         const totalMinutes = e.routineId ? Math.max(1, routineMinutesOn(rs.find(x => x.id === e.routineId) || { id: '', title: '', desc: '', steps: [] }, e.date)) : e.minutes;
         const endTime = e.endTime || timeString(minutes(e.time) + totalMinutes);
-        return React.createElement(React.Fragment, null,
-            React.createElement("div", { className: 'field' },
-                React.createElement("label", null, "\u00BFQu\u00E9 quieres programar?"),
-                React.createElement("div", { className: 'event-type-choice' },
-                    React.createElement("button", { className: !isOccasion ? 'active' : '', type: 'button', onClick: () => this.updateEventDraft({ kind: undefined, allDay: false, endDate: undefined }) },
-                        React.createElement(Icon, { name: 'checklist' }),
-                        " Actividad o rutina",
-                        React.createElement("small", null, "Un bloque de tu horario")),
-                    React.createElement("button", { className: isOccasion ? 'active' : '', type: 'button', onClick: () => this.updateEventDraft({ kind: 'occasion', allDay: true, routineId: '', repeat: 'none', specificDates: [] }) },
-                        React.createElement(Icon, { name: 'calendar' }),
-                        " Evento o fecha especial",
-                        React.createElement("small", null, "Viajes, reuniones, ocasiones importantes")))),
-            React.createElement("div", { className: 'field' },
-                React.createElement("label", null, isOccasion ? 'Nombre del evento *' : 'Nombre de la actividad *'),
-                React.createElement("input", { maxLength: 100, value: e.title, onChange: v => this.updateEventDraft({ title: v.target.value }), placeholder: isOccasion ? 'Ej. Viaje de graduación' : 'Ej. Preparación matutina' })),
-            React.createElement("div", { className: 'field-grid' },
+        const anchors = this.state.data.events.filter(item => item.routineId && item.routineId !== e.routineId && sameScheduleActive(item, e.date));
+        const preview = e.anchor === 'between' ? eventFrame(e, e.date, { ...this.state.data, events: [...this.state.data.events.filter(item => item.id !== e.id), e] }) : null;
+        const avail = (preview === null || preview === void 0 ? void 0 : preview.length) || 0;
+        const estimate = e.routineId ? fixedStepMinutes(activeSteps(((_a = rs.find(r => r.id === e.routineId)) === null || _a === void 0 ? void 0 : _a.steps) || [], e.date)) : 0;
+        return React.createElement("div", { className: 'event-form-v06' },
+            React.createElement("section", { className: 'event-editor-section' },
+                React.createElement("div", { className: 'event-section-heading' },
+                    React.createElement("span", null, "01"),
+                    React.createElement("div", null,
+                        React.createElement("strong", null, "Identidad del bloque"),
+                        React.createElement("small", null, "Qu\u00E9 es y cu\u00E1ndo debe aparecer"))),
                 React.createElement("div", { className: 'field' },
-                    React.createElement("label", null, "Primera fecha *"),
-                    React.createElement("input", { type: 'date', value: e.date, onChange: v => { this.updateEventDraft({ date: v.target.value }); if (v.target.value)
-                            this.setState({ datePickerMonth: firstMonth(v.target.value) }); } })),
-                isOccasion && e.repeat === 'none' && React.createElement("div", { className: 'field' },
-                    React.createElement("label", null, "Fecha de finalizaci\u00F3n (opcional)"),
-                    React.createElement("input", { type: 'date', min: e.date, value: e.endDate || '', onChange: v => this.updateEventDraft({ endDate: v.target.value }) }),
-                    React.createElement("span", { className: 'caption' }, "\u00DAsala para viajes o eventos que duran varios d\u00EDas."))),
-            isOccasion && React.createElement("label", { className: 'event-allday-toggle' },
-                React.createElement("input", { type: 'checkbox', checked: !!e.allDay, onChange: v => this.updateEventDraft({ allDay: v.target.checked }) }),
-                " Ocurre durante todo el d\u00EDa (no ocupa un bloque con hora fija)"),
-            !e.allDay && React.createElement(React.Fragment, null,
+                    React.createElement("label", null, "\u00BFQu\u00E9 quieres programar?"),
+                    React.createElement("div", { className: 'event-type-choice' },
+                        React.createElement("button", { className: !isOccasion ? 'active' : '', type: 'button', onClick: () => this.updateEventDraft({ kind: undefined, allDay: false, endDate: undefined }) },
+                            React.createElement(Icon, { name: 'checklist' }),
+                            " Actividad o rutina",
+                            React.createElement("small", null, "Un bloque de tu horario")),
+                        React.createElement("button", { className: isOccasion ? 'active' : '', type: 'button', onClick: () => this.updateEventDraft({ kind: 'occasion', allDay: true, routineId: '', repeat: 'none', specificDates: [] }) },
+                            React.createElement(Icon, { name: 'calendar' }),
+                            " Evento o fecha especial",
+                            React.createElement("small", null, "Viajes, reuniones, ocasiones importantes")))),
                 React.createElement("div", { className: 'field' },
-                    React.createElement("label", null, "\u00BFCon qu\u00E9 hora quieres acomodarla?"),
-                    React.createElement("div", { className: 'time-anchor-choice' },
-                        React.createElement("button", { className: (e.anchor || 'start') === 'start' ? 'active' : '', onClick: () => this.updateEventDraft({ anchor: 'start' }) },
-                            React.createElement(Icon, { name: 'clock', size: 16 }),
-                            " Hora de inicio"),
-                        React.createElement("button", { className: e.anchor === 'end' ? 'active' : '', onClick: () => this.updateEventDraft({ anchor: 'end', endTime }) },
-                            React.createElement(Icon, { name: 'clock', size: 16 }),
-                            " Hora de t\u00E9rmino"))),
+                    React.createElement("label", null, isOccasion ? 'Nombre del evento *' : 'Nombre de la actividad *'),
+                    React.createElement("input", { maxLength: 100, value: e.title, onChange: v => this.updateEventDraft({ title: v.target.value }), placeholder: isOccasion ? 'Ej. Viaje de graduación' : 'Ej. Preparación matutina' })),
                 React.createElement("div", { className: 'field-grid' },
                     React.createElement("div", { className: 'field' },
-                        React.createElement("label", null,
-                            e.anchor === 'end' ? 'Termina a las' : 'Comienza a las',
-                            " *"),
-                        React.createElement(TimePicker, { value: e.anchor === 'end' ? endTime : e.time, onChange: time => e.anchor === 'end' ? this.updateEventDraft({ endTime: time, time: timeString(Math.max(0, minutes(time) - totalMinutes)) }) : this.updateEventDraft({ time }) })),
+                        React.createElement("label", null, "Primera fecha *"),
+                        React.createElement("input", { type: 'date', value: e.date, onChange: v => { this.updateEventDraft({ date: v.target.value }); if (v.target.value)
+                                this.setState({ datePickerMonth: firstMonth(v.target.value) }); } })),
+                    isOccasion && e.repeat === 'none' && React.createElement("div", { className: 'field' },
+                        React.createElement("label", null, "Fecha de finalizaci\u00F3n (opcional)"),
+                        React.createElement("input", { type: 'date', min: e.date, value: e.endDate || '', onChange: v => this.updateEventDraft({ endDate: v.target.value }) }),
+                        React.createElement("span", { className: 'caption' }, "\u00DAsala para viajes o eventos que duran varios d\u00EDas.")))),
+            React.createElement("section", { className: 'event-editor-section' },
+                React.createElement("div", { className: 'event-section-heading' },
+                    React.createElement("span", null, "02"),
+                    React.createElement("div", null,
+                        React.createElement("strong", null, "Tiempo y duraci\u00F3n"),
+                        React.createElement("small", null, "Fija una hora o haz que la calculen otros bloques"))),
+                isOccasion && React.createElement("label", { className: 'event-allday-toggle' },
+                    React.createElement("input", { type: 'checkbox', checked: !!e.allDay, onChange: v => this.updateEventDraft({ allDay: v.target.checked }) }),
+                    " Ocurre durante todo el d\u00EDa (no ocupa un bloque con hora fija)"),
+                !e.allDay && React.createElement(React.Fragment, null,
                     React.createElement("div", { className: 'field' },
-                        React.createElement("label", null, "Duraci\u00F3n estimada (min)"),
-                        e.routineId ? React.createElement("div", { className: 'calculated-duration' },
-                            "\u03A3 ",
-                            totalMinutes,
-                            " minutos \u00B7 calculado seg\u00FAn la rutina") : React.createElement(NumberField, { value: e.minutes, min: 1, max: 1440, onCommit: val => this.updateEventDraft({ minutes: val, ...(e.anchor === 'end' ? { time: timeString(Math.max(0, minutes(endTime) - val)) } : {}) }) }))),
-                e.anchor === 'end' && React.createElement("p", { className: 'caption anchor-note' }, "La hora inicial se calcula restando la duraci\u00F3n. Si una variante cambia la duraci\u00F3n, la hora de finalizaci\u00F3n seguir\u00E1 siendo la elegida.")),
-            React.createElement("div", { className: 'field' },
-                React.createElement("label", null, "C\u00F3mo se repite"),
-                React.createElement("div", { className: 'repeat-group-choice' }, [{ id: 'days', title: 'Días de semana', desc: 'Lunes, martes, etc.' }, { id: 'period', title: 'Por período', desc: 'Semanas, meses o años' }, { id: 'dates', title: 'Fechas concretas', desc: 'Una o varias fechas' }].map(option => React.createElement("button", { type: 'button', key: option.id, className: repeatGroup === option.id ? 'active' : '', onClick: () => changeRepeatGroup(option.id) },
-                    React.createElement("strong", null, option.title),
-                    React.createElement("small", null, option.desc))))),
-            repeatGroup === 'days' && React.createElement("div", { className: 'field repeat-detail' },
-                React.createElement("label", null, "Selecciona los d\u00EDas habituales"),
-                React.createElement("div", { className: 'weekday-options' }, weekdayNames.map((day, n) => React.createElement("button", { type: 'button', key: n, className: 'weekday-pill ' + ((e.repeat === 'daily' || (e.repeat === 'weekdays' && n >= 1 && n <= 5) || (e.repeat === 'custom' && (e.repeatDays || []).includes(n))) ? 'active' : ''), "aria-pressed": (e.repeatDays || []).includes(n), title: longDays[n], onClick: () => { const old = e.repeat === 'daily' ? DAYS : e.repeat === 'weekdays' ? [1, 2, 3, 4, 5] : e.repeatDays || []; const next = old.includes(n) ? old.filter(x => x !== n) : [...old, n]; this.updateEventDraft({ repeat: 'custom', repeatDays: next }); } }, day))),
-                React.createElement("p", { className: 'caption' }, "Los d\u00EDas seleccionados permanecen marcados. La primera fecha establece desde cu\u00E1ndo se aplican.")),
-            repeatGroup === 'period' && React.createElement("div", { className: 'field repeat-detail' },
-                React.createElement("label", null, "Intervalo de repetici\u00F3n"),
-                React.createElement(FriendlySelect, { value: e.repeat, ariaLabel: 'Periodicidad', onChange: value => this.updateEventDraft({ repeat: value }), options: [{ value: 'weekly', label: 'Cada semana, el mismo día' }, { value: 'monthly', label: 'Cada mes, la misma fecha' }, { value: 'yearly', label: 'Cada año' }, { value: 'every', label: 'Cada cierto número de días' }] }),
-                e.repeat === 'every' && React.createElement("div", { className: 'field', style: { marginTop: 12, maxWidth: 210 } },
-                    React.createElement("label", null, "Intervalo en d\u00EDas"),
-                    React.createElement(NumberField, { value: e.everyDays || 2, min: 1, max: 365, onCommit: everyDays => this.updateEventDraft({ everyDays }) }))),
-            repeatGroup === 'dates' && React.createElement("div", { className: 'field repeat-detail' },
-                React.createElement("div", { className: 'row spread' },
-                    React.createElement("label", null, "Elige las fechas en el calendario"),
-                    React.createElement("span", { className: 'caption' },
-                        1 + (e.specificDates || []).filter(d => d !== e.date).length,
-                        " seleccionada(s)")),
-                React.createElement("div", { className: 'mini-calendar-head' },
-                    React.createElement("button", { className: 'icon-btn', "aria-label": 'Mes anterior', onClick: () => this.setState({ datePickerMonth: firstMonth(addDays(this.state.datePickerMonth, -1)) }) },
-                        React.createElement(Icon, { name: 'left', size: 15 })),
-                    React.createElement("strong", null, fmtMonth(this.state.datePickerMonth)),
-                    React.createElement("button", { className: 'icon-btn', "aria-label": 'Mes siguiente', onClick: () => { const m = parseDay(this.state.datePickerMonth); m.setMonth(m.getMonth() + 1); this.setState({ datePickerMonth: ymd(m) }); } },
-                        React.createElement(Icon, { name: 'right', size: 15 }))),
-                React.createElement("div", { className: 'mini-calendar-grid' },
-                    ['L', 'M', 'Mié', 'J', 'V', 'S', 'D'].map((name, i) => React.createElement("span", { className: 'mini-calendar-weekday', key: i }, name)),
-                    visibleDays.map((date, i) => { const selected = date === e.date || (e.specificDates || []).includes(date), outside = date.slice(0, 7) !== this.state.datePickerMonth.slice(0, 7), disabled = date < e.date; return React.createElement("button", { type: 'button', key: i, disabled: disabled, className: 'mini-calendar-day ' + (selected ? 'active ' : '') + (outside ? 'outside' : ''), title: date, onClick: () => { if (date === e.date)
-                            return; const next = (e.specificDates || []).includes(date) ? (e.specificDates || []).filter(d => d !== date) : [...(e.specificDates || []), date]; this.updateEventDraft({ specificDates: next, repeat: next.length ? 'dates' : 'none' }); } }, parseDay(date).getDate()); })),
-                React.createElement("p", { className: 'caption' }, "La fecha inicial siempre est\u00E1 incluida. Puedes a\u00F1adir o quitar fechas posteriores.")),
-            !isOccasion && React.createElement("div", { className: 'field' },
-                React.createElement("label", null,
-                    "Rutina o procedimiento (opcional) ",
-                    this.hint('rutinas')),
-                React.createElement(FriendlySelect, { value: e.routineId, ariaLabel: 'Rutina vinculada', onChange: id => { const r = rs.find(x => x.id === id), old = id ? this.routineSchedule(id) : undefined; if (old && old.id !== e.id) {
-                        if (confirm('Esta rutina ya tiene una programación. ¿Quieres reprogramarla a partir de hoy? Su historial quedará intacto.'))
-                            this.openEvent(old);
-                        return;
-                    } this.updateEventDraft({ routineId: id, ...(r ? { title: r.title, minutes: routineMinutes(r) } : {}) }); }, options: [{ value: '', label: 'Actividad sencilla' }, ...rs.map(r => { var _a; return ({ value: r.id, label: r.title + (this.routineSchedule(r.id) && ((_a = this.routineSchedule(r.id)) === null || _a === void 0 ? void 0 : _a.id) !== e.id ? ' · ya programada' : '') }); })] })),
-            React.createElement("div", { className: 'field' },
-                React.createElement("label", null, "Meta vinculada (opcional)"),
-                React.createElement(FriendlySelect, { value: e.goalId, ariaLabel: 'Meta vinculada', onChange: goalId => this.updateEventDraft({ goalId }), options: [{ value: '', label: 'Sin meta asociada' }, ...gs.map(g => ({ value: g.id, label: g.title }))] })),
-            React.createElement("div", { className: 'field' },
-                React.createElement("label", null, "Descripci\u00F3n e instrucciones"),
-                React.createElement(AutoTextarea, { value: e.note, onChange: (v) => this.updateEventDraft({ note: v.target.value }), maxLength: 1500, placeholder: isOccasion ? 'Lugar, notas del viaje, recuerdos o preparativos' : 'Detalles que quieras recordar' })),
-            e.routineId && React.createElement("div", { className: 'notice' }, "Una rutina mantiene una \u00FAnica programaci\u00F3n vigente. Si ya existe, utiliza \u00ABReprogramar\u00BB: no se crear\u00E1n copias que compitan entre s\u00ED."),
-            e.id && React.createElement("div", { className: 'field' },
-                React.createElement("label", null, "Aplicar la reprogramaci\u00F3n desde"),
-                React.createElement("input", { type: 'date', min: today(), value: e.applyFrom || today(), onChange: v => this.updateEventDraft({ applyFrom: v.target.value }) }),
-                React.createElement("p", { className: 'caption' }, "Cambia este d\u00EDa y los siguientes; conserva los d\u00EDas anteriores y los registros ya hechos. Antes de guardar ver\u00E1s una confirmaci\u00F3n.")),
-            e.id && React.createElement("div", { className: 'row spread', style: { marginTop: 16 } },
-                React.createElement("span", { className: 'caption' }, "Editar la programaci\u00F3n puede cambiar horas y repeticiones desde la fecha indicada."),
-                React.createElement(Btn, { kind: 'danger', tiny: true, onClick: () => this.deleteEvent(e) },
-                    React.createElement(Icon, { name: 'trash', size: 14 }),
-                    " Eliminar")));
+                        React.createElement("label", null, "\u00BFCon qu\u00E9 hora quieres acomodarla?"),
+                        React.createElement("div", { className: 'time-anchor-choice' },
+                            React.createElement("button", { className: (e.anchor || 'start') === 'start' ? 'active' : '', onClick: () => this.updateEventDraft({ anchor: 'start' }) },
+                                React.createElement(Icon, { name: 'clock', size: 16 }),
+                                " Hora de inicio"),
+                            React.createElement("button", { className: e.anchor === 'end' ? 'active' : '', onClick: () => this.updateEventDraft({ anchor: 'end', endTime }) },
+                                React.createElement(Icon, { name: 'clock', size: 16 }),
+                                " Hora de t\u00E9rmino"),
+                            !isOccasion && React.createElement("button", { className: e.anchor === 'between' ? 'active' : '', onClick: () => this.updateEventDraft({ anchor: 'between' }) },
+                                React.createElement(Icon, { name: 'calendar', size: 16 }),
+                                " Entre dos rutinas"))),
+                    e.anchor !== 'between' && React.createElement("div", { className: 'field-grid' },
+                        React.createElement("div", { className: 'field' },
+                            React.createElement("label", null,
+                                e.anchor === 'end' ? 'Termina a las' : 'Comienza a las',
+                                " *"),
+                            React.createElement(TimePicker, { value: e.anchor === 'end' ? endTime : e.time, onChange: time => e.anchor === 'end' ? this.updateEventDraft({ endTime: time, time: timeString(Math.max(0, minutes(time) - totalMinutes)) }) : this.updateEventDraft({ time }) })),
+                        React.createElement("div", { className: 'field' },
+                            React.createElement("label", null, "Duraci\u00F3n estimada (min)"),
+                            e.routineId ? React.createElement("div", { className: 'calculated-duration' },
+                                "\u03A3 ",
+                                totalMinutes,
+                                " minutos \u00B7 calculado seg\u00FAn la rutina") : React.createElement(NumberField, { value: e.minutes, min: 1, max: 1440, onCommit: val => this.updateEventDraft({ minutes: val, ...(e.anchor === 'end' ? { time: timeString(Math.max(0, minutes(endTime) - val)) } : {}) }) }))),
+                    e.anchor === 'between' && React.createElement("div", { className: 'between-editor' },
+                        React.createElement("p", null,
+                            "Fullhouse calcula autom\u00E1ticamente el espacio entre el ",
+                            React.createElement("strong", null, "final"),
+                            " de una rutina y el ",
+                            React.createElement("strong", null, "inicio"),
+                            " de otra. Cuando una cambie, este bloque tambi\u00E9n cambiar\u00E1."),
+                        React.createElement("div", { className: 'field-grid' },
+                            React.createElement("div", { className: 'field' },
+                                React.createElement("label", null, "Despu\u00E9s de finalizar\u2026"),
+                                React.createElement(FriendlySelect, { value: e.afterRoutineId || '', ariaLabel: 'Rutina l\u00EDmite anterior', onChange: afterRoutineId => this.updateEventDraft({ afterRoutineId }), options: [{ value: '', label: 'Selecciona una rutina' }, ...anchors.map(x => ({ value: x.routineId, label: x.title }))] })),
+                            React.createElement("div", { className: 'field' },
+                                React.createElement("label", null, "Antes de comenzar\u2026"),
+                                React.createElement(FriendlySelect, { value: e.beforeRoutineId || '', ariaLabel: 'Rutina l\u00EDmite posterior', onChange: beforeRoutineId => this.updateEventDraft({ beforeRoutineId }), options: [{ value: '', label: 'Selecciona una rutina' }, ...anchors.map(x => ({ value: x.routineId, label: x.title }))] }))),
+                        preview ? React.createElement("div", { className: 'calculated-duration ' + (avail < estimate ? 'time-warning' : '') },
+                            "\u2194 ",
+                            timeString(preview.start),
+                            " \u2013 ",
+                            timeString(preview.end),
+                            " \u00B7 ",
+                            avail,
+                            " minutos disponibles. Pasos fijos: ",
+                            estimate,
+                            " min \u00B7 tiempo libre: ",
+                            Math.max(0, avail - estimate),
+                            " min.") : React.createElement("div", { className: 'notice' }, "Selecciona dos rutinas que ocurran ese d\u00EDa y no se superpongan. El bloque aparecer\u00E1 solo cuando ambas est\u00E9n programadas y haya espacio entre ellas.")),
+                    e.anchor === 'end' && React.createElement("p", { className: 'caption anchor-note' }, "La hora inicial se calcula restando la duraci\u00F3n. Si una variante cambia la duraci\u00F3n, la hora de finalizaci\u00F3n seguir\u00E1 siendo la elegida."))),
+            React.createElement("section", { className: 'event-editor-section' },
+                React.createElement("div", { className: 'event-section-heading' },
+                    React.createElement("span", null, "03"),
+                    React.createElement("div", null,
+                        React.createElement("strong", null, "Repetici\u00F3n"),
+                        React.createElement("small", null, "Define los d\u00EDas o fechas en que aparecer\u00E1"))),
+                React.createElement("div", { className: 'field' },
+                    React.createElement("label", null, "C\u00F3mo se repite"),
+                    React.createElement("div", { className: 'repeat-group-choice' }, [{ id: 'days', title: 'Días de semana', desc: 'Lunes, martes, etc.' }, { id: 'period', title: 'Por período', desc: 'Semanas, meses o años' }, { id: 'dates', title: 'Fechas concretas', desc: 'Una o varias fechas' }].map(option => React.createElement("button", { type: 'button', key: option.id, className: repeatGroup === option.id ? 'active' : '', onClick: () => changeRepeatGroup(option.id) },
+                        React.createElement("strong", null, option.title),
+                        React.createElement("small", null, option.desc))))),
+                repeatGroup === 'days' && React.createElement("div", { className: 'field repeat-detail' },
+                    React.createElement("label", null, "Selecciona los d\u00EDas habituales"),
+                    React.createElement("div", { className: 'weekday-options' }, weekdayNames.map((day, n) => React.createElement("button", { type: 'button', key: n, className: 'weekday-pill ' + ((e.repeat === 'daily' || (e.repeat === 'weekdays' && n >= 1 && n <= 5) || (e.repeat === 'custom' && (e.repeatDays || []).includes(n))) ? 'active' : ''), "aria-pressed": (e.repeatDays || []).includes(n), title: longDays[n], onClick: () => { const old = e.repeat === 'daily' ? DAYS : e.repeat === 'weekdays' ? [1, 2, 3, 4, 5] : e.repeatDays || []; const next = old.includes(n) ? old.filter(x => x !== n) : [...old, n]; this.updateEventDraft({ repeat: 'custom', repeatDays: next }); } }, day))),
+                    React.createElement("p", { className: 'caption' }, "Los d\u00EDas seleccionados permanecen marcados. La primera fecha establece desde cu\u00E1ndo se aplican.")),
+                repeatGroup === 'period' && React.createElement("div", { className: 'field repeat-detail' },
+                    React.createElement("label", null, "Intervalo de repetici\u00F3n"),
+                    React.createElement(FriendlySelect, { value: e.repeat, ariaLabel: 'Periodicidad', onChange: value => this.updateEventDraft({ repeat: value }), options: [{ value: 'weekly', label: 'Cada semana, el mismo día' }, { value: 'monthly', label: 'Cada mes, la misma fecha' }, { value: 'yearly', label: 'Cada año' }, { value: 'every', label: 'Cada cierto número de días' }] }),
+                    e.repeat === 'every' && React.createElement("div", { className: 'field', style: { marginTop: 12, maxWidth: 210 } },
+                        React.createElement("label", null, "Intervalo en d\u00EDas"),
+                        React.createElement(NumberField, { value: e.everyDays || 2, min: 1, max: 365, onCommit: everyDays => this.updateEventDraft({ everyDays }) }))),
+                repeatGroup === 'dates' && React.createElement("div", { className: 'field repeat-detail' },
+                    React.createElement("div", { className: 'row spread' },
+                        React.createElement("label", null, "Elige las fechas en el calendario"),
+                        React.createElement("span", { className: 'caption' },
+                            1 + (e.specificDates || []).filter(d => d !== e.date).length,
+                            " seleccionada(s)")),
+                    React.createElement("div", { className: 'mini-calendar-head' },
+                        React.createElement("button", { className: 'icon-btn', "aria-label": 'Mes anterior', onClick: () => this.setState({ datePickerMonth: firstMonth(addDays(this.state.datePickerMonth, -1)) }) },
+                            React.createElement(Icon, { name: 'left', size: 15 })),
+                        React.createElement("strong", null, fmtMonth(this.state.datePickerMonth)),
+                        React.createElement("button", { className: 'icon-btn', "aria-label": 'Mes siguiente', onClick: () => { const m = parseDay(this.state.datePickerMonth); m.setMonth(m.getMonth() + 1); this.setState({ datePickerMonth: ymd(m) }); } },
+                            React.createElement(Icon, { name: 'right', size: 15 }))),
+                    React.createElement("div", { className: 'mini-calendar-grid' },
+                        ['L', 'M', 'Mié', 'J', 'V', 'S', 'D'].map((name, i) => React.createElement("span", { className: 'mini-calendar-weekday', key: i }, name)),
+                        visibleDays.map((date, i) => { const selected = date === e.date || (e.specificDates || []).includes(date), outside = date.slice(0, 7) !== this.state.datePickerMonth.slice(0, 7), disabled = date < e.date; return React.createElement("button", { type: 'button', key: i, disabled: disabled, className: 'mini-calendar-day ' + (selected ? 'active ' : '') + (outside ? 'outside' : ''), title: date, onClick: () => { if (date === e.date)
+                                return; const next = (e.specificDates || []).includes(date) ? (e.specificDates || []).filter(d => d !== date) : [...(e.specificDates || []), date]; this.updateEventDraft({ specificDates: next, repeat: next.length ? 'dates' : 'none' }); } }, parseDay(date).getDate()); })),
+                    React.createElement("p", { className: 'caption' }, "La fecha inicial siempre est\u00E1 incluida. Puedes a\u00F1adir o quitar fechas posteriores."))),
+            React.createElement("section", { className: 'event-editor-section' },
+                React.createElement("div", { className: 'event-section-heading' },
+                    React.createElement("span", null, "04"),
+                    React.createElement("div", null,
+                        React.createElement("strong", null, "Detalles y relaciones"),
+                        React.createElement("small", null, "Rutina, meta e informaci\u00F3n adicional"))),
+                !isOccasion && React.createElement("div", { className: 'field' },
+                    React.createElement("label", null,
+                        "Rutina o procedimiento (opcional) ",
+                        this.hint('rutinas')),
+                    React.createElement(FriendlySelect, { value: e.routineId, ariaLabel: 'Rutina vinculada', onChange: id => { const r = rs.find(x => x.id === id), old = id ? this.routineSchedule(id) : undefined; if (old && old.id !== e.id) {
+                            if (confirm('Esta rutina ya tiene una programación. ¿Quieres reprogramarla a partir de hoy? Su historial quedará intacto.'))
+                                this.openEvent(old);
+                            return;
+                        } this.updateEventDraft({ routineId: id, ...(r ? { title: r.title, minutes: routineMinutes(r) } : {}) }); }, options: [{ value: '', label: 'Actividad sencilla' }, ...rs.map(r => { var _a; return ({ value: r.id, label: r.title + (this.routineSchedule(r.id) && ((_a = this.routineSchedule(r.id)) === null || _a === void 0 ? void 0 : _a.id) !== e.id ? ' · ya programada' : '') }); })] })),
+                React.createElement("div", { className: 'field' },
+                    React.createElement("label", null, "Meta vinculada (opcional)"),
+                    React.createElement(FriendlySelect, { value: e.goalId, ariaLabel: 'Meta vinculada', onChange: goalId => this.updateEventDraft({ goalId }), options: [{ value: '', label: 'Sin meta asociada' }, ...gs.map(g => ({ value: g.id, label: g.title }))] })),
+                React.createElement("div", { className: 'field' },
+                    React.createElement("label", null, "Descripci\u00F3n e instrucciones"),
+                    React.createElement(AutoTextarea, { value: e.note, onChange: (v) => this.updateEventDraft({ note: v.target.value }), maxLength: 1500, placeholder: isOccasion ? 'Lugar, notas del viaje, recuerdos o preparativos' : 'Detalles que quieras recordar' })),
+                !e.allDay && e.repeat === 'none' && e.anchor !== 'between' && React.createElement("div", { className: 'overlap-editor' },
+                    React.createElement("strong", null, "Si este bloque se solapa con otro, \u00BFqu\u00E9 hacemos?"),
+                    React.createElement("div", { className: 'time-anchor-choice' },
+                        React.createElement("button", { type: 'button', className: (e.overlapMode || 'keep') === 'keep' ? 'active' : '', onClick: () => this.updateEventDraft({ overlapMode: 'keep' }) }, "Mantener solapamiento"),
+                        React.createElement("button", { type: 'button', className: e.overlapMode === 'move' ? 'active' : '', onClick: () => this.updateEventDraft({ overlapMode: 'move' }) }, "Posponer bloques ese d\u00EDa")),
+                    React.createElement("p", { className: 'caption' }, "Al posponer, Fullhouse pide confirmaci\u00F3n y aplica desplazamientos \u00FAnicamente en esta fecha. Las rutinas entre dos l\u00EDmites conservan sus dependencias.")),
+                e.routineId && React.createElement("div", { className: 'notice' }, "Una rutina mantiene una \u00FAnica programaci\u00F3n vigente. Si ya existe, utiliza \u00ABReprogramar\u00BB: no se crear\u00E1n copias que compitan entre s\u00ED."),
+                e.id && React.createElement("div", { className: 'field' },
+                    React.createElement("label", null, "Aplicar la reprogramaci\u00F3n desde"),
+                    React.createElement("input", { type: 'date', min: today(), value: e.applyFrom || today(), onChange: v => this.updateEventDraft({ applyFrom: v.target.value }) }),
+                    React.createElement("p", { className: 'caption' }, "Cambia este d\u00EDa y los siguientes; conserva los d\u00EDas anteriores y los registros ya hechos. Antes de guardar ver\u00E1s una confirmaci\u00F3n.")),
+                e.id && React.createElement("div", { className: 'row spread', style: { marginTop: 16 } },
+                    React.createElement("span", { className: 'caption' }, "Editar la programaci\u00F3n puede cambiar horas y repeticiones desde la fecha indicada."),
+                    React.createElement(Btn, { kind: 'danger', tiny: true, onClick: () => this.deleteEvent(e) },
+                        React.createElement(Icon, { name: 'trash', size: 14 }),
+                        " Eliminar"))));
     }
     progressForm() {
         const g = this.state.data.goals.find(x => x.id === this.state.progressGoalId);
@@ -2088,8 +2412,10 @@ class Planner extends React.Component {
         const original = this.state.data.routines.find(x => x.id === e.routineId);
         if (!original)
             return React.createElement("p", null, "La rutina ya no est\u00E1 disponible.");
-        const r = { ...original, steps: activeSteps(original.steps, date) };
         const log = this.state.data.logs[key(e, date)] || { completed: false, checkedSteps: [] };
+        const r = { ...original, steps: activeSteps(original.steps, date, log.choices || {}) };
+        const allocation = leafAllocation(r.steps, durationOn(e, date, this.state.data));
+        const missing = unresolvedManual(r.steps, log.choices || {});
         return React.createElement(React.Fragment, null,
             React.createElement("div", { className: "notice" },
                 React.createElement("strong", null, e.title),
@@ -2097,8 +2423,13 @@ class Planner extends React.Component {
                 fmtDate(date),
                 " a las ",
                 eventTime(e, date, this.state.data),
-                ". Cada paso marcado se guarda \u00FAnicamente para esta ejecuci\u00F3n."),
-            React.createElement("div", { style: { marginTop: 15 } }, this.renderCheckSteps(r.steps, e, date, log)),
+                ". Las alternativas, notas y pasos marcados se guardan solo para este d\u00EDa."),
+            missing.length > 0 && React.createElement("div", { className: 'manual-warning' },
+                "\u2726 Hay ",
+                missing.length,
+                " paso(s) con alternativas pendientes de elegir."),
+            React.createElement(NoteEditor, { key: e.id + '-' + date + '-routine', label: 'Nota general de esta ejecuci\u00F3n', value: log.note || '', carry: upcomingNote(this.state.data, e, date), onSave: text => this.saveOccurrenceNote(e, date, text) }),
+            React.createElement("div", { style: { marginTop: 15 } }, this.renderCheckSteps(r.steps, e, date, log, allocation)),
             React.createElement("div", { className: "divider" }),
             React.createElement("div", { className: "row spread" },
                 React.createElement("span", { className: "caption" },

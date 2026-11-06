@@ -1,3 +1,20 @@
+## 0.6 — Bloques dependientes, alternativas manuales y notas
+
+1. Editor de actividad dividido en cuatro grupos con jerarquía visual más clara.
+2. Alternativas de pasos presentadas sin jerarquía «principal/secundaria».
+3. Nueva programación «entre dos rutinas» por identificador estable de rutina; duración y comienzo se recalculan dinámicamente y se advierte antes de modificar límites con dependientes.
+4. Pasos de duración flexible y reparto del tiempo disponible entre ellos, preservando pasos de duración fija.
+5. Eventos de una sola fecha con elección entre mantener solapamiento o posponer bloques del día; protección contra perder intervalos dependientes.
+6. Alternativas que se deciden durante la ejecución y se guardan solo en esa fecha.
+7. Colores y contraste reforzados en editores de pasos, alternativas y notas.
+8. Notas por actividad/rutina y paso, con indicador en horario, consulta histórica y recordatorio únicamente en la siguiente aparición.
+9. Eliminación conservadora: las programaciones dependientes se cancelan desde hoy o mañana si hoy ya tiene registros; nunca se borran registros históricos.
+10. Corregida la publicación del favicon vectorial al incluir logo.svg en GitHub Pages.
+
+**Pruebas:** compilación TypeScript, sintaxis JS, renderizado real de HTML/React en Chromium y comprobaciones funcionales de dependencia, desplazamiento, alternativas manuales, notas de la siguiente ocasión, cambios futuros, historia anterior y eliminación en cascada.
+
+---
+
 # Cambios de Fullhouse
 
 ## 0.5 — Metas, rutinas y eventos mejorados
