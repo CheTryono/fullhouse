@@ -123,7 +123,7 @@ Los datos existentes de 0.1 se conservan al actualizar porque seguimos usando la
 
 El almacén `fullhouse-v01` y la versión base JSON `1` permanecen iguales; los nuevos atributos son opcionales. La herramienta continúa guardando **solo localmente** y sin cuentas, sincronización o copias automáticas. Antes de modificar muchas rutinas o metas, exporta un JSON desde Ajustes. No publiques datos personales en el repositorio.
 
-## Fullhouse 0.6 — planificación enlazada, ejecución y notas
+## Fullhouse 0.7 — planificación enlazada, ejecución y notas
 
 - **Editor de actividades** organizado en cuatro secciones visuales: identidad, horarios, repeticiones, relaciones.
 - **Bloques entre rutinas:** edita una actividad, vincúlala a su rutina y elige «Entre dos rutinas». Debes seleccionar una rutina límite anterior y una posterior que tengan programación ese día. El bloque comenzará al terminar la primera y acabará al iniciar la segunda. Cada rutina puede seguir usando una sola programación futura.
@@ -134,3 +134,16 @@ El almacén `fullhouse-v01` y la versión base JSON `1` permanecen iguales; los 
 - **Notas de día:** desde la ejecución o el detalle del horario se pueden escribir notas para una actividad o cada paso. Permanecen en el historial del día y se vuelven a mostrar únicamente en la siguiente aparición del mismo bloque/paso. El horario indica con ✎ los bloques que tienen notas o una nota pendiente de la ocasión anterior.
 
 **Datos y compatibilidad:** mantiene `version: 1`, `localStorage` con clave `fullhouse-v01` y los respaldos JSON anteriores. Los nuevos campos son opcionales. Sigue siendo una aplicación local y no sincroniza calendarios ni otros servicios. Exporta respaldos antes de hacer cambios importantes.
+
+
+
+## Fullhouse 0.7: distribución de tiempo y vista previa
+
+- Todas las confirmaciones de borrado, restablecimiento, restauración y cambios con impacto se muestran dentro de Fullhouse; no se usan los diálogos nativos `confirm()` del navegador.
+- En **Rutinas → Editar**, elige **Según mis pasos** o **Tiempo fijo**. En tiempo fijo, la duración total se debe ocupar exactamente con pasos fijos o completarse con pasos flexibles; una rutina inválida no puede guardarse.
+- Los pasos flexibles, detalles y alternativas admiten pesos proporcionales: dos pesos de 9 y 1 reparten el remanente 90 % / 10 %. El reparto se realiza en minutos enteros, conservando la suma total.
+- En **Programar/Reprogramar rutina** hay una previsión de hasta ocho apariciones futuras (en los próximos 370 días), con horarios, solapamientos y advertencias. Es una muestra: no sustituye revisar casos mucho más lejanos o cambios futuros.
+- Cuando la programación no cabe en el intervalo entre dos rutinas, puedes pasar al editor, corregirla y regresar al formulario conservando tus datos de programación aún no guardados.
+- Las metas se pueden asociar a pasos, detalles y alternativas desde sus opciones avanzadas. Su color aparece en el editor y durante la ejecución.
+- En **Ajustes** elige horas y minutos (predeterminado) o solo minutos para los tiempos que se muestran.
+- Los datos continúan en `localStorage` bajo la clave histórica `fullhouse-v01`; los respaldos anteriores siguen teniendo versión de esquema `1`, y los nuevos campos son opcionales.

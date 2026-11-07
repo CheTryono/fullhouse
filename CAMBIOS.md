@@ -1,3 +1,24 @@
+# Fullhouse 0.7 — 6 de noviembre de 2026
+
+1. Confirmaciones personalizadas, integradas con los cinco temas, para salir sin guardar, borrar, reprogramar, restaurar y restablecer.
+2. Rutinas de duración fija o duración derivada de sus pasos; validaciones visuales y bloqueo de guardado si la suma fija no encaja y no hay elementos flexibles.
+3. Reparto proporcional configurable de contenidos flexibles en pasos, subpasos y alternativas (por ejemplo, pesos 9/1 para 90/10).
+4. Editor de rutinas organizado en identidad, duración, pasos y distribución; opciones avanzadas desplegables.
+5. Vista previa de la programación de una rutina durante las siguientes ocho apariciones, con conflictos y minutos disponibles.
+6. Edición de la rutina desde la programación y regreso a los datos de planificación sin pérdida del borrador.
+7. Asistencia contextual cuando no hay tiempo suficiente o sobra tiempo en rutinas entre bloques.
+8. Programación de rutina y creación de eventos tratadas por separado; eliminada la selección contradictoria de tipo dentro de la edición de rutina.
+9. Opción en Ajustes para mostrar horas y minutos o solo minutos, con horas predeterminadas.
+10. Vinculación de metas a pasos y alternativas, con identificación cromática tanto en edición como ejecución.
+11. Cierre haciendo clic en el fondo con advertencia cuando existen cambios pendientes.
+
+### Compatibilidad y límites
+- `fullhouse-v01` y `version:1` conservados. No es necesario convertir los respaldos anteriores.
+- Los horarios dependientes continúan siendo del mismo día, y la vista previa muestra solo hasta ocho fechas futuras; los días con límites no presentes se omiten.
+- Guardar cambios sobre una plantilla de rutina puede afectar cómo se calculan sus duraciones al revisar jornadas anteriores. Los registros de ejecución se conservan, pero aún no hay versiones históricas de plantillas. Exporta respaldos antes de cambios importantes.
+
+---
+
 ## 0.6 — Bloques dependientes, alternativas manuales y notas
 
 1. Editor de actividad dividido en cuatro grupos con jerarquía visual más clara.
