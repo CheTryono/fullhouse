@@ -1,4 +1,4 @@
-# FULLHOUSE — Prototipo web v0.8
+# FULLHOUSE — Prototipo web v0.9
 
 **Fullhouse** es una herramienta independiente de organización integral: metas, rutinas, calendario propio y progreso. Es la versión ligera para prueba e iteraciones, sin sincronización con calendarios ni servicios externos.
 
@@ -22,6 +22,20 @@ Incluimos el archivo `.github/workflows/pages.yml` para que **cada cambio subido
 
 *GitHub Pages en el plan gratuito requiere un repositorio público. Es útil para esta fase de prototipo, pero no está destinado a alojar un SaaS comercial. Para una versión de pago elegiremos otro alojamiento.*
 
+
+## Novedades de Fullhouse 0.9
+
+- **Mi día sin ventanas:** reloj y progreso en vivo, rutina actual expandida en la misma página, ejecución de pasos y subpasos, notas y evidencias sin abandonar la jornada. Se puede abrir otra rutina pendiente manualmente. El avance tiene en cuenta las tareas realizadas parcialmente.
+- **Horario de 24 horas:** incluye indicador móvil de la hora actual y acercamiento a los pasos con bloques proporcionales dentro de la misma página. Se trasladó a «Uso y seguimiento».
+- **Sueño visual:** horario fijo diario configurable desde Ajustes, con una duración obligatoria de 7, 8 o 9 horas. La franja es informativa y no impide programar rutinas ni eventos que se solapen.
+- **Sonidos opcionales:** respuesta sonora breve al completar rutinas o pasos, controlada desde Ajustes. Dependiendo del navegador puede requerir interacción previa y autorización de sonido.
+- **Diseño adaptable:** barra lateral desplazable en ventanas bajas, modales horizontales distribuidos en columnas, contenido de ejecución estable al desplazarse y tarjetas más coloridas. Las alternativas no tienen jerarquía visual.
+- **Rutinas configurables:** color propio para cada rutina, herencia cromática en sus subpasos excepto cuando se vinculan a una meta, y resaltado del destino al reordenar tarjetas con arrastre.
+- **Ayudas movibles:** arrastra la barra superior de una ayuda para moverla a un lugar que no estorbe. Se admite ratón y control táctil.
+- **Dependencias semanales:** al programar una rutina entre otras dos se marcan los días sin límites adecuados y se bloquea su selección, con un aviso contextual. La validación se hace con la programación disponible en cada día, incluyendo suficiencia de tiempo.
+- **Estados vacíos:** mensajes de «Agenda libre» y accesos rápidos a programar actividades si el día no tiene bloques.
+
+**Compatibilidad:** los registros históricos y la clave `fullhouse-v01` se conservan. Los nuevos ajustes de sueño y sonido se guardan separadamente en el navegador. No hay sincronización entre dispositivos. Usa «Exportar respaldo» periódicamente, especialmente antes de editar horarios y rutinas.
 
 ## Novedades de Fullhouse 0.8
 

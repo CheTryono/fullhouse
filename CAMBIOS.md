@@ -1,3 +1,26 @@
+# Fullhouse 0.9 — Ejecución directa y horario visual (09/11/2026)
+
+1. La navegación lateral se adapta a ventanas de menor altura con desplazamiento propio para evitar contenido recortado.
+2. El editor de ejecución y las ventanas emergentes estabilizan el ancho y evitan movimientos al desplazar su contenido. En horizontal, los formularios aprovechan columnas completas y separaciones consistentes.
+3. Notificación sonora corta y opcional al marcar un paso, subpaso o actividad.
+4. «Mi día» muestra hora actual, rutina en curso expandida en línea, iconos de rutina, desglose de pasos, alternativas, evidencias, notas y progreso parcial acumulado. Puedes abrir cualquier otra actividad.
+5. Estados de agenda vacía con invitación a crear eventos o rutinas.
+6. Colores más presentes y armoniosos en metas, rutinas y pasos; los elementos heredan el color de rutina salvo vinculación con una meta diferente.
+7. «Horario» se mueve a uso cotidiano, se extiende a las 24 horas e incorpora una línea de hora actual y exploración progresiva de rutinas y pasos dentro de la página, sin ventanas.
+8. Las alternativas aparecen con títulos y tipografía homogéneos, sin opción favorecida por el diseño.
+9. Sueño fijo configurable (entre 7 y 9 horas) representado como fondo tenue del horario, sin bloquear actividades en ese período.
+10. Tarjetas reordenables con indicador visual del destino mientras arrastras.
+11. Las alternativas flexibles se sincronizan y se comprueba que cada alternativa con subpasos contenga al menos un subpaso flexible antes de guardar.
+12. Etiquetado correcto de «Alternativa 1» incluso dentro de subpasos.
+13. Color personalizable en rutinas, junto al icono.
+14. Paneles de ayuda arrastrables mediante ratón o tacto, sin tapar permanentemente los controles.
+15. Programaciones entre dos rutinas verifican días con límites presentes, orden válido y tiempo suficiente; se informa por qué un día no puede seleccionarse.
+16. Se conserva el almacenamiento local y la compatibilidad de datos con las versiones anteriores.
+
+**Pruebas:** compilación TypeScript y sintaxis JavaScript válidas. Pruebas funcionales en Chromium: incremento de progreso por paso aislado, vista directa de Mi día, acercamiento sin modal en Horario, franja de sueño, editor horizontal, ajustes, barra lateral en ventana baja y movimiento real del panel de ayuda. Sin errores de JavaScript detectados en las pruebas descritas.
+
+---
+
 # Fullhouse 0.8 — Jornada práctica y mejoras visuales
 
 - Nueva pestaña **Mi día** para completar el día, registrar notas, revisar ámbitos y cerrar la jornada con una reflexión.

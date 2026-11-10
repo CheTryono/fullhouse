@@ -704,7 +704,115 @@ html{scrollbar-gutter:stable}
 .modal-body:has(.goal-mode-grid)>.field-grid{padding:13px;background:var(--card-soft);border:1px solid var(--border);border-radius:13px}
 .app-shell[data-theme='midnight'] .today-task-copy>span,.app-shell[data-theme='midnight'] .step-variant small,.app-shell[data-theme='midnight'] .routine-preview-name small{color:#dcd3ed}
 
-/* Fullhouse 0.8: mantener los diálogos encima del panel flotante del calendario. */
+/* Fullhouse 0.8: capas de los diálogos por encima del inspector del calendario. */
 .modal-backdrop{z-index:90}
 .help-float{z-index:145}
 .date-popover{z-index:155}
+
+/* FULLHOUSE 0.9 · Organización diaria adaptable y ejecución sin ventanas */
+.app-shell{min-height:100dvh}
+.sidebar{height:100dvh;max-height:100dvh;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--primary) 45%,transparent) transparent;padding-bottom:17px;}
+.sidebar .brand{flex-shrink:0;padding-bottom:17px}
+.sidebar nav,.sidebar .side-section{flex-shrink:0}
+.sidebar .sidebar-bottom{margin-top:auto;flex-shrink:0;padding-top:18px}
+.sidebar::-webkit-scrollbar{width:7px}
+.sidebar::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--primary) 40%,transparent);border-radius:12px}
+@media(max-height:800px) and (min-width:761px){.sidebar{padding:12px 12px 12px}.sidebar .brand{padding:3px 5px 8px}.sidebar .nav-item{min-height:36px;padding:7px 11px;font-size:13px}.sidebar .side-section{margin:11px 0 4px}.sidebar .sidebar-bottom{padding-top:6px}.sidebar .sidebar-bottom>small{display:none}}
+/* Las ventanas apaisadas redistribuyen su contenido y no lo estiran sin estructura. */
+.modal.wide{width:min(95vw,1180px)}
+.modal.wide .modal-body{overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable;scroll-behavior:auto;overscroll-behavior:contain;overflow-anchor:none;align-content:start}
+.modal.wide .modal-body>.routine-form-v07{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
+.modal.wide .routine-form-v07>.routine-edit-section:nth-of-type(1),.modal.wide .routine-form-v07>.routine-edit-section:nth-of-type(2){min-width:0}
+.modal.wide .routine-form-v07>.routine-edit-section:nth-of-type(n+3),.modal.wide .routine-form-v07>.routine-budget-sticky,.modal.wide .routine-form-v07>.routine-context-alert{grid-column:1/-1}
+.modal.wide .modal-body>.event-form-v06{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
+.modal.wide .event-form-v06>.event-editor-section:nth-of-type(n+5),.modal.wide .event-form-v06>.routine-context-alert{grid-column:1/-1}
+.modal.wide .modal-body:has(>.field:first-child):not(:has(>.routine-form-v07)):not(:has(>.event-form-v06))>.field:has(textarea),.modal.wide .modal-body>.field:has(.area-options),.modal.wide .modal-body>.field:has(.goal-picker-tree),.modal.wide .modal-body>.goal-review{grid-column:1/-1}
+.modal.wide .modal-body:has(.goal-mode-grid)>.field:has(.goal-mode-grid){grid-column:1/-1}
+.modal.wide .routine-edit-section,.modal.wide .event-editor-section{height:fit-content;margin:0;max-width:100%}
+.modal-body,.modal-body *{scroll-anchor:none}
+.modal-body{overflow-anchor:none!important;scrollbar-gutter:stable;overscroll-behavior:contain!important}
+.modal-body :where(.execution-step,.check-child-steps,.day-note-editor,.routine-step){transition:none!important;animation:none!important;transform:none!important}
+/* Colores que identifican cada rutina y se transmiten a sus elementos */
+.routine-modern{--routine-accent:var(--primary);background:linear-gradient(120deg,color-mix(in srgb,var(--routine-accent) 18%,var(--card)),color-mix(in srgb,var(--routine-accent) 7%,var(--card)))!important;border-color:color-mix(in srgb,var(--routine-accent) 44%,var(--border))!important;}
+.routine-modern .routine-badge{background:color-mix(in srgb,var(--routine-accent) 26%,var(--card));color:var(--heading);border-color:color-mix(in srgb,var(--routine-accent) 38%,var(--border))}
+.routine-color-choices{display:flex;gap:9px;flex-wrap:wrap;padding:10px;background:var(--card-soft);border:1px solid var(--border);border-radius:13px}
+.routine-color-choices button{width:29px;height:29px;flex-shrink:0;border-radius:10px;border:2px solid transparent;color:#fff;font-weight:900;box-shadow:0 3px 7px var(--shadow)}
+.routine-color-choices button.active{outline:3px solid var(--heading);outline-offset:2px}
+.card-drop-target>.goal-tree-card,.routine-modern.card-drop-target{outline:3px dashed var(--positive);outline-offset:5px;box-shadow:0 0 0 7px color-mix(in srgb,var(--positive) 13%,transparent)!important}
+/* Nueva jornada en línea */
+.today-hero-right{display:flex;align-items:center;gap:19px;flex-shrink:0}
+.today-live-clock{display:grid;align-items:center;justify-items:center;gap:3px;border:1px solid color-mix(in srgb,var(--primary) 25%,var(--border));border-radius:18px;background:color-mix(in srgb,var(--primary) 11%,var(--card));padding:12px 17px;color:var(--heading);font-variant-numeric:tabular-nums}
+.today-live-clock .icon{color:var(--primary)}
+.today-live-clock strong{font-size:26px;letter-spacing:.01em}
+.today-live-clock small{color:var(--muted);font-size:11px}
+.today-task{background:linear-gradient(115deg,color-mix(in srgb,var(--task-color) 19%,var(--card)),color-mix(in srgb,var(--task-color) 8%,var(--card)))!important;border:1px solid color-mix(in srgb,var(--task-color) 43%,var(--border))!important;border-left:5px solid var(--task-color)!important}
+.today-task-expanded{box-shadow:0 12px 34px var(--shadow);outline:1px solid color-mix(in srgb,var(--task-color) 45%,transparent)}
+.today-task.now-playing{border-top:3px solid var(--task-color)!important}
+.today-routine-icon{display:grid;place-items:center;flex-shrink:0;width:40px;height:40px;border-radius:12px;background:color-mix(in srgb,var(--task-color) 22%,var(--card));color:var(--task-color)}
+.today-now-tag{background:var(--positive);color:#fff;border-radius:99px;padding:4px 8px;font-size:11px;font-weight:800}
+.today-task-progress{height:5px;border-radius:99px;background:color-mix(in srgb,var(--task-color) 17%,var(--card));overflow:hidden;margin:13px 3px 2px}
+.today-task-progress>div{height:100%;border-radius:99px;background:var(--task-color);transition:width .18s}
+.today-inline-procedure{margin-top:14px;padding:17px;border-radius:16px;background:color-mix(in srgb,var(--task-color) 9%,var(--card));border:1px solid color-mix(in srgb,var(--task-color) 28%,var(--border))}
+.today-inline-heading{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:11px}
+.today-inline-heading h3{margin:0;display:flex;align-items:center;gap:8px;font-size:18px;color:var(--heading)}
+.today-inline-heading small{font-size:12px;color:var(--muted)}
+.today-inline-procedure .execution-step{background:color-mix(in srgb,var(--linked-goal-color,var(--task-color)) 15%,var(--card));border:1px solid color-mix(in srgb,var(--linked-goal-color,var(--task-color)) 34%,var(--border));border-left:4px solid var(--linked-goal-color,var(--task-color));box-shadow:0 2px 9px var(--shadow);min-width:0}
+.today-inline-procedure .check-child-steps{margin-left:8px;padding-left:10px;border-left:2px solid color-mix(in srgb,var(--task-color) 39%,var(--border))}
+.today-extra-notes,.step-extras{margin-top:10px;padding:10px 13px;border-radius:12px;background:color-mix(in srgb,var(--task-color,var(--linked-goal-color,var(--primary))) 6%,var(--card));border:1px solid var(--border)}
+.today-extra-notes summary,.step-extras summary{cursor:pointer;color:var(--heading);font-size:13px;font-weight:750;display:flex;align-items:center;gap:8px}
+.today-extra-notes[open],.step-extras[open]{background:var(--card);margin-top:12px}
+.step-extras summary::-webkit-details-marker,.today-extra-notes summary::-webkit-details-marker{display:none}
+.today-extra-notes .day-note-editor,.step-extras .day-note-editor{margin-top:11px}
+.today-free-banner,.today-empty-state{display:flex;align-items:center;gap:13px;padding:17px 19px;margin:13px 0;border:1px dashed color-mix(in srgb,var(--positive) 60%,var(--border));border-radius:15px;background:color-mix(in srgb,var(--positive) 10%,var(--card))}
+.today-free-banner .icon{color:var(--positive)}
+.today-free-banner>div{display:grid;gap:3px}.today-free-banner strong{color:var(--heading)}.today-free-banner span{color:var(--muted);font-size:13px}
+.today-empty-state{flex-direction:column;text-align:center;justify-content:center;padding:26px}
+.today-empty-state h3{margin:2px 0;color:var(--heading)}.today-empty-state p{color:var(--muted);margin:2px 0 9px}
+/* Horario: fondo de sueño sin bloquear, una línea de hora y acercamiento por niveles */
+.timeline-panel{background:var(--card)}
+.timeline-canvas{overflow:visible}
+.sleep-period{position:absolute;left:72px;right:0;z-index:0;pointer-events:none;display:flex;align-items:flex-start;justify-content:flex-start;gap:6px;padding:12px 10px;border-radius:12px;background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--secondary) 7%,transparent),color-mix(in srgb,var(--secondary) 7%,transparent) 10px,color-mix(in srgb,var(--secondary) 12%,transparent) 11px,color-mix(in srgb,var(--secondary) 12%,transparent) 23px);border:1px solid color-mix(in srgb,var(--secondary) 30%,var(--border));color:var(--muted);font-size:12px;font-weight:700}
+.timeline-events{z-index:2}
+.timeline-gridline{z-index:1;pointer-events:none}
+.timeline-now-line{position:absolute;left:67px;right:0;z-index:4;height:2px;background:var(--positive);box-shadow:0 0 10px color-mix(in srgb,var(--positive) 75%,transparent);pointer-events:none}
+.timeline-now-line:before{content:'';position:absolute;left:0;top:-5px;width:12px;height:12px;background:var(--positive);border-radius:100%}
+.timeline-now-line span{position:absolute;left:15px;top:-17px;background:var(--positive);color:#fff;border-radius:8px;padding:3px 7px;font-size:11px;font-weight:800;white-space:nowrap}
+.timeline-block{background:linear-gradient(125deg,color-mix(in srgb,var(--block-bg) 34%,var(--card)),color-mix(in srgb,var(--block-bg) 20%,var(--card)))!important;border:1px solid color-mix(in srgb,var(--block-bg) 63%,var(--border))!important;border-left:5px solid var(--block-bg)!important;min-height:18px}
+.timeline-block:hover,.timeline-block.timeline-focused{z-index:3;box-shadow:0 8px 18px var(--shadow);outline:2px solid var(--block-bg);outline-offset:-2px}
+.timeline-event-name{display:flex;align-items:center;gap:6px;min-width:0}
+.timeline-mini-steps{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.timeline-mini-steps span{font-size:11px;padding:2px 6px;border-radius:7px;background:color-mix(in srgb,var(--block-bg) 24%,var(--card));color:var(--heading);max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.timeline-block.micro{padding:2px 6px;gap:0;border-radius:6px;min-height:15px}
+.timeline-block.micro .timeline-event-name{font-size:11px}
+.timeline-block.compact{padding:6px 10px}
+.schedule-zoom-panel{margin:18px 0;scroll-margin-top:18px;padding:21px;background:linear-gradient(130deg,color-mix(in srgb,var(--zoom-color,var(--primary)) 6%,var(--card)),var(--card))}
+.schedule-zoom h2{display:flex;align-items:center;gap:10px;margin:6px 0 8px;color:var(--heading)}
+.schedule-zoom-crumb{margin:12px 0;display:flex;gap:5px;flex-wrap:wrap;align-items:center;color:var(--muted)}
+.schedule-zoom-crumb button{border:0;border-radius:8px;padding:7px;background:var(--card-soft);color:var(--primary);font-weight:750}
+.schedule-zoom-blocks{display:flex;gap:6px;min-height:130px;border-radius:16px;overflow:hidden;margin:17px 0;background:var(--card-soft);border:1px solid var(--border)}
+.schedule-zoom-block{display:flex;min-width:0;flex-basis:0;flex-direction:column;justify-content:center;text-align:center;gap:7px;padding:12px 7px;border:1px solid color-mix(in srgb,var(--zoom-step-color) 48%,var(--border));background:color-mix(in srgb,var(--zoom-step-color) 28%,var(--card));color:var(--heading);transition:background .12s}
+.schedule-zoom-block:hover{background:color-mix(in srgb,var(--zoom-step-color) 40%,var(--card))}
+.schedule-zoom-block strong{font-size:13px;overflow-wrap:anywhere;line-height:1.4}
+.schedule-zoom-block small{font-size:11px;color:var(--muted);overflow-wrap:anywhere}
+.schedule-zoom-footer{display:flex;flex-wrap:wrap;gap:12px}
+/* Alternativas visualmente equivalentes: ninguna ocupa un rango de más importancia. */
+.routine-form-v07 .step-base-label{padding:11px;border-radius:12px;background:color-mix(in srgb,var(--secondary) 9%,var(--card));border:1px solid var(--border)}
+.routine-form-v07 .step-variant>.row strong,.routine-form-v07 .step-base-label strong{font-size:14px;font-weight:730;line-height:1.4;color:var(--heading)}
+.routine-form-v07 .step-edit-fields>input{font-size:14px!important;font-weight:700!important}
+.unavailable-day{opacity:.68;border:1px dashed var(--border)!important;background:color-mix(in srgb,var(--muted) 7%,var(--card))!important}
+/* Ajustes responsive para pantalla completa, ventana restaurada y móvil */
+@media(max-width:1050px){.modal.wide .modal-body>.routine-form-v07,.modal.wide .modal-body>.event-form-v06{grid-template-columns:1fr}.modal.wide .routine-form-v07>.routine-edit-section,.modal.wide .event-form-v06>.event-editor-section{grid-column:1/-1}.today-hero-right{gap:9px}}
+@media(max-width:760px){.sidebar{display:none}.today-hero-right{flex-direction:column;gap:9px}.today-live-clock{padding:7px 10px}.today-live-clock strong{font-size:19px}.today-task-top{flex-wrap:wrap}.today-routine-icon{width:32px;height:32px}.today-now-tag{font-size:10px}.today-task-open{margin-left:auto}.today-inline-procedure{padding:12px}.schedule-zoom-blocks{flex-direction:column}.schedule-zoom-block{padding:10px;min-height:58px}.timeline-block .timeline-mini-steps{display:none}.timeline-now-line{right:1px}.sleep-period{left:63px}.schedule-zoom-footer{flex-direction:column;align-items:stretch}}
+@media(max-width:490px){.today-hero{flex-wrap:wrap}.today-hero-right{flex-direction:row;width:100%;justify-content:space-between}.today-task-copy strong{font-size:14px}.today-task-copy>span{font-size:11px}.today-inline-procedure .routine-step{gap:7px}.today-inline-procedure .execution-step{padding:10px}}
+/* 0.9: color propio también en el editor, sin imponerse a los colores enlazados a metas */
+.routine-form-v07 .step-editor-card{background:color-mix(in srgb,var(--routine-accent) 12%,var(--card))!important;border-color:color-mix(in srgb,var(--routine-accent) 35%,var(--border))}
+.routine-form-v07 .step-editor-list.nested .step-editor-card{background:color-mix(in srgb,var(--routine-accent) 9%,var(--card))!important}
+.routine-form-v07 .step-variant{background:color-mix(in srgb,var(--routine-accent) 12%,var(--card))!important;border-color:color-mix(in srgb,var(--routine-accent) 28%,var(--border))}
+.routine-form-v07 .step-editor-card[style*="--linked-goal-color"]{background:color-mix(in srgb,var(--linked-goal-color) 15%,var(--card))!important}
+.schedule-jump-now{border:1px solid color-mix(in srgb,var(--positive) 43%,var(--border));background:color-mix(in srgb,var(--positive) 12%,var(--card));color:var(--heading);border-radius:10px;padding:9px 12px;display:inline-flex;align-items:center;gap:5px;font-weight:750;font-size:12px}
+.schedule-jump-now:hover{background:color-mix(in srgb,var(--positive) 23%,var(--card))}
+/* Relleno de tarjetas de metas con el color elegido. */
+.goal-card[style*="--goal-tint"]{background:linear-gradient(130deg,color-mix(in srgb,var(--goal-tint) 20%,var(--card)),color-mix(in srgb,var(--goal-tint) 8%,var(--card)))!important;border-color:color-mix(in srgb,var(--goal-tint) 35%,var(--border))}
+.goal-tree-node .goal-tree-descendant .goal-card{box-shadow:0 4px 15px var(--shadow)}
+.help-float-head{touch-action:none!important;user-select:none!important;cursor:grab!important}
+.help-float-head:active{cursor:grabbing!important}
