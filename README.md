@@ -1,4 +1,4 @@
-# FULLHOUSE — Prototipo web v0.5
+# FULLHOUSE — Prototipo web v0.8
 
 **Fullhouse** es una herramienta independiente de organización integral: metas, rutinas, calendario propio y progreso. Es la versión ligera para prueba e iteraciones, sin sincronización con calendarios ni servicios externos.
 
@@ -22,6 +22,21 @@ Incluimos el archivo `.github/workflows/pages.yml` para que **cada cambio subido
 
 *GitHub Pages en el plan gratuito requiere un repositorio público. Es útil para esta fase de prototipo, pero no está destinado a alojar un SaaS comercial. Para una versión de pago elegiremos otro alojamiento.*
 
+
+## Novedades de Fullhouse 0.8
+
+- **Mi día:** sección nueva para ejecutar las actividades del día, marcar tareas, acceder a los procedimientos, adjuntar fotografías y notas, observar progreso por ámbito y guardar una revisión nocturna.
+- **Recuerdos e historial:** álbum de imágenes comprimidas en el navegador, evidencias por actividad y por paso, y revisiones anteriores en Progreso. Las fotografías siempre son opcionales, incluso cuando un procedimiento sugiere documentarlo.
+- **Calendario ampliado:** vista mensual de ancho completo, detalle de un día en inspector flotante, etiquetas de eventos coloreadas por su meta y títulos más legibles.
+- **Fechas elegantes:** selector de fecha propio para eventos, eventos únicos explícitos, rangos de varios días visibles, fecha de término opcional para rutinas y repeticiones, y reinicio de la fecha final al cambiar la inicial.
+- **Edición más clara:** colores y espaciado mejorados, ajustes avanzados desplegables con preferencia persistente, ayuda general por ventana arrastrable y protección contra el cierre al arrastrar texto fuera del modal.
+- **Mapa de metas:** estructura jerárquica recalculada para alinear padres con sus hijos y permitir que el scroll continúe en la página cuando se agota el espacio interior.
+- **Duración flexible:** escalas deslizantes para repartir pesos en pasos y alternativas, con porcentajes y una estimación de tiempo, más una referencia fija visible mientras editas una rutina.
+- **Horario:** controles de navegación entre días con ancho estable y tarjetas que conservan sus funciones.
+
+**Importante sobre las imágenes:** la aplicación todavía guarda todo en `localStorage` y no sincroniza dispositivos. Aunque las imágenes se reducen de tamaño, el espacio disponible es limitado. Exporta respaldos con frecuencia; para un álbum grande se necesitará migrar a almacenamiento local más robusto (IndexedDB) o a la arquitectura definitiva.
+
+**Compatibilidad:** se conserva el almacén `fullhouse-v01` y la estructura `version: 1` para mantener los datos existentes. Se agregaron campos opcionales y registros diarios, sin reemplazar automáticamente tus datos actuales.
 
 ## Novedades de Fullhouse 0.5
 

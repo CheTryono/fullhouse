@@ -1,3 +1,18 @@
+# Fullhouse 0.8 — Jornada práctica y mejoras visuales
+
+- Nueva pestaña **Mi día** para completar el día, registrar notas, revisar ámbitos y cerrar la jornada con una reflexión.
+- Evidencias fotográficas opcionales en actividades y pasos. Se reducen en el cliente, se guardan por fecha y aparecen en la galería diaria y el historial.
+- Calendario más ancho; inspector de fecha flotante; eventos coloreados por meta; selector de fecha personalizado, rangos y límites de repetición.
+- Mejora de reprogramaciones futuras sin duplicar un evento puntual en la fecha antigua; conservar registros pasados cuando corresponda.
+- Navegación dividida entre uso, planificación y análisis. Flechas del horario estabilizadas.
+- Mapa de metas alineado con la jerarquía y desplazamiento de página al llegar al borde interior.
+- Escalas visuales para distribuir tiempo flexible, estimaciones por contenido y barra fija de balance temporal.
+- Ayuda por ventana y arrastrable, opciones avanzadas persistentes, más espacio y color en formularios, prevención de cierres accidentales tras seleccionar texto.
+- Pruebas: compilación TypeScript, análisis CSS y pruebas sintéticas de recurrencia, rangos, jerarquía y renderizado virtual. **No se pudo ejecutar Chromium en este entorno** por una restricción del navegador, por lo que la revisión visual en un navegador real queda pendiente.
+- Compatibilidad: se conserva la misma clave de almacenamiento local y se incorporan solamente campos opcionales.
+
+---
+
 # Fullhouse 0.7 — 6 de noviembre de 2026
 
 1. Confirmaciones personalizadas, integradas con los cinco temas, para salir sin guardar, borrar, reprogramar, restaurar y restablecer.
