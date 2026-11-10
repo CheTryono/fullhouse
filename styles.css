@@ -703,3 +703,8 @@ html{scrollbar-gutter:stable}
 .modal-body:has(.goal-mode-grid)>.field:nth-child(3n+2){border-left:4px solid var(--positive)}
 .modal-body:has(.goal-mode-grid)>.field-grid{padding:13px;background:var(--card-soft);border:1px solid var(--border);border-radius:13px}
 .app-shell[data-theme='midnight'] .today-task-copy>span,.app-shell[data-theme='midnight'] .step-variant small,.app-shell[data-theme='midnight'] .routine-preview-name small{color:#dcd3ed}
+
+/* Fullhouse 0.8: mantener los diálogos encima del panel flotante del calendario. */
+.modal-backdrop{z-index:90}
+.help-float{z-index:145}
+.date-popover{z-index:155}
