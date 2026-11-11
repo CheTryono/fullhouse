@@ -176,3 +176,14 @@ El almacén `fullhouse-v01` y la versión base JSON `1` permanecen iguales; los 
 - Las metas se pueden asociar a pasos, detalles y alternativas desde sus opciones avanzadas. Su color aparece en el editor y durante la ejecución.
 - En **Ajustes** elige horas y minutos (predeterminado) o solo minutos para los tiempos que se muestran.
 - Los datos continúan en `localStorage` bajo la clave histórica `fullhouse-v01`; los respaldos anteriores siguen teniendo versión de esquema `1`, y los nuevos campos son opcionales.
+## Pruebas automatizadas de regresión
+
+Con Node.js 20 o posterior, ejecuta desde la raíz `npm ci`, `npm run check` y
+`npm run test:regression`. La infraestructura usa el ejecutor nativo de Node y
+TypeScript fijado en el lockfile; no añade dependencias a la aplicación servida.
+
+`npm test` incluye también cinco reproducciones de errores existentes y termina
+actualmente con código 1. No son pruebas omitidas: la base estable pasa por
+separado y los fallos quedan visibles en `npm run test:known-bugs`.
+Consulta [tests/README.md](tests/README.md) para cobertura, resultados,
+limitaciones y criterios para corregir esos defectos en tareas posteriores.
