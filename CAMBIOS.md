@@ -1,3 +1,14 @@
+# Restauración segura de respaldos — BUG-02 y BUG-03
+
+- Validación de entidades y campos internos antes de cargar/importar respaldos, con campos opcionales antiguos y desconocidos conservados. Se mantiene `version: 1` y `fullhouse-v01`.
+- Una importación fallida por formato, lectura o escritura conserva los datos anteriores en memoria y almacenamiento. Los mensajes explican el problema sin anunciar una restauración exitosa.
+- Captura del selector antes de esperar confirmación, compatible con la liberación de eventos de React 16.
+- BUG-02 y BUG-03 pasan a la suite de regresión: 74 pruebas aprobadas. Las tres reproducciones pendientes (BUG-01 general, BUG-04 y BUG-05) siguen fallando explícitamente.
+- TypeScript, sintaxis JavaScript y correspondencia del compilado verificados. Importación comprobada en Chromium, escritorio y móvil con Medianoche, sin errores JavaScript.
+- Fixtures exclusivamente sintéticas; no hay migración, refactorización general ni cambios al despliegue.
+
+---
+
 # Base inicial de pruebas de regresión
 
 - Ejecutor nativo de Node, TypeScript 5.9.3 y lockfile reproducible.

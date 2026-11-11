@@ -12,7 +12,7 @@ const event = (id = 'event', patch = {}) => ({
   goalId: '', routineId: '', repeat: 'none', note: '', overrides: {}, ...patch,
 });
 
-function app({ data = emptyData(), stored = {}, failRead = false, failWrite = false } = {}) {
+function app({ data = emptyData(), stored = {}, failRead = false, failWrite = false, fileFailure = '' } = {}) {
   const storage = new Map(Object.entries(stored));
   const confirmations = [];
   const warnings = [];
@@ -27,7 +27,12 @@ function app({ data = emptyData(), stored = {}, failRead = false, failWrite = fa
   }
   class FileReader {
     readAsText(file) {
-      setImmediate(() => { this.result = file.text; this.onload(); });
+      if (fileFailure === 'throw') throw new Error('Synthetic file read failure');
+      setImmediate(() => {
+        if (fileFailure === 'error') { this.onerror(); return; }
+        if (fileFailure === 'abort') { this.onabort(); return; }
+        this.result = file.text; this.onload();
+      });
     }
   }
   const context = vm.createContext({

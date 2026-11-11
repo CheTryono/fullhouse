@@ -122,7 +122,71 @@ function load() {
     }
     return seed();
 }
-function validData(v) { return !!v && v.version === 1 && Array.isArray(v.goals) && Array.isArray(v.routines) && Array.isArray(v.events) && !!v.logs && typeof v.logs === 'object' && !Array.isArray(v.logs); }
+/* Validate known fields without normalizing or dropping historical/unknown fields.
+   Optional additions stay optional so version-1 backups from earlier releases work. */
+function validData(v) {
+    const object = (x) => !!x && typeof x === 'object' && !Array.isArray(x);
+    const text = (x) => typeof x === 'string';
+    const id = (x) => text(x) && !!x.trim();
+    const number = (x) => typeof x === 'number' && Number.isFinite(x) && x >= 0;
+    const boolean = (x) => typeof x === 'boolean';
+    const oneOf = (values) => (x) => values.includes(x);
+    const array = (check) => (x) => Array.isArray(x) && x.every(check);
+    const map = (check) => (x) => object(x) && Object.values(x).every(check);
+    const fields = (x, required, optional = {}) => object(x) && Object.entries(required).every(([key, check]) => Object.prototype.hasOwnProperty.call(x, key) && check(x[key])) &&
+        Object.entries(optional).every(([key, check]) => x[key] === undefined || check(x[key]));
+    const date = (x) => text(x) && /^\d{4}-\d{2}-\d{2}$/.test(x) && Number.isFinite(Date.parse(x + 'T12:00:00Z')) && new Date(x + 'T12:00:00Z').toISOString().slice(0, 10) === x;
+    const optionalDate = (x) => x === '' || date(x);
+    const time = (x) => text(x) && /^([01]\d|2[0-3]):[0-5]\d$/.test(x);
+    const timestamp = (x) => text(x) && Number.isFinite(Date.parse(x));
+    const days = array(x => Number.isInteger(x) && x >= 0 && x <= 6);
+    const status = oneOf(['pending', 'working', 'improving', 'consolidated', 'achieved']);
+    const unique = (items) => new Set(items.map(x => x.id)).size === items.length;
+    const history = (x) => fields(x, { date, value: number, note: text }, { status });
+    const milestone = (x) => fields(x, { id, title: text, done: boolean });
+    const goal = (x) => fields(x, { id, title: id, desc: text, parentId: text, color: text, current: number, target: number, unit: text, history: array(history) }, {
+        area: oneOf(['mind', 'physical', 'purpose', 'social', 'other']), mode: oneOf(['numeric', 'qualitative', 'milestones']), status,
+        startDate: optionalDate, dueDate: optionalDate, dependsOn: text, milestones: array(milestone),
+        review: r => fields(r, { date, time, repeat: oneOf(['none', 'weekly', 'monthly']) })
+    });
+    // Iterative traversal also rejects cyclic in-memory inputs without a stack overflow.
+    const steps = (items) => {
+        if (!Array.isArray(items))
+            return false;
+        const pending = items.slice(), seen = new Set(), ids = new Set();
+        while (pending.length) {
+            const s = pending.pop();
+            if (!fields(s, { id, title: text, min: number }, { desc: text, children: Array.isArray, variants: Array.isArray,
+                mode: oneOf(['always', 'selected', 'alternatives']), days, chooseWhen: oneOf(['weekday', 'execute']),
+                flexible: boolean, flexWeight: number, goalId: text, requestEvidence: boolean }) || seen.has(s) || ids.has(s.id))
+                return false;
+            seen.add(s);
+            ids.add(s.id);
+            (s.children || []).forEach(child => pending.push(child));
+            const variants = s.variants || [];
+            if (!variants.every(a => fields(a, { id, title: text, desc: text, min: number, days }, { children: Array.isArray, flexible: boolean, flexWeight: number, goalId: text, requestEvidence: boolean })) || !unique(variants))
+                return false;
+            variants.forEach(a => (a.children || []).forEach(child => pending.push(child)));
+        }
+        return true;
+    };
+    const routine = (x) => fields(x, { id, title: id, desc: text, steps }, { color: text, icon: text, durationMode: oneOf(['steps', 'fixed']), durationMin: number, requestEvidence: boolean });
+    const override = (x) => fields(x, {}, { time, skip: boolean });
+    const event = (x) => fields(x, { id, title: id, date, time: t => time(t) || (x.allDay === true && t === ''), minutes: number, goalId: text, routineId: text,
+        repeat: oneOf(['none', 'daily', 'weekdays', 'weekly', 'monthly', 'yearly', 'custom', 'every', 'dates']), note: text, overrides: map(override) }, {
+        endDate: optionalDate, applyFrom: optionalDate, repeatDays: days, everyDays: number, specificDates: array(date),
+        kind: oneOf(['review', 'occasion']), allDay: boolean, anchor: oneOf(['start', 'end', 'between']), endTime: t => t === '' || time(t),
+        afterRoutineId: text, beforeRoutineId: text, overlapMode: oneOf(['keep', 'move']), requestEvidence: boolean
+    }) && Object.keys(x.overrides).every(date);
+    const evidence = (x) => fields(x, { id, kind: oneOf(['image']), src: s => text(s) && /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(s), caption: text, createdAt: timestamp }, { stepId: text });
+    const log = (x) => fields(x, { completed: boolean, checkedSteps: array(text) }, { note: text, stepNotes: map(text), choices: map(text), evidences: array(evidence) });
+    if (!fields(v, { version: x => x === 1, goals: array(goal), routines: array(routine), events: array(event), logs: map(log) }, {
+        dayReviews: map(r => fields(r, { note: text, closedAt: timestamp }))
+    }))
+        return false;
+    // Do not require live references: deleted routines/steps can leave valid history.
+    return unique(v.goals) && unique(v.routines) && unique(v.events) && Object.keys(v.dayReviews || {}).every(date);
+}
 function occurs(e, date) {
     var _a, _b;
     const earliest = e.date;
@@ -1330,28 +1394,51 @@ class Planner extends React.Component {
         };
         this.importData = async (ev) => {
             var _a;
-            const f = (_a = ev.target.files) === null || _a === void 0 ? void 0 : _a[0];
+            const input = ev.target; // React 16 releases the event while confirmation is open.
+            const f = (_a = input.files) === null || _a === void 0 ? void 0 : _a[0];
             if (!f)
                 return;
             if (!(await this.askConfirm('Restaurar respaldo', 'Esto sustituirá todos los datos actuales de este navegador. Exporta una copia antes de continuar.', 'Restaurar datos', true))) {
-                ev.target.value = '';
+                input.value = '';
                 return;
             }
+            const fail = (message) => this.notice(message + ' Tus datos anteriores siguen intactos.');
             const reader = new FileReader();
+            reader.onerror = () => fail('No pudimos leer el archivo. Intenta seleccionarlo de nuevo.');
+            reader.onabort = () => fail('La lectura del respaldo se interrumpió.');
             reader.onload = () => {
+                let data;
                 try {
-                    const d = JSON.parse(String(reader.result));
-                    if (!validData(d))
-                        throw Error('Formato incompatible');
-                    this.save(d, 'Respaldo restaurado');
-                    this.setState({ page: 'inicio', modal: null });
+                    const parsed = JSON.parse(String(reader.result));
+                    if (!validData(parsed)) {
+                        fail('Este respaldo tiene datos incompletos o incompatibles. Elige un archivo exportado por Fullhouse.');
+                        return;
+                    }
+                    data = parsed;
                 }
                 catch (err) {
-                    this.setState({ toast: 'Archivo inválido o incompatible. No se modificó la información.' });
+                    fail('No pudimos abrir este respaldo. Comprueba que sea un archivo JSON de Fullhouse.');
+                    return;
                 }
+                // localStorage.setItem is atomic: publish the new state only after it succeeds.
+                // Keep general save() behavior (BUG-01) unchanged outside backup restoration.
+                try {
+                    localStorage.setItem(STORE, JSON.stringify(data));
+                }
+                catch (err) {
+                    fail('No pudimos guardar el respaldo: falta espacio o el navegador bloqueó el almacenamiento.');
+                    return;
+                }
+                this.setState({ data, page: 'inicio', modal: null });
+                this.notice('Respaldo restaurado');
             };
-            reader.readAsText(f);
-            ev.target.value = '';
+            try {
+                reader.readAsText(f);
+            }
+            catch (err) {
+                fail('No pudimos leer el archivo. Intenta seleccionarlo de nuevo.');
+            }
+            input.value = '';
         };
         this.reset = async () => {
             if (!(await this.askConfirm('Restablecer ejemplos', 'Se perderán los datos actuales. Descarga un respaldo antes de continuar.', 'Restablecer', true)))

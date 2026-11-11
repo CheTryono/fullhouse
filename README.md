@@ -182,7 +182,7 @@ Con Node.js 20 o posterior, ejecuta desde la raíz `npm ci`, `npm run check` y
 `npm run test:regression`. La infraestructura usa el ejecutor nativo de Node y
 TypeScript fijado en el lockfile; no añade dependencias a la aplicación servida.
 
-`npm test` incluye también cinco reproducciones de errores existentes y termina
+`npm test` incluye también tres reproducciones de errores existentes y termina
 actualmente con código 1. No son pruebas omitidas: la base estable pasa por
 separado y los fallos quedan visibles en `npm run test:known-bugs`.
 Consulta [tests/README.md](tests/README.md) para cobertura, resultados,
