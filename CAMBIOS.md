@@ -1,3 +1,13 @@
+# Base inicial de pruebas de regresión
+
+- Ejecutor nativo de Node, TypeScript 5.9.3 y lockfile reproducible.
+- 24 pruebas de regresión sobre datos sintéticos y 5 pruebas fallidas que reproducen problemas existentes de guardado, respaldos, límites horarios e interpretación histórica.
+- Comprobación de tipos y sintaxis, y compilación en memoria para verificar que `app.js` coincide con `app.tsx` sin sobrescribirlo.
+- Cobertura, comandos, resultados y limitaciones documentados en `tests/README.md`.
+- No se corrigieron defectos ni se modificó el código de producción, el almacenamiento o el despliegue. No se ejecutaron nuevas pruebas de navegador.
+
+---
+
 # Fullhouse 0.9 — Ejecución directa y horario visual (09/11/2026)
 
 1. La navegación lateral se adapta a ventanas de menor altura con desplazamiento propio para evitar contenido recortado.
