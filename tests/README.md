@@ -27,7 +27,7 @@ npm test
   existentes. Termina con código 1; no son pruebas omitidas ni fallos convertidos
   en éxitos.
 - `npm test` ejecuta ambas suites y conserva el código de fallo del ejecutor.
-  Actualmente debe fallar por los dos casos documentados abajo.
+  Actualmente debe fallar por el caso documentado abajo.
 
 No es necesario iniciar un servidor ni acceder a servicios externos para ejecutar
 las pruebas. Cada caso obtiene su propio contexto, almacenamiento y controlador.
@@ -52,7 +52,7 @@ Este arnés depende de los nombres internos actuales; renombrar o modularizar la
 funciones requerirá adaptar el arnés. Cuando se extraigan módulos, podrán
 importarse directamente conservando los mismos casos y datos.
 
-## Cobertura: 126 pruebas que pasan
+## Cobertura: 164 pruebas que pasan
 
 | Área | Comportamientos comprobados |
 | --- | --- |
@@ -177,14 +177,55 @@ escrituras entre varias pestañas. Las preferencias visuales siguen usando sus
 claves independientes; esta corrección protege los datos principales guardados
 por `save()`. Los borradores de formularios no enviados se protegen al salir,
 pero no se convierten automáticamente en entidades del respaldo. Los datos
-confirmados y las importaciones conservan el formato existente. BUG-04 y BUG-05
-permanecen deliberadamente fuera de alcance.
+confirmados y las importaciones conservan el formato existente. En la PR de BUG-01 no se modificaron BUG-04 ni BUG-05. La corrección de BUG-04
+se documenta a continuación; BUG-05 continúa pendiente.
 
-## Dos pruebas que fallan por errores existentes
+## BUG-04 corregido: movimientos dentro del día
+
+La reproducción original se trasladó a regresión sin cambiar sus aserciones.
+`shiftEvent` conserva el ajuste inferior a 00:00, pero rechaza un comienzo fuera
+del día antes de convertirlo a texto. A continuación calcula el intervalo efectivo
+completo con `eventFrame` y solo permite guardarlo si cabe en el día. Así evita
+tanto un final posterior a 24:00 como el antiguo ajuste superior a 23:59 que podía
+ocultar el desbordamiento pedido en actividades de un minuto. El final exacto a
+24:00 sigue siendo válido y se representa como 24:00 en el acercamiento y la
+previsión; los minutos fraccionarios históricos se conservan.
+
+`dependentMovementIssue` comprueba todos los intervalos dependientes cambiados en
+esa fecha, no solo los vecinos directos: detecta desapariciones, dependencias
+encadenadas y repartos inválidos de pasos fijos/flexibles. La comprobación se
+comparte con los desplazamientos automáticos de «Posponer bloques». Un intervalo
+preexistente que no cambie no se reescribe ni se repara en esta corrección.
+El formulario de actividades sin rutina ahora también rechaza un intervalo fuera
+del día, usando la previsión que ya existía para las rutinas.
+
+Las pruebas cubren: rechazo 23:00–24:00 +15; finales exactos y un minuto antes del
+límite; desplazamientos positivos/negativos y ajuste inferior; duración real de
+rutinas y alternativas elegidas; dependencias directas y transitivas; insuficiencia
+de pasos fijos, sobrante sin contenido flexible y reparto flexible válido; ocho
+patrones de repetición; excepciones, registros y horas de término conservados;
+postergación automática; y cuota/permisos con exportación/reintento de BUG-01.
+Los rechazos se comprueban contra los bytes originales completos, con ninguna
+entrada en la cola de pendientes. Solo se modifica la excepción de la fecha
+aceptada: no se cambia la recurrencia ni otras fechas o registros.
+
+La prueba de Chromium mantenida en `browser/day-shifts.cjs` comprueba un cambio
+inválido mediante el editor real, movimientos del controlador real y su resultado
+en el horario renderizado, tanto a 1280 como a 390 px con Medianoche. También
+comprueba dependencias, excepciones del día siguiente, historial y cola de
+pendientes tras un fallo de cuota. La interfaz actual no renderiza los botones
+±15: no se añadieron para esta tarea; la prueba captura la instancia mediante el
+retorno público de `ReactDOM.render`, sin introducir hooks en producción.
+
+No se introduce soporte para cruzar medianoche ni una reparación automática de
+excepciones inválidas anteriores. La validación de dependencias descrita se aplica
+a movimientos de una fecha (manuales y «Posponer bloques»), sin rediseñar la
+reprogramación recurrente general ni el contenido histórico de BUG-05.
+
+## Una prueba que falla por un error existente
 
 | Identificador | Contrato comprobado | Resultado actual |
 | --- | --- | --- |
-| BUG-04 | Un desplazamiento que excede el final del día se rechaza y mantiene visible la actividad. | Una actividad de 23:00 a 24:00 movida 15 minutos guarda 23:15; luego desaparece de `eventsOn` porque su marco es inválido. |
 | BUG-05 | Editar una plantilla no cambia los pasos ni minutos interpretados de una ejecución histórica completada. | El historial usa la plantilla actual y muestra los pasos y tiempos nuevos. |
 
 Tras corregir cada defecto en una tarea separada, mover su prueba a la suite de
@@ -217,9 +258,9 @@ Node.js 24.22.1, npm 11.9.0 y TypeScript 5.9.3:
 | Comando | Resultado |
 | --- | --- |
 | `npm run check` | Código 0; TypeScript y sintaxis correctos, compilación en memoria idéntica a `app.js`. |
-| `npm run test:regression` | Código 0; 126 aprobadas, ninguna fallida ni omitida. |
-| `npm run test:known-bugs` | Código 1; 2 fallidas por los defectos documentados, ninguna omitida. |
-| `npm test` | Código 1; 128 ejecutadas, 126 aprobadas y 2 fallidas, ninguna omitida. |
+| `npm run test:regression` | Código 0; 164 aprobadas, ninguna fallida ni omitida. |
+| `npm run test:known-bugs` | Código 1; 1 fallida por BUG-05, ninguna omitida. |
+| `npm test` | Código 1; 165 ejecutadas, 164 aprobadas y 1 fallida, ninguna omitida. |
 
 También se ejecutó una comprobación puntual en Chromium con Playwright del
 entorno: escritorio 1280×900 y móvil 390×844, ambos con Medianoche. Se comprobó
@@ -256,3 +297,15 @@ Medianoche. Se verificaron guardado pendiente de meta/paso/nota/revisión,
 exportación, reintentos, avisos al recargar/navegar/cerrar, borradores numéricos y
 cancelación de descartes, sin errores JavaScript. Son perfiles desechables con
 datos sintéticos; no se probaron dispositivos móviles físicos.
+
+
+BUG-04 comprobado con:
+
+```sh
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/day-shifts.cjs
+```
+
+Resultado: escritorio 1280 px y móvil 390 px aprobados, Medianoche, sin errores
+JavaScript. Interacción con el editor real, visibilidad/posición de bloques,
+comprobación de las 24:00, dependencias, excepciones e historial, y rechazo de
+cuota con exportación/reintento correctos. No se utilizaron datos personales.

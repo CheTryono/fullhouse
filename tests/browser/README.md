@@ -38,3 +38,29 @@ Las dimensiones móviles corresponden a Chromium en modo adaptable, no a un
 Android/iOS físico. El navegador puede no emitir `beforeunload` ante un cierre
 forzado o cuando el sistema operativo elimina el proceso. La recuperación durable
 de pendientes requiere comprobar una exportación antes de salir.
+
+
+## Límites del día y desplazamientos — BUG-04
+
+```sh
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/day-shifts.cjs
+```
+
+Usa el mismo requisito opcional de Playwright/Chromium y un servidor efímero,
+con perfiles sintéticos a 1280 y 390 px, Medianoche y fecha fija. Comprueba:
+
+- Rechazo desde el editor visible al cambiar 23:00 a 23:15 para una actividad de
+  60 minutos; el formulario permanece abierto y los bytes originales intactos.
+- Movimiento del controlador real, conservación del bloque y su posición en el
+  horario, final exacto a 24:00 y ajuste inferior a 00:00.
+- Rechazo cuando un dependiente ya no puede realizar sus pasos.
+- Excepciones futuras, saltos de fecha e historial sin cambios inesperados.
+- Fallo de cuota, exportación, reintento y recarga de un movimiento válido.
+- Ausencia de errores JavaScript.
+
+Limitación explícita: los botones ±15 existen en `renderTodayList` no compacto,
+pero esa variante no se usa actualmente en las pantallas. No se agregan controles
+en esta PR. Para ejercitar esa acción, el script envuelve `ReactDOM.render` solo
+en el navegador de prueba y captura su retorno público (la instancia real).
+Después verifica el almacenamiento y el DOM del horario. El editor sí se prueba
+con clics y selección reales. No hay hooks nuevos en el código de producción.

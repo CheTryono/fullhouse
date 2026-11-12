@@ -248,6 +248,23 @@ function eventFrame(e, date, data, visited = new Set()) {
         return null;
     return { start, end: start + length, length };
 }
+/* Check only dependent intervals changed by movements on this one date. */
+function dependentMovementIssue(before, after, date) {
+    var _a;
+    for (const e of before.events) {
+        if (e.anchor !== 'between' || !occurs(e, date))
+            continue;
+        const previous = eventFrame(e, date, before), next = eventFrame(e, date, after);
+        if ((previous === null || previous === void 0 ? void 0 : previous.start) === (next === null || next === void 0 ? void 0 : next.start) && (previous === null || previous === void 0 ? void 0 : previous.end) === (next === null || next === void 0 ? void 0 : next.end))
+            continue;
+        if (!next)
+            return 'El cambio dejaría sin espacio a un bloque dependiente. Se conserva el horario anterior. Edita las horas de sus rutinas límite.';
+        const r = after.routines.find(r => r.id === e.routineId);
+        if (r && routineBalance(r, date, next.length, ((_a = after.logs[key(e, date)]) === null || _a === void 0 ? void 0 : _a.choices) || {}).error)
+            return 'El cambio no deja un intervalo adecuado para los pasos de «' + e.title + '». Se conserva el horario anterior. Ajusta sus límites o tiempos.';
+    }
+    return '';
+}
 function eventsOn(data, date) { return data.events.filter(e => occurs(e, date) && (e.allDay || !!eventFrame(e, date, data))).sort((a, b) => eventTime(a, date, data).localeCompare(eventTime(b, date, data))); }
 function eventTime(e, date, data) { var _a, _b; const frame = data ? eventFrame(e, date, data) : null; return frame ? timeString(frame.start) : ((_b = (_a = e.overrides) === null || _a === void 0 ? void 0 : _a[date]) === null || _b === void 0 ? void 0 : _b.time) || e.time; }
 function scheduleStart(e, date, data) { var _a, _b; return (_b = (_a = eventFrame(e, date, data)) === null || _a === void 0 ? void 0 : _a.start) !== null && _b !== void 0 ? _b : minutes(e.time); }
@@ -1072,7 +1089,7 @@ class Planner extends React.Component {
                         issue = balance.error;
                 }
                 const overlaps = frame ? data.events.filter(item => item.id !== prepared.id && occurs(item, day) && !item.allDay).filter(item => { const f = eventFrame(item, day, data); return !!f && f.start < frame.end && f.end > frame.start; }).map(item => item.title) : [];
-                result.push({ date: day, label: fmtDate(day), start: frame ? timeString(frame.start) : '—', end: frame ? timeString(frame.end) : '—', length: (frame === null || frame === void 0 ? void 0 : frame.length) || 0, issue, overlaps, skipped });
+                result.push({ date: day, label: fmtDate(day), start: frame ? timeString(frame.start) : '—', end: frame ? (frame.end === 1440 ? '24:00' : timeString(frame.end)) : '—', length: (frame === null || frame === void 0 ? void 0 : frame.length) || 0, issue, overlaps, skipped });
                 if (draft.repeat === 'none')
                     break;
             }
@@ -1219,6 +1236,10 @@ class Planner extends React.Component {
             const data = this.state.data;
             const previewRows = this.schedulePreview(x);
             const blocking = previewRows.filter(row => row.issue && (x.anchor === 'between' || !row.skipped));
+            if (!x.routineId && blocking.length) {
+                this.notice('La actividad debe comenzar y terminar dentro del mismo día, hasta las 24:00. Se conserva la programación anterior.');
+                return;
+            }
             if (x.routineId && blocking.length) {
                 const details = blocking.slice(0, 3).map(row => `${row.label}: ${row.issue}`).join('\n');
                 if (await this.askConfirm('La rutina necesita ajustes', `No se puede programar todavía.\n\n${details}\n\nPuedes editar sus tiempos y volver a esta programación sin perder lo que has rellenado.`, 'Editar rutina'))
@@ -1316,9 +1337,9 @@ class Planner extends React.Component {
                         cursor = f.end;
                 }
                 const adjusted = { ...next, events: updated };
-                const broken = next.events.filter(item => item.anchor === 'between' && occurs(item, date) && !!eventFrame(item, date, next) && !eventFrame(item, date, adjusted));
-                if (broken.length) {
-                    this.notice('El desplazamiento dejaría sin intervalo a «' + broken[0].title + '». Mantén el solapamiento o ajusta las rutinas límite.');
+                const issue = dependentMovementIssue(next, adjusted, date);
+                if (issue) {
+                    this.notice(issue);
                     return null;
                 }
                 return adjusted;
@@ -1484,15 +1505,30 @@ class Planner extends React.Component {
                 this.notice('Este bloque depende de dos rutinas. Para moverlo, reprograma alguna de sus rutinas límite.');
                 return;
             }
-            const d = this.state.data;
-            const newTime = timeString(bound(minutes(eventTime(e, date, d)) + delta, 0, 1439));
-            const next = { ...e, overrides: { ...e.overrides, [date]: { ...e.overrides[date], time: newTime } } };
-            const newData = { ...d, events: d.events.map(x => x.id === e.id ? next : x) };
-            const affected = e.routineId ? d.events.filter(x => x.anchor === 'between' && (x.afterRoutineId === e.routineId || x.beforeRoutineId === e.routineId) && occurs(x, date)) : [];
-            if (affected.some(x => !!eventFrame(x, date, d) && !eventFrame(x, date, newData))) {
-                this.notice('El cambio dejaría sin espacio a un bloque dependiente. Edita las horas de sus rutinas límite.');
+            if (e.allDay) {
+                this.notice('Las actividades de todo el día no se desplazan por minutos.');
                 return;
             }
+            const d = this.state.data, start = Math.max(0, minutes(eventTime(e, date, d)) + delta);
+            // Keep the existing clamp to 00:00. Never wrap/clamp an overflowing end to
+            // another apparent time: validate before timeString() and before save().
+            if (!Number.isFinite(delta) || !Number.isFinite(start) || start >= 1440) {
+                this.notice('No se puede mover fuera del día (00:00–24:00). Se conserva el horario anterior.');
+                return;
+            }
+            const newTime = timeString(start), next = { ...e, overrides: { ...e.overrides, [date]: { ...e.overrides[date], time: newTime } } };
+            const newData = { ...d, events: d.events.map(x => x.id === e.id ? next : x) };
+            if (!eventFrame(next, date, newData)) {
+                this.notice('No se puede mover: la actividad debe comenzar y terminar dentro del mismo día, hasta las 24:00. Se conserva el horario anterior.');
+                return;
+            }
+            // Validate the whole dependency chain, not just the direct neighbors.
+            const issue = dependentMovementIssue(d, newData, date);
+            if (issue) {
+                this.notice(issue);
+                return;
+            }
+            const affected = e.routineId ? d.events.filter(x => x.anchor === 'between' && (x.afterRoutineId === e.routineId || x.beforeRoutineId === e.routineId) && occurs(x, date)) : [];
             this.save(newData, `Actividad movida a las ${newTime}` + (affected.length ? ' · Bloques dependientes ajustados' : ''));
         };
         this.saveProgress = () => {
@@ -2680,7 +2716,7 @@ class Planner extends React.Component {
                         "ACERCAMIENTO \u00B7 ",
                         eventTime(e, date, data),
                         " \u2013 ",
-                        timeString(Math.min(1439, base + durationOn(e, date, data)))),
+                        base + durationOn(e, date, data) === 1440 ? '24:00' : timeString(base + durationOn(e, date, data))),
                     React.createElement("h2", null,
                         React.createElement(Icon, { name: (r === null || r === void 0 ? void 0 : r.icon) || 'calendar', size: 24 }),
                         " ",

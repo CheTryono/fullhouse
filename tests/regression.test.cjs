@@ -720,3 +720,198 @@ test('retrying a routine save does not lose the unsubmitted schedule it was edit
   assert.equal(a.controller.state.eventDraft.title, 'Synthetic schedule draft');
   assert.equal(a.controller.hasUnsavedChanges(), true);
 });
+
+test('BUG-04: shifting past midnight must reject the change and keep the event visible', () => {
+  const e = event('late', { time: '23:00', minutes: 60 });
+  const before = { ...emptyData(), events: [e] };
+  const a = app({ data: before });
+  a.controller.shiftEvent(e, DAY, 15);
+  assert.equal(a.call('eventsOn', a.controller.state.data, DAY).length, 1, 'The shifted event must remain visible');
+  assert.deepEqual(plain(a.controller.state.data), before);
+});
+
+function storedShiftCase(data, options = {}) {
+  const bytes = JSON.stringify(data, null, 2);
+  const a = app({ data, stored: { 'fullhouse-v01': bytes }, ...options });
+  return { a, bytes };
+}
+function assertRejectedShift(a, bytes, before) {
+  assert.deepEqual(plain(a.controller.state.data), before);
+  assert.equal(a.storage.get('fullhouse-v01'), bytes);
+  assert.equal(a.controller.state.pending, null, 'Invalid movements must not enter the save queue');
+}
+for (const [name, e, delta] of [
+  ['end exceeds midnight', event('late', { time: '23:00', minutes: 60 }), 15],
+  ['requested start exceeds the day even for a one-minute event', event('late', { time: '23:50', minutes: 1 }), 15],
+  ['requested start is exactly 24:00', event('late', { time: '23:45', minutes: 1 }), 15],
+  ['non-finite delta', event(), Infinity],
+]) {
+  test(`rejected shift: ${name} preserves stored bytes, all events and logs`, () => {
+    const data = { ...emptyData(), events: [e, event('other', { date: '2030-01-01', repeat: 'daily' })],
+      logs: { [`${e.id}@${DAY}`]: { completed: true, checkedSteps: [], note: 'Synthetic note', stepNotes: { old: 'Synthetic old detail' }, choices: { old: 'option' } } } };
+    const { a, bytes } = storedShiftCase(data); a.controller.shiftEvent(a.controller.state.data.events[0], DAY, delta);
+    assertRejectedShift(a, bytes, data);
+    assert.equal(a.call('eventsOn', a.controller.state.data, DAY).length, 2);
+    assert.match(a.controller.state.toast, /Se conserva el horario anterior/);
+  });
+}
+for (const [time, duration, delta, expected] of [
+  ['22:45', 60, 15, '23:00'], // Finish exactly at 24:00.
+  ['23:00', 60, 0, '23:00'],
+  ['23:44', 1, 15, '23:59'],
+  ['09:00', 30, 15, '09:15'],
+  ['09:00', 30, -15, '08:45'],
+  ['00:05', 30, -15, '00:00'], // Existing lower-bound clamp.
+  ['22:57.5', 60, 2.5, '23:00'], // Historical fractional minutes remain supported.
+]) {
+  test(`valid shift ${time}/${duration} by ${delta} stores ${expected} and remains visible`, () => {
+    const e = event('event', { time, minutes: duration });
+    const data = { ...emptyData(), events: [e] }, { a } = storedShiftCase(data);
+    a.controller.shiftEvent(e, DAY, delta);
+    const saved = a.controller.state.data;
+    assert.equal(saved.events[0].overrides[DAY].time, expected);
+    assert.equal(a.call('eventsOn', saved, DAY).length, 1);
+    const frame = a.call('eventFrame', saved.events[0], DAY, saved);
+    assert.ok(frame.start >= 0 && frame.end <= 1440);
+    if (frame.end === 1440) assert.equal(a.controller.schedulePreview(saved.events[0])[0].end, '24:00');
+    assert.deepEqual(JSON.parse(a.storage.get('fullhouse-v01')), plain(saved));
+  });
+}
+test('routine movement uses actual active steps instead of the event duration estimate', () => {
+  const e = event('routine-event', { routineId: 'r', time: '23:00', minutes: 1 });
+  const data = { ...emptyData(), routines: [routine('r', { steps: [step('actual', { min: 60 })] })], events: [e] };
+  const { a, bytes } = storedShiftCase(data); a.controller.shiftEvent(e, DAY, 15);
+  assertRejectedShift(a, bytes, data);
+});
+test('routine movement respects a manual alternative chosen for that occurrence', () => {
+  const r = routine('r', { steps: [step('choice', { min: 10, mode: 'alternatives', chooseWhen: 'execute', variants: [{ id: 'long', title: 'Synthetic long alternative', desc: '', min: 60, days: [] }] })] });
+  const e = event('routine-event', { routineId: 'r', time: '23:00', minutes: 10 });
+  const data = { ...emptyData(), routines: [r], events: [e], logs: { [`${e.id}@${DAY}`]: { completed: false, checkedSteps: [], choices: { choice: 'long' } } } };
+  const { a, bytes } = storedShiftCase(data); a.controller.shiftEvent(e, DAY, 15);
+  assertRejectedShift(a, bytes, data);
+});
+test('a still-positive dependent interval is rejected when fixed steps no longer fit', () => {
+  const data = dependencies();
+  data.routines = [routine('middle', { steps: [step('fixed', { min: 80 }), step('flex', { flexible: true })] })];
+  const { a, bytes } = storedShiftCase(data);
+  a.controller.shiftEvent(a.controller.state.data.events[0], DAY, 15); // 90 -> 75 available, 80 fixed.
+  assertRejectedShift(a, bytes, data);
+  assert.match(a.controller.state.toast, /pasos/);
+});
+test('growing a fixed-only dependent interval also requires a valid time allocation', () => {
+  const data = dependencies(); data.routines = [routine('middle', { steps: [step('fixed', { min: 90 })] })];
+  const { a, bytes } = storedShiftCase(data);
+  a.controller.shiftEvent(a.controller.state.data.events[1], DAY, 15); // 90 -> 105, no flexible leaf.
+  assertRejectedShift(a, bytes, data);
+});
+test('an adequate flexible dependent interval follows a valid boundary shift without stored link changes', () => {
+  const data = dependencies(); data.routines = [routine('middle', { steps: [step('fixed', { min: 60 }), step('flex', { flexible: true })] })];
+  const { a } = storedShiftCase(data); a.controller.shiftEvent(a.controller.state.data.events[0], DAY, 15);
+  assert.equal(a.call('eventFrame', a.controller.state.data.events[2], DAY, a.controller.state.data).length, 75);
+  assert.deepEqual(plain(a.controller.state.data.events[2]), data.events[2]);
+});
+test('a transitive dependent cannot disappear when its upstream boundary moves', () => {
+  const data = dependencies();
+  data.events.push(event('c', { routineId: 'c', time: '08:45', minutes: 5, repeat: 'daily' }),
+    event('nested', { routineId: 'nested', anchor: 'between', afterRoutineId: 'c', beforeRoutineId: 'middle', repeat: 'daily' }));
+  data.events[0].time = '08:30'; // a ends 09:00; nested is 08:50–09:00.
+  const { a, bytes } = storedShiftCase(data);
+  assert.equal(a.call('eventFrame', data.events[4], DAY, data).length, 10);
+  a.controller.shiftEvent(a.controller.state.data.events[0], DAY, -15); // middle still valid, nested loses its interval.
+  assertRejectedShift(a, bytes, data);
+});
+for (const repeat of ['daily', 'weekdays', 'weekly', 'monthly', 'yearly', 'custom', 'every', 'dates']) {
+  test(`${repeat}: shift alters only the chosen date and preserves other exceptions and history`, () => {
+    const e = event('repeat', { date: '2030-01-01', time: '09:00', repeat, repeatDays: [1, 2], everyDays: 2, specificDates: [DAY, '2030-02-01'],
+      overrides: { [DAY]: { time: '10:00', skip: false }, '2030-01-08': { skip: true }, '2030-01-09': { time: '11:00' } } });
+    // Use a start matching this occurrence for weekly/monthly/yearly/every too.
+    e.date = DAY;
+    const data = { ...emptyData(), events: [e], logs: { 'repeat@2030-01-06': { completed: true, checkedSteps: ['old'], note: 'Synthetic historical note' } } };
+    const { a } = storedShiftCase(data); a.controller.shiftEvent(e, DAY, 15);
+    const expected = plain(data); expected.events[0].overrides[DAY].time = '10:15';
+    assert.deepEqual(plain(a.controller.state.data), expected);
+    assert.deepEqual(JSON.parse(a.storage.get('fullhouse-v01')), expected);
+    assert.equal(a.call('eventTime', a.controller.state.data.events[0], '2030-01-09', a.controller.state.data), '11:00');
+  });
+}
+for (const writeError of ['QuotaExceededError', 'SecurityError']) {
+  test(`valid shift rejected by ${writeError} retains BUG-01 retry/export protections`, async () => {
+    const e = event('move', { time: '22:45', minutes: 60 }), data = { ...emptyData(), events: [e] };
+    const { a, bytes } = storedShiftCase(data, { failWrite: true, writeError });
+    a.controller.shiftEvent(e, DAY, 15);
+    assert.deepEqual(plain(a.controller.state.data), data); assert.equal(a.storage.get('fullhouse-v01'), bytes);
+    assert.equal(a.controller.state.pending.valid, true);
+    const pending = JSON.parse(a.controller.state.pending.raw);
+    assert.equal(a.call('eventFrame', pending.events[0], DAY, pending).end, 1440);
+    a.controller.exportPending(); assert.deepEqual(JSON.parse(await a.downloads[0].blob.text()), pending);
+    a.controller.retryPending(); assert.equal(a.storage.get('fullhouse-v01'), bytes);
+    a.setWriteFailure(false); a.controller.retryPending();
+    assert.deepEqual(plain(a.controller.state.data), pending);
+  });
+}
+test('an invalid shift is rejected before even attempting a failed storage write', () => {
+  const e = event('late', { time: '23:00', minutes: 60 }), data = { ...emptyData(), events: [e] };
+  const { a, bytes } = storedShiftCase(data, { failWrite: true }); a.controller.shiftEvent(e, DAY, 15);
+  assertRejectedShift(a, bytes, data);
+});
+for (const id of ['', 'existing']) {
+  test(`plain event form rejects overflow before creating/updating (${id || 'new'})`, async () => {
+    const before = { ...emptyData(), events: id ? [event(id, { time: '22:00', minutes: 60 })] : [] };
+    const { a, bytes } = storedShiftCase(before);
+    a.controller.state.eventDraft = event(id, { time: '23:15', minutes: 60 });
+    await a.controller.saveEvent(); assertRejectedShift(a, bytes, before);
+    assert.match(a.controller.state.toast, /24:00/);
+  });
+}
+test('plain event form accepts an end exactly at midnight', async () => {
+  const a = app(); a.controller.state.eventDraft = event('', { time: '23:00', minutes: 60 });
+  await a.controller.saveEvent();
+  assert.equal(a.call('eventFrame', a.controller.state.data.events[0], DAY, a.controller.state.data).end, 1440);
+});
+test('end-anchored shifts preserve the base end time and other dates', () => {
+  const e = event('end', { time: '22:45', minutes: 60, anchor: 'end', endTime: '23:45', repeat: 'daily' });
+  const data = { ...emptyData(), events: [e] }, { a } = storedShiftCase(data);
+  a.controller.shiftEvent(e, DAY, 15);
+  assert.equal(a.call('eventFrame', a.controller.state.data.events[0], DAY, a.controller.state.data).end, 1440);
+  assert.equal(a.controller.state.data.events[0].endTime, '23:45');
+  assert.equal(a.call('eventTime', a.controller.state.data.events[0], '2030-01-08', a.controller.state.data), '22:45');
+  const bytes = a.storage.get('fullhouse-v01'), before = plain(a.controller.state.data);
+  a.controller.shiftEvent(a.controller.state.data.events[0], DAY, 15);
+  assertRejectedShift(a, bytes, before);
+});
+test('all-day events and directly dependent blocks cannot acquire a timed shift override', () => {
+  for (const e of [event('all', { allDay: true }), dependencies().events[2]]) {
+    const data = { ...emptyData(), events: [e] }, { a, bytes } = storedShiftCase(data);
+    a.controller.shiftEvent(e, DAY, 15); assertRejectedShift(a, bytes, data);
+  }
+});
+for (const fixed of [80, 60]) {
+  test(`automatic postponement checks dependent step allocation (${fixed} fixed minutes)`, async () => {
+    const data = dependencies(); data.routines = [routine('middle', { steps: [step('fixed', { min: fixed }), step('flex', { flexible: true })] })];
+    const { a, bytes } = storedShiftCase(data);
+    a.controller.state.eventDraft = event('', { time: '08:00', minutes: 15, overlapMode: 'move' });
+    await a.controller.saveEvent();
+    if (fixed === 80) {
+      assertRejectedShift(a, bytes, data); assert.match(a.controller.state.toast, /pasos/);
+    } else {
+      const saved = a.controller.state.data;
+      assert.equal(saved.events.find(e => e.id === 'a').overrides[DAY].time, '08:15');
+      assert.equal(a.call('eventFrame', saved.events.find(e => e.id === 'middle'), DAY, saved).length, 75);
+      assert.deepEqual(plain(saved.logs), data.logs);
+    }
+  });
+}
+for (const time of ['23:00', '22:45']) {
+  test(`automatic postponement preserves day bounds for ${time} + 60-minute activity`, async () => {
+    const data = { ...emptyData(), events: [event('late', { time, minutes: 60, repeat: 'daily' })] }, { a, bytes } = storedShiftCase(data);
+    a.controller.state.eventDraft = event('', { time, minutes: 15, overlapMode: 'move' });
+    await a.controller.saveEvent();
+    if (time === '23:00') assertRejectedShift(a, bytes, data);
+    else {
+      const saved = a.controller.state.data, late = saved.events.find(e => e.id === 'late');
+      assert.equal(a.call('eventFrame', late, DAY, saved).end, 1440);
+      assert.deepEqual(plain(late.overrides), { [DAY]: { time: '23:00' } });
+      assert.equal(a.call('eventTime', late, '2030-01-08', saved), '22:45');
+    }
+  });
+}

@@ -182,7 +182,7 @@ Con Node.js 20 o posterior, ejecuta desde la raíz `npm ci`, `npm run check` y
 `npm run test:regression`. La infraestructura usa el ejecutor nativo de Node y
 TypeScript fijado en el lockfile; no añade dependencias a la aplicación servida.
 
-`npm test` incluye también dos reproducciones de errores existentes y termina
+`npm test` incluye también una reproducción de error existente y termina
 actualmente con código 1. No son pruebas omitidas: la base estable pasa por
 separado y los fallos quedan visibles en `npm run test:known-bugs`.
 Consulta [tests/README.md](tests/README.md) para cobertura, resultados,
@@ -227,3 +227,22 @@ con cambios sin guardar. Los pendientes viven en memoria: un cierre forzado o la
 terminación del proceso por el sistema operativo puede impedir la advertencia y
 perderlos. La exportación comprobada es la vía segura de conservación si el
 almacenamiento continúa rechazando escrituras.
+
+
+## Límites de los desplazamientos horarios
+
+Los desplazamientos de una fecha se comprueban antes de guardar: terminar
+exactamente a las **24:00** es válido; salir del día se rechaza con un mensaje y
+se conserva el horario anterior. Se mantiene el ajuste a **00:00** cuando se
+intenta mover antes del comienzo del día. No hay soporte para cruzar medianoche.
+
+También se comprueban los intervalos dependientes, incluidos los encadenados, y
+su reparto entre pasos fijos/flexibles. La misma comprobación protege «Posponer
+bloques». Los movimientos aceptados cambian solo la excepción de la fecha
+seleccionada; los rechazados no crean pendientes de guardado ni modifican las
+actividades o registros. Un movimiento válido cuyo guardado falle conserva la
+protección de pendientes de BUG-01.
+
+No se corrigen automáticamente horarios inválidos que ya estuvieran almacenados,
+ni se añaden controles nuevos a la interfaz. La prueba de Chromium y sus límites
+están documentados en `tests/browser/README.md`.
