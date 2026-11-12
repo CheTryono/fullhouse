@@ -5,11 +5,11 @@ const { app, plain, DAY, emptyData, step, routine, event } = require('./helpers/
 test('save persists version 1 and reload restores logs, choices, notes and evidence', () => {
   const data = { ...emptyData(), routines: [routine()], events: [event('event', { routineId: 'routine' })],
     logs: { [`event@${DAY}`]: { completed: true, checkedSteps: ['step'], note: 'Synthetic note',
-      choices: { step: 'variant' }, evidences: [{ id: 'image', kind: 'image', src: 'data:image/jpeg;base64,AA==', createdAt: `${DAY}T12:00:00Z` }] } } };
+      choices: { step: 'variant' }, evidences: [{ id: 'image', kind: 'image', src: 'data:image/jpeg;base64,AA==', caption: '', createdAt: `${DAY}T12:00:00Z` }] } } };
   const a = app(); a.controller.save(data);
   assert.deepEqual(JSON.parse(a.storage.get('fullhouse-v01')), data);
   const b = app({ stored: Object.fromEntries(a.storage) });
-  assert.deepEqual(plain(b.call('load')), data);
+  assert.deepEqual(plain(b.call('load').data), data);
 });
 test('failed storage write warns and preserves previous persisted bytes', () => {
   const previous = JSON.stringify(emptyData());
@@ -18,17 +18,17 @@ test('failed storage write warns and preserves previous persisted bytes', () => 
   assert.equal(a.storage.get('fullhouse-v01'), previous);
   assert.match(a.controller.state.toast, /No se pudo guardar/);
 });
-test('failed storage read returns usable examples without writing', () => {
+test('failed storage read enters recovery without writing', () => {
   const a = app({ failRead: true });
-  assert.equal(a.call('load').version, 1);
-  assert.ok(a.call('load').routines.length > 0);
+  assert.deepEqual(plain(a.call('load').data), emptyData());
+  assert.equal(a.call('load').recovery.key, 'fullhouse-v01');
   assert.equal(a.storage.size, 0);
   assert.ok(a.warnings.length > 0);
 });
 test('legacy store is copied without removing the original', () => {
   const bytes = JSON.stringify(emptyData());
   const a = app({ stored: { 'botanica-planificador-v01': bytes } });
-  assert.deepEqual(plain(a.call('load')), emptyData());
+  assert.deepEqual(plain(a.call('load').data), emptyData());
   assert.equal(a.storage.get('fullhouse-v01'), bytes);
   assert.equal(a.storage.get('botanica-planificador-v01'), bytes);
 });
@@ -58,7 +58,7 @@ test('invalid JSON and invalid root imports preserve current data', async () => 
     await a.importBackup(text);
     assert.deepEqual(plain(a.controller.state.data), before);
     assert.equal(a.storage.size, 0);
-    assert.match(a.controller.state.toast, /Archivo inválido/);
+    assert.match(a.controller.state.toast, /Tus datos anteriores siguen intactos/);
   }
 });
 test('routine creation saves named nested steps without changing schema', () => {
@@ -205,4 +205,238 @@ test('shifting before the beginning of the day clamps to 00:00 and keeps a valid
   a.controller.shiftEvent(e, DAY, -15);
   assert.equal(a.controller.state.data.events[0].overrides[DAY].time, '00:00');
   assert.equal(a.call('eventsOn', a.controller.state.data, DAY).length, 1);
+});
+
+test('BUG-02: backup validation must reject malformed nested entities', () => {
+  const a = app();
+  assert.equal(a.call('validData', { ...emptyData(), goals: [null] }), false);
+});
+test('BUG-03: importing a malformed entity must preserve the previous data and storage', async () => {
+  const before = { ...emptyData(), routines: [routine()] };
+  const a = app({ data: before, stored: { 'fullhouse-v01': JSON.stringify(before) } });
+  await a.importBackup(JSON.stringify({ ...emptyData(), routines: [null] }));
+  assert.deepEqual(plain(a.controller.state.data), before);
+  assert.deepEqual(JSON.parse(a.storage.get('fullhouse-v01')), before);
+});
+
+const { legacyBackup, modernBackup } = require('./fixtures/backups.cjs');
+for (const [name, fixture] of [['early version-1', legacyBackup], ['modern version-1', modernBackup]]) {
+  test(`valid ${name} backup imports and reloads without normalization or lost fields`, async () => {
+    const backup = fixture(); const a = app();
+    assert.equal(a.call('validData', backup), true);
+    await a.importBackup(JSON.stringify(backup));
+    assert.deepEqual(plain(a.controller.state.data), backup);
+    assert.deepEqual(JSON.parse(a.storage.get('fullhouse-v01')), backup);
+    const b = app({ stored: Object.fromEntries(a.storage) });
+    assert.deepEqual(plain(b.call('load').data), backup);
+  });
+}
+test('application examples also satisfy the backup validator', () => {
+  const a = app(); assert.equal(a.call('validData', a.call('seed')), true);
+});
+test('unknown fields, blank optional dates and orphaned historical references remain compatible', async () => {
+  const backup = legacyBackup();
+  backup.futureMetadata = { synthetic: true };
+  backup.goals[0].startDate = ''; backup.goals[0].dueDate = '';
+  backup.goals[0].futureField = ['preserve'];
+  backup.events[0].endDate = '';
+  backup.logs['deleted-event@2029-12-01'] = { completed: true, checkedSteps: ['deleted-step'] };
+  const a = app(); await a.importBackup(JSON.stringify(backup));
+  assert.deepEqual(plain(a.controller.state.data), backup);
+  assert.deepEqual(JSON.parse(a.storage.get('fullhouse-v01')), backup);
+});
+test('all-day backup with no hour remains compatible', () => {
+  const a = app(), backup = legacyBackup(); backup.events[0].allDay = true; backup.events[0].time = '';
+  assert.equal(a.call('validData', backup), true);
+});
+
+const malformedBackups = [
+  ['null goal', b => { b.goals = [null]; }],
+  ['goal missing history', b => { delete b.goals[0].history; }],
+  ['numeric goal title', b => { b.goals[0].title = 12; }],
+  ['null history entry', b => { b.goals[0].history = [null]; }],
+  ['string numeric progress', b => { b.goals[0].current = '2'; }],
+  ['invalid goal mode', b => { b.goals[0].mode = 'unknown'; }],
+  ['invalid review', b => { b.goals[0].review.time = '25:00'; }],
+  ['null milestone', b => { b.goals[0].milestones = [null]; }],
+  ['duplicate goal identifier', b => { b.goals.push({ ...b.goals[0] }); }],
+  ['null routine', b => { b.routines = [null]; }],
+  ['missing routine steps', b => { delete b.routines[0].steps; }],
+  ['non-array routine steps', b => { b.routines[0].steps = {}; }],
+  ['null step', b => { b.routines[0].steps = [null]; }],
+  ['negative step duration', b => { b.routines[0].steps[0].min = -1; }],
+  ['null nested child', b => { b.routines[0].steps[0].children = [null]; }],
+  ['duplicate nested step id', b => { b.routines[0].steps[0].children[0].id = 'parent'; }],
+  ['null alternative', b => { b.routines[0].steps[0].variants = [null]; }],
+  ['invalid weekday', b => { b.routines[0].steps[0].variants[0].days = [7]; }],
+  ['malformed alternative substeps', b => { b.routines[0].steps[0].variants[0].children = [null]; }],
+  ['null event', b => { b.events = [null]; }],
+  ['impossible date', b => { b.events[0].date = '2030-02-30'; }],
+  ['invalid time', b => { b.events[0].time = '24:30'; }],
+  ['unknown recurrence', b => { b.events[0].repeat = 'sometimes'; }],
+  ['negative event duration', b => { b.events[0].minutes = -5; }],
+  ['null override', b => { b.events[0].overrides[DAY] = null; }],
+  ['string skip override', b => { b.events[0].overrides[DAY] = { skip: 'yes' }; }],
+  ['invalid override date', b => { b.events[0].overrides['not-a-date'] = {}; }],
+  ['null execution log', b => { b.logs[`event@${DAY}`] = null; }],
+  ['string completion flag', b => { b.logs[`event@${DAY}`].completed = 'true'; }],
+  ['non-string checked step', b => { b.logs[`event@${DAY}`].checkedSteps = [null]; }],
+  ['invalid choices map', b => { b.logs[`event@${DAY}`].choices = { parent: {} }; }],
+  ['invalid step notes', b => { b.logs[`event@${DAY}`].stepNotes = { leaf: null }; }],
+  ['null evidence', b => { b.logs[`event@${DAY}`].evidences = [null]; }],
+  ['invalid image source', b => { b.logs[`event@${DAY}`].evidences[0].src = 'javascript:synthetic'; }],
+  ['null daily review', b => { b.dayReviews[DAY] = null; }],
+  ['invalid daily review date', b => { b.dayReviews['broken'] = { note: '', closedAt: `${DAY}T12:00:00Z` }; }],
+];
+for (const [name, mutate] of malformedBackups) {
+  test(`malformed backup: ${name} is rejected without replacing memory or stored bytes`, async () => {
+    const backup = modernBackup(); mutate(backup);
+    const before = legacyBackup(); const bytes = JSON.stringify(before, null, 2);
+    const a = app({ data: before, stored: { 'fullhouse-v01': bytes, 'fullhouse-theme-v02': 'midnight' } });
+    const initialStorage = [...a.storage];
+    assert.equal(a.call('validData', backup), false);
+    const input = await a.importBackup(JSON.stringify(backup));
+    assert.deepEqual(plain(a.controller.state.data), before);
+    assert.deepEqual([...a.storage], initialStorage);
+    assert.equal(input.target.value, '');
+    assert.match(a.controller.state.toast, /Tus datos anteriores siguen intactos/);
+    assert.doesNotMatch(a.controller.state.toast, /Respaldo restaurado/);
+  });
+}
+test('non-finite numbers and cyclic in-memory step trees are rejected', () => {
+  const a = app(), backup = legacyBackup(); backup.goals[0].current = Infinity;
+  assert.equal(a.call('validData', backup), false);
+  backup.goals[0].current = 2;
+  backup.routines[0].steps[0].children = [backup.routines[0].steps[0]];
+  assert.equal(a.call('validData', backup), false);
+});
+test('valid import with a storage failure preserves previous memory, bytes and navigation', async () => {
+  const before = legacyBackup(); const bytes = JSON.stringify(before, null, 2);
+  const a = app({ data: before, stored: { 'fullhouse-v01': bytes }, failWrite: true });
+  a.controller.state.page = 'ajustes';
+  await a.importBackup(JSON.stringify(modernBackup()));
+  assert.deepEqual(plain(a.controller.state.data), before);
+  assert.equal(a.storage.get('fullhouse-v01'), bytes);
+  assert.equal(a.controller.state.page, 'ajustes');
+  assert.match(a.controller.state.toast, /falta espacio|bloqueó/);
+  assert.match(a.controller.state.toast, /Tus datos anteriores siguen intactos/);
+});
+for (const fileFailure of ['error', 'abort', 'throw']) {
+  test(`file read ${fileFailure} preserves memory and storage with a friendly message`, async () => {
+    const before = legacyBackup(), bytes = JSON.stringify(before);
+    const a = app({ data: before, stored: { 'fullhouse-v01': bytes }, fileFailure });
+    await a.importBackup(JSON.stringify(modernBackup()));
+    assert.deepEqual(plain(a.controller.state.data), before);
+    assert.equal(a.storage.get('fullhouse-v01'), bytes);
+    assert.match(a.controller.state.toast, /Tus datos anteriores siguen intactos/);
+  });
+}
+for (const accept of [true, false]) {
+  test(`React 16 pooled event can be released during confirmation (accept=${accept})`, async () => {
+    const a = app();
+    const input = { files: [{ text: JSON.stringify(legacyBackup()) }], value: 'synthetic.json' };
+    const event = { target: input };
+    a.controller.askConfirm = async () => { event.target = null; return accept; };
+    await a.controller.importData(event);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(input.value, '');
+    assert.deepEqual(plain(a.controller.state.data), accept ? legacyBackup() : emptyData());
+  });
+}
+
+const fs = require('node:fs');
+const path = require('node:path');
+for (const file of fs.readdirSync(path.join(__dirname, 'fixtures/historical')).filter(name => name.endsWith('.json'))) {
+  const fixture = require(`./fixtures/historical/${file}`);
+  test(`actual ${fixture.version} writer export (${fixture.commit.slice(0, 7)}) loads and imports unchanged`, async () => {
+    const bytes = JSON.stringify(fixture.data, null, 2);
+    const a = app({ stored: { 'fullhouse-v01': bytes }, useLoadedData: true });
+    assert.equal(a.controller.state.recovery, null);
+    assert.equal(a.call('validData', fixture.data), true);
+    assert.deepEqual(plain(a.controller.state.data), fixture.data);
+    assert.equal(a.storage.get('fullhouse-v01'), bytes);
+    const b = app(); await b.importBackup(bytes);
+    assert.deepEqual(plain(b.controller.state.data), fixture.data);
+    assert.deepEqual(JSON.parse(b.storage.get('fullhouse-v01')), fixture.data);
+  });
+}
+for (const raw of ['', '{broken', JSON.stringify({ ...emptyData(), routines: [null] }), JSON.stringify({ ...emptyData(), version: 99 })]) {
+  test(`invalid existing local data enters recovery and blocks save/import/reset (${JSON.stringify(raw)})`, async () => {
+    const original = { 'fullhouse-v01': raw, 'botanica-planificador-v01': JSON.stringify(legacyBackup()) };
+    const a = app({ stored: original, useLoadedData: true });
+    assert.deepEqual(plain(a.controller.state.data), emptyData());
+    assert.equal(a.controller.state.recovery.raw, raw);
+    assert.equal(a.controller.state.recovery.key, 'fullhouse-v01');
+    assert.equal(a.controller.state.guideOpen, false);
+    a.controller.save(modernBackup());
+    await a.importBackup(JSON.stringify(modernBackup()));
+    await a.controller.reset();
+    a.controller.retryLocalLoad();
+    assert.deepEqual(Object.fromEntries(a.storage), original);
+    const reopened = app({ stored: Object.fromEntries(a.storage), useLoadedData: true });
+    assert.equal(reopened.controller.state.recovery.raw, raw);
+    assert.deepEqual(plain(reopened.controller.state.data), emptyData());
+    assert.deepEqual(plain(a.controller.state.data), emptyData());
+    assert.ok(a.controller.state.recovery);
+    assert.equal(a.confirmations.length, 0);
+    a.controller.exportData();
+    assert.equal(a.downloads.length, 1);
+    assert.equal(await a.downloads[0].blob.text(), raw);
+    assert.ok(a.controller.state.recovery, 'Downloading must not unlock overwrites');
+    assert.deepEqual(Object.fromEntries(a.storage), original);
+  });
+}
+test('an invalid legacy store is preserved and never migrated', () => {
+  const bytes = '  {broken legacy  ';
+  const a = app({ stored: { 'botanica-planificador-v01': bytes }, useLoadedData: true });
+  assert.equal(a.controller.state.recovery.key, 'botanica-planificador-v01');
+  a.controller.save(modernBackup());
+  assert.equal(a.storage.has('fullhouse-v01'), false);
+  assert.equal(a.storage.get('botanica-planificador-v01'), bytes);
+});
+test('failed legacy copy remains recoverable and leaves the source unchanged', async () => {
+  const bytes = JSON.stringify(legacyBackup(), null, 2);
+  const a = app({ stored: { 'botanica-planificador-v01': bytes }, failWrite: true, useLoadedData: true });
+  assert.equal(a.controller.state.recovery.key, 'botanica-planificador-v01');
+  a.controller.downloadOriginal();
+  assert.equal(await a.downloads[0].blob.text(), bytes);
+  assert.equal(a.storage.has('fullhouse-v01'), false);
+  assert.equal(a.storage.get('botanica-planificador-v01'), bytes);
+});
+test('unreadable storage blocks all writes, and retry recovers after access returns', async () => {
+  const bytes = JSON.stringify(legacyBackup(), null, 2);
+  const a = app({ stored: { 'fullhouse-v01': bytes }, failRead: true, useLoadedData: true });
+  assert.equal(a.controller.state.recovery.raw, null);
+  a.controller.save(modernBackup()); await a.importBackup(JSON.stringify(modernBackup())); await a.controller.reset();
+  assert.equal(a.storage.get('fullhouse-v01'), bytes);
+  a.controller.downloadOriginal(); assert.equal(a.downloads.length, 0);
+  a.setReadFailure(false); a.controller.retryLocalLoad();
+  assert.equal(a.controller.state.recovery, null);
+  assert.deepEqual(plain(a.controller.state.data), legacyBackup());
+  assert.equal(a.storage.get('fullhouse-v01'), bytes);
+});
+test('a readable recovery snapshot survives a later failed read or external removal', async () => {
+  const raw = '{broken';
+  const a = app({ stored: { 'fullhouse-v01': raw }, useLoadedData: true });
+  a.setReadFailure(true); a.controller.retryLocalLoad();
+  assert.equal(a.controller.state.recovery.raw, raw);
+  a.setReadFailure(false); a.storage.delete('fullhouse-v01'); a.controller.retryLocalLoad();
+  assert.equal(a.controller.state.recovery.raw, raw);
+  a.controller.downloadOriginal(); assert.equal(await a.downloads[0].blob.text(), raw);
+  assert.equal(a.storage.has('fullhouse-v01'), false);
+});
+test('a new installation alone receives examples, while a valid empty store stays empty', () => {
+  const fresh = app({ useLoadedData: true });
+  assert.equal(fresh.controller.state.recovery, null);
+  assert.ok(fresh.controller.state.data.routines.length > 0);
+  const existing = app({ useLoadedData: true, stored: { 'fullhouse-v01': JSON.stringify(emptyData()) } });
+  assert.equal(existing.controller.state.recovery, null);
+  assert.deepEqual(plain(existing.controller.state.data), emptyData());
+});
+test('retry after external removal does not copy legacy data over the captured source', () => {
+  const a = app({ stored: { 'fullhouse-v01': '{original', 'botanica-planificador-v01': JSON.stringify(legacyBackup()) }, useLoadedData: true });
+  a.storage.delete('fullhouse-v01');
+  a.controller.retryLocalLoad();
+  assert.equal(a.controller.state.recovery.raw, '{original');
+  assert.equal(a.storage.has('fullhouse-v01'), false);
 });

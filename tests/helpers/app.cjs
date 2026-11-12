@@ -12,10 +12,12 @@ const event = (id = 'event', patch = {}) => ({
   goalId: '', routineId: '', repeat: 'none', note: '', overrides: {}, ...patch,
 });
 
-function app({ data = emptyData(), stored = {}, failRead = false, failWrite = false } = {}) {
+function app({ data = emptyData(), stored = {}, failRead = false, failWrite = false, fileFailure = '', useLoadedData = false } = {}) {
   const storage = new Map(Object.entries(stored));
   const confirmations = [];
   const warnings = [];
+  const downloads = [];
+  const blobs = new Map();
   // This adapter exercises controller methods, not React rendering/batching.
   class Component {
     constructor(props) { this.props = props; }
@@ -27,13 +29,19 @@ function app({ data = emptyData(), stored = {}, failRead = false, failWrite = fa
   }
   class FileReader {
     readAsText(file) {
-      setImmediate(() => { this.result = file.text; this.onload(); });
+      if (fileFailure === 'throw') throw new Error('Synthetic file read failure');
+      setImmediate(() => {
+        if (fileFailure === 'error') { this.onerror(); return; }
+        if (fileFailure === 'abort') { this.onabort(); return; }
+        this.result = file.text; this.onload();
+      });
     }
   }
   const context = vm.createContext({
-    Date: Clock, FileReader,
+    Date: Clock, FileReader, Blob, setTimeout() {},
+    URL: { createObjectURL(blob) { const url = 'blob:synthetic-' + blobs.size; blobs.set(url, blob); return url; }, revokeObjectURL() {} },
     React: { Component, createElement() {} }, ReactDOM: { render() {} },
-    document: { getElementById() { return null; } },
+    document: { getElementById() { return null; }, body: { appendChild() {} }, createElement() { return { click() { downloads.push({ name: this.download, blob: blobs.get(this.href) }); }, remove() {} }; } },
     console: { warn(...args) { warnings.push(args); } },
     localStorage: {
       getItem(name) { if (failRead) throw new Error('Synthetic read failure'); return storage.get(name) ?? null; },
@@ -42,11 +50,12 @@ function app({ data = emptyData(), stored = {}, failRead = false, failWrite = fa
   });
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../../app.js'), 'utf8'), context, { filename: 'app.js' });
   const controller = vm.runInContext('new Planner({})', context);
-  controller.state.data = plain(data);
+  if (!useLoadedData) controller.state.data = plain(data);
   controller.state.guideOpen = false;
   controller.askConfirm = async (...args) => { confirmations.push(args); return true; };
   return {
-    controller, storage, warnings, confirmations,
+    controller, storage, warnings, confirmations, downloads,
+    setReadFailure(value) { failRead = value; },
     call(name, ...args) { return vm.runInContext(name, context)(...args); },
     async importBackup(text, accept = true) {
       controller.askConfirm = async (...args) => { confirmations.push(args); return accept; };

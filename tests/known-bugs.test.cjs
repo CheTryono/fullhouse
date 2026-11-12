@@ -10,17 +10,6 @@ test('BUG-01: failed persistence must not leave an apparently saved in-memory re
   a.controller.save(emptyData());
   assert.deepEqual(plain(a.controller.state.data), before, 'Until explicit unsaved-state recovery exists, preserve the last saved state');
 });
-test('BUG-02: backup validation must reject malformed nested entities', () => {
-  const a = app();
-  assert.equal(a.call('validData', { ...emptyData(), goals: [null] }), false);
-});
-test('BUG-03: importing a malformed entity must preserve the previous data and storage', async () => {
-  const before = { ...emptyData(), routines: [routine()] };
-  const a = app({ data: before, stored: { 'fullhouse-v01': JSON.stringify(before) } });
-  await a.importBackup(JSON.stringify({ ...emptyData(), routines: [null] }));
-  assert.deepEqual(plain(a.controller.state.data), before);
-  assert.deepEqual(JSON.parse(a.storage.get('fullhouse-v01')), before);
-});
 test('BUG-04: shifting past midnight must reject the change and keep the event visible', () => {
   const e = event('late', { time: '23:00', minutes: 60 });
   const before = { ...emptyData(), events: [e] };

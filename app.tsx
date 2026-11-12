@@ -18,12 +18,14 @@ type Evidence = {id:string;kind:'image';src:string;caption:string;stepId?:string
 type DayReview = { note:string; closedAt:string };
 type RecordLog = { evidences?:Evidence[]; completed: boolean; checkedSteps: string[]; note?: string; stepNotes?:Record<string,string>; choices?:Record<string,string> };
 type Data = { version: number; goals: Goal[]; routines: Routine[]; events: EventItem[]; logs: Record<string, RecordLog>; dayReviews?:Record<string,DayReview> };
+type StorageRecovery = { key:string; raw:string|null };
+type LocalLoad = { data:Data; recovery:StorageRecovery|null };
 type GoalDraft = Omit<Goal,'history'>;
 type RoutineDraft = Routine;
 type EventDraft = EventItem;
 type Modal = 'goal' | 'routine' | 'event' | 'execute' | 'progress' | 'detail' | 'help' | null;
 type ConfirmDialog = {title:string; message:string; acceptLabel:string; danger:boolean};
-type State = { clockMinutes:number; expandedTodayId:string; scheduleFocusId:string; sleepStart:string; sleepHours:number; soundsOn:boolean; dragOverCardId:string; confirmDialog:ConfirmDialog|null; durationDisplay:'hours'|'minutes'; returnToSchedule:boolean; scheduleContextNote:string; data: Data; page: Page; selectedDate: string; month: string; modal: Modal; goalDraft: GoalDraft; routineDraft: RoutineDraft; eventDraft: EventDraft; activeEventId: string; detailPath: string[]; progressValue: string; progressNote: string; progressStatus: GoalStatus; progressGoalId: string; toast: string; theme: Theme; modalLayout: 'vertical'|'horizontal'; guideOpen: boolean; guideStep: number; guideGoalId: string; guideEventId: string; helpTopic: string; helpOpen:boolean; areaFilter:LifeArea|'all'; goalView: 'cards'|'map'; mapGrouping: 'structure'|'time'; colorEditorOpen:boolean; hexDraft:string; draggedStepId:string; dragTargetId:string; draggedCardType:''|'goal'|'routine'; draggedCardId:string; datePickerMonth:string; calendarDetailOpen:boolean; advancedOpen:boolean; expandedGoalPick:string[]; helpX:number|null; helpY:number|null; reviewDraft:string; evidenceCaption:string };
+type State = { recovery:StorageRecovery|null; clockMinutes:number; expandedTodayId:string; scheduleFocusId:string; sleepStart:string; sleepHours:number; soundsOn:boolean; dragOverCardId:string; confirmDialog:ConfirmDialog|null; durationDisplay:'hours'|'minutes'; returnToSchedule:boolean; scheduleContextNote:string; data: Data; page: Page; selectedDate: string; month: string; modal: Modal; goalDraft: GoalDraft; routineDraft: RoutineDraft; eventDraft: EventDraft; activeEventId: string; detailPath: string[]; progressValue: string; progressNote: string; progressStatus: GoalStatus; progressGoalId: string; toast: string; theme: Theme; modalLayout: 'vertical'|'horizontal'; guideOpen: boolean; guideStep: number; guideGoalId: string; guideEventId: string; helpTopic: string; helpOpen:boolean; areaFilter:LifeArea|'all'; goalView: 'cards'|'map'; mapGrouping: 'structure'|'time'; colorEditorOpen:boolean; hexDraft:string; draggedStepId:string; dragTargetId:string; draggedCardType:''|'goal'|'routine'; draggedCardId:string; datePickerMonth:string; calendarDetailOpen:boolean; advancedOpen:boolean; expandedGoalPick:string[]; helpX:number|null; helpY:number|null; reviewDraft:string; evidenceCaption:string };
 
 const STORE = 'fullhouse-v01';
 const SLEEP_START_STORE='fullhouse-sleep-start-v09';
@@ -114,26 +116,83 @@ function seed():Data {
       {id:'e-walk',title:'Actividad física',date:d,time:'18:00',minutes:40,goalId:goal1,routineId:'',repeat:'none',note:'Actividad de ejemplo; ajusta a tu plan.',overrides:{}}
     ],logs:{}}
 }
-function load():Data {
-  try {
-    const current = localStorage.getItem(STORE);
-    if (current) {
-      const parsed = JSON.parse(current);
-      if (validData(parsed)) return parsed;
-    }
-    // Migración sin pérdida cuando el prototipo anterior se abrió en el mismo origen.
-    const legacy = localStorage.getItem(LEGACY_STORE);
-    if (legacy) {
-      const parsed = JSON.parse(legacy);
-      if (validData(parsed)) {
-        localStorage.setItem(STORE, legacy);
-        return parsed;
-      }
-    }
-  } catch (err) { console.warn('No se pudo leer el almacenamiento',err); }
-  return seed();
+function load():LocalLoad {
+  // Existing but unreadable data must never look like a new installation.
+  // Do not fall back to the legacy store when the current store is present.
+  for(const key of [STORE,LEGACY_STORE]){
+    let raw:string|null=null;
+    const blocked=():LocalLoad=>({data:{version:1,goals:[],routines:[],events:[],logs:{}},recovery:{key,raw}});
+    try{
+      raw=localStorage.getItem(key);
+      if(raw===null)continue;
+      const parsed=JSON.parse(raw);
+      if(!validData(parsed))return blocked();
+      if(key===LEGACY_STORE)localStorage.setItem(STORE,raw); // Original is retained.
+      return {data:parsed,recovery:null};
+    }catch(err){console.warn('No se pudo cargar el almacenamiento; original protegido',err);return blocked();}
+  }
+  return {data:seed(),recovery:null};
 }
-function validData(v:any):v is Data {return !!v && v.version===1 && Array.isArray(v.goals) && Array.isArray(v.routines) && Array.isArray(v.events) && !!v.logs && typeof v.logs==='object' && !Array.isArray(v.logs);}
+/* Validate known fields without normalizing or dropping historical/unknown fields.
+   Optional additions stay optional so version-1 backups from earlier releases work. */
+function validData(v:any):v is Data {
+  const object=(x:any):boolean=>!!x&&typeof x==='object'&&!Array.isArray(x);
+  const text=(x:any):boolean=>typeof x==='string';
+  const id=(x:any):boolean=>text(x)&&!!x.trim();
+  const number=(x:any):boolean=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
+  const boolean=(x:any):boolean=>typeof x==='boolean';
+  const oneOf=(values:string[])=>(x:any):boolean=>values.includes(x);
+  const array=(check:(x:any)=>boolean)=>(x:any):boolean=>Array.isArray(x)&&x.every(check);
+  const map=(check:(x:any)=>boolean)=>(x:any):boolean=>object(x)&&Object.values(x).every(check);
+  const fields=(x:any,required:Record<string,(x:any)=>boolean>,optional:Record<string,(x:any)=>boolean>={}):boolean=>
+    object(x)&&Object.entries(required).every(([key,check])=>Object.prototype.hasOwnProperty.call(x,key)&&check(x[key]))&&
+    Object.entries(optional).every(([key,check])=>x[key]===undefined||check(x[key]));
+  const date=(x:any):boolean=>text(x)&&/^\d{4}-\d{2}-\d{2}$/.test(x)&&Number.isFinite(Date.parse(x+'T12:00:00Z'))&&new Date(x+'T12:00:00Z').toISOString().slice(0,10)===x;
+  const optionalDate=(x:any):boolean=>x===''||date(x);
+  const time=(x:any):boolean=>text(x)&&/^([01]\d|2[0-3]):[0-5]\d(?:\.\d+)?$/.test(x);
+  const timestamp=(x:any):boolean=>text(x)&&Number.isFinite(Date.parse(x));
+  const days=array(x=>Number.isInteger(x)&&x>=0&&x<=6);
+  const status=oneOf(['pending','working','improving','consolidated','achieved']);
+  const unique=(items:any[]):boolean=>new Set(items.map(x=>x.id)).size===items.length;
+  const history=(x:any):boolean=>fields(x,{date,value:number,note:text},{status});
+  const milestone=(x:any):boolean=>fields(x,{id,title:text,done:boolean});
+  const goal=(x:any):boolean=>fields(x,{id,title:id,desc:text,parentId:text,color:text,current:number,target:number,unit:text,history:array(history)},{
+    area:oneOf(['mind','physical','purpose','social','other']),mode:oneOf(['numeric','qualitative','milestones']),status,
+    startDate:optionalDate,dueDate:optionalDate,dependsOn:text,milestones:array(milestone),
+    review:r=>fields(r,{date,time,repeat:oneOf(['none','weekly','monthly'])})
+  });
+  // Iterative traversal also rejects cyclic in-memory inputs without a stack overflow.
+  const steps=(items:any):boolean=>{
+    if(!Array.isArray(items))return false;
+    const pending=items.slice(),seen=new Set<any>(),ids=new Set<string>();
+    while(pending.length){
+      const s=pending.pop();
+      if(!fields(s,{id,title:text,min:number},{desc:text,children:Array.isArray,variants:Array.isArray,
+        mode:oneOf(['always','selected','alternatives']),days,chooseWhen:oneOf(['weekday','execute']),
+        flexible:boolean,flexWeight:number,goalId:text,requestEvidence:boolean})||seen.has(s)||ids.has(s.id))return false;
+      seen.add(s);ids.add(s.id);(s.children||[]).forEach(child=>pending.push(child));
+      const variants=s.variants||[];
+      if(!variants.every(a=>fields(a,{id,title:text,desc:text,min:number,days},{children:Array.isArray,flexible:boolean,flexWeight:number,goalId:text,requestEvidence:boolean}))||!unique(variants))return false;
+      variants.forEach(a=>(a.children||[]).forEach(child=>pending.push(child)));
+    }
+    return true;
+  };
+  const routine=(x:any):boolean=>fields(x,{id,title:id,desc:text,steps},{color:text,icon:text,durationMode:oneOf(['steps','fixed']),durationMin:number,requestEvidence:boolean});
+  const override=(x:any):boolean=>fields(x,{},{time,skip:boolean});
+  const event=(x:any):boolean=>fields(x,{id,title:id,date,time:t=>time(t)||(x.allDay===true&&t===''),minutes:number,goalId:text,routineId:text,
+    repeat:oneOf(['none','daily','weekdays','weekly','monthly','yearly','custom','every','dates']),note:text,overrides:map(override)},{
+    endDate:optionalDate,applyFrom:optionalDate,repeatDays:days,everyDays:number,specificDates:array(date),
+    kind:oneOf(['review','occasion']),allDay:boolean,anchor:oneOf(['start','end','between']),endTime:t=>t===''||time(t),
+    afterRoutineId:text,beforeRoutineId:text,overlapMode:oneOf(['keep','move']),requestEvidence:boolean
+  })&&Object.keys(x.overrides).every(date);
+  const evidence=(x:any):boolean=>fields(x,{id,kind:oneOf(['image']),src:s=>text(s)&&/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(s),caption:text,createdAt:timestamp},{stepId:text});
+  const log=(x:any):boolean=>fields(x,{completed:boolean,checkedSteps:array(text)},{note:text,stepNotes:map(text),choices:map(text),evidences:array(evidence)});
+  if(!fields(v,{version:x=>x===1,goals:array(goal),routines:array(routine),events:array(event),logs:map(log)},{
+    dayReviews:map(r=>fields(r,{note:text,closedAt:timestamp}))
+  }))return false;
+  // Do not require live references: deleted routines/steps can leave valid history.
+  return unique(v.goals)&&unique(v.routines)&&unique(v.events)&&Object.keys(v.dayReviews||{}).every(date);
+}
 function occurs(e:EventItem,date:string):boolean {
   const earliest=e.date;
   if(date<earliest||(e.endDate&&date>e.endDate))return false;
@@ -377,8 +436,8 @@ class Planner extends React.Component<{},State> {
   clockTimer:any=null; audioCtx:any=null; toastTimer:any=null; backdropDown=false; initialDraft:string=''; confirmResolver:((accepted:boolean)=>void)|null=null; pendingSchedule:EventDraft|null=null;
   constructor(props:{}){
     super(props);
-    const d=today();
-    this.state={clockMinutes:clockNow(),expandedTodayId:'',scheduleFocusId:'',sleepStart:getPreference(SLEEP_START_STORE)||'23:00',sleepHours:safeSleepHours(Number(getPreference(SLEEP_HOURS_STORE))||8),soundsOn:getPreference(SOUND_STORE)!=='off',dragOverCardId:'',confirmDialog:null,durationDisplay:getPreference(DURATION_STORE)==='minutes'?'minutes':'hours',returnToSchedule:false,scheduleContextNote:'',data:load(),page:'inicio',selectedDate:d,month:firstMonth(d),modal:null,goalDraft:gDraft(),routineDraft:rDraft(),eventDraft:eDraft(d),activeEventId:'',detailPath:[],progressValue:'',progressNote:'',progressStatus:'pending',progressGoalId:'',toast:'',theme:(themeOptions.some(x=>x.id===getPreference(THEME_STORE))?getPreference(THEME_STORE):'aurora') as Theme,modalLayout:getPreference(LAYOUT_STORE)==='horizontal'?'horizontal':'vertical',guideOpen:getPreference(GUIDE_STORE)!=='yes',guideStep:0,guideGoalId:'',guideEventId:'',helpTopic:'',helpOpen:false,areaFilter:'all',goalView:'cards',mapGrouping:'structure',colorEditorOpen:false,hexDraft:colorOptions[0],draggedStepId:'',dragTargetId:'',draggedCardType:'',draggedCardId:'',datePickerMonth:firstMonth(d),calendarDetailOpen:false,advancedOpen:getPreference(ADVANCED_STORE)==='yes',expandedGoalPick:[],helpX:null,helpY:null,reviewDraft:'',evidenceCaption:''};
+    const d=today(),initial=load();
+    this.state={recovery:initial.recovery,clockMinutes:clockNow(),expandedTodayId:'',scheduleFocusId:'',sleepStart:getPreference(SLEEP_START_STORE)||'23:00',sleepHours:safeSleepHours(Number(getPreference(SLEEP_HOURS_STORE))||8),soundsOn:getPreference(SOUND_STORE)!=='off',dragOverCardId:'',confirmDialog:null,durationDisplay:getPreference(DURATION_STORE)==='minutes'?'minutes':'hours',returnToSchedule:false,scheduleContextNote:'',data:initial.data,page:'inicio',selectedDate:d,month:firstMonth(d),modal:null,goalDraft:gDraft(),routineDraft:rDraft(),eventDraft:eDraft(d),activeEventId:'',detailPath:[],progressValue:'',progressNote:'',progressStatus:'pending',progressGoalId:'',toast:'',theme:(themeOptions.some(x=>x.id===getPreference(THEME_STORE))?getPreference(THEME_STORE):'aurora') as Theme,modalLayout:getPreference(LAYOUT_STORE)==='horizontal'?'horizontal':'vertical',guideOpen:!initial.recovery&&getPreference(GUIDE_STORE)!=='yes',guideStep:0,guideGoalId:'',guideEventId:'',helpTopic:'',helpOpen:false,areaFilter:'all',goalView:'cards',mapGrouping:'structure',colorEditorOpen:false,hexDraft:colorOptions[0],draggedStepId:'',dragTargetId:'',draggedCardType:'',draggedCardId:'',datePickerMonth:firstMonth(d),calendarDetailOpen:false,advancedOpen:getPreference(ADVANCED_STORE)==='yes',expandedGoalPick:[],helpX:null,helpY:null,reviewDraft:'',evidenceCaption:''};
   }
   componentDidMount():void{this.syncModalState();document.addEventListener('keydown',this.globalKeydown);this.resizeTextareas();this.clockTimer=setInterval(()=>this.setState({clockMinutes:clockNow()}),30000);}
   componentDidUpdate(_:any,prev:State):void{
@@ -406,6 +465,7 @@ class Planner extends React.Component<{},State> {
   openDetail=(e:EventItem):void=>this.setState({modal:'detail',activeEventId:e.id,detailPath:[],...(this.state.guideOpen&&this.state.guideStep===5&&e.id===this.state.guideEventId?{guideStep:6}:{})});
   notice=(message:string):void=>this.setState({toast:message});
   save = (data:Data,message='Cambios guardados'):void=>{
+    if(this.state.recovery){this.notice('Guardado bloqueado para proteger la información original. Descarga el original o vuelve a intentar la lectura.');return;}
     try{localStorage.setItem(STORE,JSON.stringify(data));this.setState({data});this.notice(message);}
     catch(err){this.setState({data});this.notice('No se pudo guardar: almacenamiento lleno o bloqueado. Exporta una copia.');}
   }
@@ -756,21 +816,70 @@ class Planner extends React.Component<{},State> {
     this.save({...d,goals:d.goals.map(x=>x.id===g.id?next:x)},'Avance registrado');this.close();
   }
   toggleMilestone=(goalId:string,milestoneId:string):void=>{const d=this.state.data;const g=d.goals.find(x=>x.id===goalId);if(!g)return;const ms=goalMilestones(g).map(m=>m.id===milestoneId?{...m,done:!m.done}:m);const n=ms.filter(m=>m.done).length;const next={...g,milestones:ms,current:n,target:ms.length,history:[...g.history,{date:today(),value:n,note:'Hito actualizado'}]};this.save({...d,goals:d.goals.map(x=>x.id===goalId?next:x)},'Hito actualizado');};
+  retryLocalLoad=():void=>{
+    // Check before load(): a missing captured source must not trigger legacy copy.
+    if(this.state.recovery&&this.state.recovery.raw!==null){
+      try{if(localStorage.getItem(this.state.recovery.key)===null){this.notice('No encontramos el original. La copia capturada sigue disponible para descargar.');return;}}
+      catch(err){/* load() below reports the read failure and retains the snapshot. */}
+    }
+    const result=load();
+    // Keep an earlier readable snapshot when a subsequent read is unavailable.
+    const recovery=result.recovery?.raw===null&&this.state.recovery?.key===result.recovery.key&&this.state.recovery.raw!==null?this.state.recovery:result.recovery;
+    this.setState({data:result.data,recovery,page:'inicio',toast:'',guideOpen:false});
+  };
+  downloadOriginal=():void=>{
+    const recovery=this.state.recovery;if(!recovery||recovery.raw===null)return;
+    try{
+      const blob=new Blob([recovery.raw],{type:'text/plain;charset=utf-8'}),url=URL.createObjectURL(blob);
+      const a=document.createElement('a');a.href=url;a.download='fullhouse-original-'+recovery.key+'.txt';
+      document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
+      this.notice('Se ha solicitado la descarga del original sin cambios. Comprueba que el archivo se haya guardado.');
+    }catch(err){this.notice('No pudimos descargar el original. Sigue protegido en este navegador; vuelve a intentarlo.');}
+  };
+  renderRecovery():any{
+    const recovery=this.state.recovery;if(!recovery)return null;
+    return <div className='app-shell' data-theme={this.state.theme} style={{display:'block'}}><main className='content' style={{maxWidth:800,margin:'0 auto'}}><section className='panel' role='alert' aria-labelledby='recovery-title'>
+      <h1 id='recovery-title'>Tu información está protegida</h1>
+      <p>Encontramos información local que no pudimos abrir o comprobar. No hemos cargado ejemplos ni reemplazado el original.</p>
+      <p>Para evitar pérdidas, el guardado, la importación y el restablecimiento están bloqueados. Descarga el original sin cambios para conservarlo y revisarlo. Si el problema era temporal, vuelve a intentar la lectura.</p>
+      {recovery.raw===null&&<p>No pudimos leer el almacenamiento. La descarga estará disponible cuando el navegador permita acceder a él. No borres los datos del sitio.</p>}
+      <div className='actions'><Btn disabled={recovery.raw===null} onClick={this.downloadOriginal}>Descargar original sin cambios</Btn><Btn kind='secondary' onClick={this.retryLocalLoad}>Volver a intentar la lectura</Btn></div>
+      {this.state.toast&&<p role='status'>{this.state.toast}</p>}
+    </section></main></div>;
+  }
   exportData=():void=>{
+    if(this.state.recovery){this.downloadOriginal();return;}
     const blob=new Blob([JSON.stringify(this.state.data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);
     const a=document.createElement('a');a.href=url;a.download=`fullhouse-respaldo-${today()}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
     this.notice('Respaldo descargado. Guárdalo en un lugar seguro.');
   }
   importData=async (ev:any):Promise<void>=>{
-    const f:File|undefined=ev.target.files?.[0];if(!f)return;
-    if(!(await this.askConfirm('Restaurar respaldo','Esto sustituirá todos los datos actuales de este navegador. Exporta una copia antes de continuar.','Restaurar datos',true))){ev.target.value='';return;}
-    const reader=new FileReader();reader.onload=()=>{
-      try{const d=JSON.parse(String(reader.result));if(!validData(d))throw Error('Formato incompatible');
-        this.save(d,'Respaldo restaurado');this.setState({page:'inicio',modal:null});
-      }catch(err){this.setState({toast:'Archivo inválido o incompatible. No se modificó la información.'});}
-    };reader.readAsText(f);ev.target.value='';
+    if(this.state.recovery){this.notice('La restauración está bloqueada para conservar el original. Descárgalo antes de revisar el problema.');return;}
+    const input=ev.target; // React 16 releases the event while confirmation is open.
+    const f:File|undefined=input.files?.[0];if(!f)return;
+    if(!(await this.askConfirm('Restaurar respaldo','Esto sustituirá todos los datos actuales de este navegador. Exporta una copia antes de continuar.','Restaurar datos',true))){input.value='';return;}
+    const fail=(message:string)=>this.notice(message+' Tus datos anteriores siguen intactos.');
+    const reader=new FileReader();
+    reader.onerror=()=>fail('No pudimos leer el archivo. Intenta seleccionarlo de nuevo.');
+    reader.onabort=()=>fail('La lectura del respaldo se interrumpió.');
+    reader.onload=()=>{
+      let data:Data;
+      try{
+        const parsed=JSON.parse(String(reader.result));
+        if(!validData(parsed)){fail('Este respaldo tiene datos incompletos o incompatibles. Elige un archivo exportado por Fullhouse.');return;}
+        data=parsed;
+      }catch(err){fail('No pudimos abrir este respaldo. Comprueba que sea un archivo JSON de Fullhouse.');return;}
+      // localStorage.setItem is atomic: publish the new state only after it succeeds.
+      // Keep general save() behavior (BUG-01) unchanged outside backup restoration.
+      try{localStorage.setItem(STORE,JSON.stringify(data));}
+      catch(err){fail('No pudimos guardar el respaldo: falta espacio o el navegador bloqueó el almacenamiento.');return;}
+      this.setState({data,page:'inicio',modal:null});this.notice('Respaldo restaurado');
+    };
+    try{reader.readAsText(f);}catch(err){fail('No pudimos leer el archivo. Intenta seleccionarlo de nuevo.');}
+    input.value='';
   }
   reset=async ():Promise<void>=>{
+    if(this.state.recovery){this.notice('No se pueden restablecer ejemplos mientras el original está protegido.');return;}
     if(!(await this.askConfirm('Restablecer ejemplos','Se perderán los datos actuales. Descarga un respaldo antes de continuar.','Restablecer',true)))return;
     this.save(seed(),'Ejemplos restablecidos');this.setState({page:'inicio',selectedDate:today(),month:firstMonth(today())});
   }
@@ -1224,6 +1333,7 @@ class Planner extends React.Component<{},State> {
       <div style={{marginTop:15}}>{this.renderCheckSteps(r.steps,e,date,log,allocation)}</div><div className="divider"/><div className="row spread"><span className="caption">{leafSteps(r.steps).filter(s=>log.checkedSteps.includes(s.id)).length} / {leafSteps(r.steps).length} pasos completados</span>{log.completed&&<span className="small-tag">Actividad completada</span>}</div></>;
   }
   render():any{
+    if(this.state.recovery)return this.renderRecovery();
     const title:{[K in Page]:string}={hoy:'Mi día',inicio:'Inicio',metas:'Metas',rutinas:'Rutinas',horario:'Horario',calendario:'Calendario',progreso:'Progreso',ajustes:'Ajustes'};
     return <div className="app-shell" data-theme={this.state.theme}>{this.renderSidebar()}<main className="main"><header className="topbar"><div className="crumb"><Icon name="home" size={16}/><span>Mi espacio</span><span>/</span><strong>{title[this.state.page]}</strong></div><div className="top-right"><span className="pill"><span className="dot"/> Datos locales</span><button className="icon-btn guide-top-button" onClick={this.openGuide} title="Guía de inicio" aria-label="Abrir guía de inicio"><Icon name="help"/></button></div></header>
       <div className="content">{this.state.page==='hoy'?this.renderToday():this.state.page==='inicio'?this.renderHome():this.state.page==='metas'?this.renderGoals():this.state.page==='rutinas'?this.renderRoutines():this.state.page==='horario'?this.renderSchedule():this.state.page==='calendario'?this.renderCalendar():this.state.page==='progreso'?this.renderProgress():this.renderSettings()}</div></main>{this.renderModal()}{this.renderConfirm()}{this.renderGuide()}{this.renderHelpPanel()}{this.state.toast&&<div className="toast" role="status"><span>{this.state.toast}</span><button aria-label="Cerrar aviso" onClick={()=>{if(this.toastTimer)clearTimeout(this.toastTimer);this.setState({toast:''});}}>×</button></div>}</div>;

@@ -1,3 +1,25 @@
+# Protección de datos locales durante la carga — ampliación de PR #2
+
+- Revisión de tipos y escritores históricos; nueve respaldos sintéticos generados con los métodos originales de guardado/exportación de Fullhouse 0.1–0.9, con commits y generador reproducible.
+- Corregida una incompatibilidad real del validador: horas con minutos fraccionarios escritas por 0.5–0.9 al calcular el comienzo desde la hora de término. No se redondea ni migra la información.
+- Un fallo de lectura o validación local activa una pantalla persistente de protección. No carga ejemplos ni sobrescribe con datos del almacén anterior; bloquea guardar, importar y restablecer.
+- Descarga del texto original exacto y reintento seguro de lectura. La captura se conserva ante fallos posteriores o desaparición externa del original; descargar no desbloquea escrituras.
+- 93 pruebas de regresión aprobadas y tres defectos anteriores todavía fallidos. TypeScript, sintaxis y compilado sincronizado verificados.
+- Recuperación comprobada en Chromium, escritorio y móvil con las cinco paletas, sin errores JavaScript. No hay migraciones destructivas ni cambios de publicación.
+
+---
+
+# Restauración segura de respaldos — BUG-02 y BUG-03
+
+- Validación de entidades y campos internos antes de cargar/importar respaldos, con campos opcionales antiguos y desconocidos conservados. Se mantiene `version: 1` y `fullhouse-v01`.
+- Una importación fallida por formato, lectura o escritura conserva los datos anteriores en memoria y almacenamiento. Los mensajes explican el problema sin anunciar una restauración exitosa.
+- Captura del selector antes de esperar confirmación, compatible con la liberación de eventos de React 16.
+- BUG-02 y BUG-03 pasan a la suite de regresión: 74 pruebas aprobadas. Las tres reproducciones pendientes (BUG-01 general, BUG-04 y BUG-05) siguen fallando explícitamente.
+- TypeScript, sintaxis JavaScript y correspondencia del compilado verificados. Importación comprobada en Chromium, escritorio y móvil con Medianoche, sin errores JavaScript.
+- Fixtures exclusivamente sintéticas; no hay migración, refactorización general ni cambios al despliegue.
+
+---
+
 # Base inicial de pruebas de regresión
 
 - Ejecutor nativo de Node, TypeScript 5.9.3 y lockfile reproducible.
