@@ -18,6 +18,7 @@ type Evidence = {id:string;kind:'image';src:string;caption:string;stepId?:string
 type DayReview = { note:string; closedAt:string };
 type RecordLog = { evidences?:Evidence[]; completed: boolean; checkedSteps: string[]; note?: string; stepNotes?:Record<string,string>; choices?:Record<string,string> };
 type Data = { version: number; goals: Goal[]; routines: Routine[]; events: EventItem[]; logs: Record<string, RecordLog>; dayReviews?:Record<string,DayReview> };
+type PendingSave = { raw:string|null; valid:boolean };
 type StorageRecovery = { key:string; raw:string|null };
 type LocalLoad = { data:Data; recovery:StorageRecovery|null };
 type GoalDraft = Omit<Goal,'history'>;
@@ -25,7 +26,7 @@ type RoutineDraft = Routine;
 type EventDraft = EventItem;
 type Modal = 'goal' | 'routine' | 'event' | 'execute' | 'progress' | 'detail' | 'help' | null;
 type ConfirmDialog = {title:string; message:string; acceptLabel:string; danger:boolean};
-type State = { recovery:StorageRecovery|null; clockMinutes:number; expandedTodayId:string; scheduleFocusId:string; sleepStart:string; sleepHours:number; soundsOn:boolean; dragOverCardId:string; confirmDialog:ConfirmDialog|null; durationDisplay:'hours'|'minutes'; returnToSchedule:boolean; scheduleContextNote:string; data: Data; page: Page; selectedDate: string; month: string; modal: Modal; goalDraft: GoalDraft; routineDraft: RoutineDraft; eventDraft: EventDraft; activeEventId: string; detailPath: string[]; progressValue: string; progressNote: string; progressStatus: GoalStatus; progressGoalId: string; toast: string; theme: Theme; modalLayout: 'vertical'|'horizontal'; guideOpen: boolean; guideStep: number; guideGoalId: string; guideEventId: string; helpTopic: string; helpOpen:boolean; areaFilter:LifeArea|'all'; goalView: 'cards'|'map'; mapGrouping: 'structure'|'time'; colorEditorOpen:boolean; hexDraft:string; draggedStepId:string; dragTargetId:string; draggedCardType:''|'goal'|'routine'; draggedCardId:string; datePickerMonth:string; calendarDetailOpen:boolean; advancedOpen:boolean; expandedGoalPick:string[]; helpX:number|null; helpY:number|null; reviewDraft:string; evidenceCaption:string };
+type State = { pending:PendingSave|null; recovery:StorageRecovery|null; clockMinutes:number; expandedTodayId:string; scheduleFocusId:string; sleepStart:string; sleepHours:number; soundsOn:boolean; dragOverCardId:string; confirmDialog:ConfirmDialog|null; durationDisplay:'hours'|'minutes'; returnToSchedule:boolean; scheduleContextNote:string; data: Data; page: Page; selectedDate: string; month: string; modal: Modal; goalDraft: GoalDraft; routineDraft: RoutineDraft; eventDraft: EventDraft; activeEventId: string; detailPath: string[]; progressValue: string; progressNote: string; progressStatus: GoalStatus; progressGoalId: string; toast: string; theme: Theme; modalLayout: 'vertical'|'horizontal'; guideOpen: boolean; guideStep: number; guideGoalId: string; guideEventId: string; helpTopic: string; helpOpen:boolean; areaFilter:LifeArea|'all'; goalView: 'cards'|'map'; mapGrouping: 'structure'|'time'; colorEditorOpen:boolean; hexDraft:string; draggedStepId:string; dragTargetId:string; draggedCardType:''|'goal'|'routine'; draggedCardId:string; datePickerMonth:string; calendarDetailOpen:boolean; advancedOpen:boolean; expandedGoalPick:string[]; helpX:number|null; helpY:number|null; reviewDraft:string; evidenceCaption:string };
 
 const STORE = 'fullhouse-v01';
 const SLEEP_START_STORE='fullhouse-sleep-start-v09';
@@ -383,18 +384,18 @@ class NumberField extends React.Component<{value:number;min?:number;max?:number;
   constructor(p:any){super(p);this.state={text:String(p.value??''),editing:false};}
   componentDidUpdate(prev:any){if(!this.state.editing&&prev.value!==this.props.value)this.setState({text:String(this.props.value??'')});}
   commit=()=>{const raw=this.state.text.trim();const proposed=raw===''?this.props.min??0:Number(raw.replace(',','.'));const v=Number.isFinite(proposed)?bound(proposed,this.props.min??0,this.props.max??999999):this.props.min??0;this.setState({text:String(v),editing:false});this.props.onCommit(v);};
-  render(){return <input type="text" inputMode="decimal" aria-label={this.props.ariaLabel||'Cantidad'} value={this.state.text} onFocus={()=>this.setState({editing:true})} onChange={(e:any)=>{if(/^\d*([.,]\d*)?$/.test(e.target.value))this.setState({text:e.target.value});}} onBlur={this.commit}/>;}
+  render(){return <input type="text" inputMode="decimal" data-committed-value={String(this.props.value??'')} aria-label={this.props.ariaLabel||'Cantidad'} value={this.state.text} onFocus={()=>this.setState({editing:true})} onChange={(e:any)=>{if(/^\d*([.,]\d*)?$/.test(e.target.value))this.setState({text:e.target.value});}} onBlur={this.commit}/>;}
 }
 
-class NoteEditor extends React.Component<{value:string;carry?:string;label:string;onSave:(value:string)=>void},{text:string;open:boolean}>{
-  constructor(props:any){super(props);this.state={text:props.value||'',open:false};}
-  componentDidUpdate(prev:any){if(prev.value!==this.props.value)this.setState({text:this.props.value||''});}
+class NoteEditor extends React.Component<{value:string;carry?:string;label:string;onSave:(value:string)=>void;draft?:string;onDraft?:(text:string|undefined)=>void;onDiscard?:()=>Promise<boolean>},{text:string;open:boolean}>{
+  constructor(props:any){super(props);this.state={text:props.draft??props.value??'',open:props.draft!==undefined};}
+  componentDidUpdate(prev:any){if(prev.value!==this.props.value&&this.props.draft===undefined)this.setState({text:this.props.value||''});}
   render():any{return <div className={'day-note-editor '+(this.state.open?'is-expanded':'is-collapsed')}>
-    <div className='row spread'><div className='day-note-title'><Icon name='book' size={17}/><strong>{this.props.label}</strong></div><Btn tiny kind='secondary' onClick={()=>this.setState({open:!this.state.open,text:this.props.value||''})}>{this.state.open?'Cerrar':this.props.value?'Ver / editar nota':'Añadir nota'}</Btn></div>
+    <div className='row spread'><div className='day-note-title'><Icon name='book' size={17}/><strong>{this.props.label}</strong></div><Btn tiny kind='secondary' onClick={async ()=>{if(this.state.open&&this.state.text!==(this.props.value||'')){if(!(await this.props.onDiscard?.()))return;this.props.onDraft?.(undefined);this.setState({text:this.props.value||'',open:false});}else this.setState({open:!this.state.open});}}>{this.state.open?'Cerrar':this.props.value?'Ver / editar nota':'Añadir nota'}</Btn></div>
     {!!this.props.value&&!this.state.open&&<p className='saved-note-excerpt'>✎ {this.props.value}</p>}
     {this.props.carry&&<div className='note-from-previous'><strong>✦ Nota de la ocasión anterior</strong><p>{this.props.carry}</p><small>Aparece solamente esta vez; no cambia las instrucciones permanentes.</small></div>}
-    {this.state.open&&<><AutoTextarea value={this.state.text} onChange={(ev:any)=>this.setState({text:ev.target.value})} placeholder='¿Qué sucedió? ¿Qué mejorarías o recordarías la próxima vez?' maxLength={2000}/>
-    <div className='row spread'><span className='caption'>Se conserva en esta fecha y aparecerá una vez en la próxima ocasión.</span><Btn tiny kind='secondary' disabled={this.state.text===(this.props.value||'')} onClick={()=>{this.props.onSave(this.state.text);this.setState({open:false})}}>Guardar nota</Btn></div></>}
+    {this.state.open&&<><AutoTextarea value={this.state.text} onChange={(ev:any)=>{const text=ev.target.value;this.props.onDraft?.(text===(this.props.value||'')?undefined:text);this.setState({text});}} placeholder='¿Qué sucedió? ¿Qué mejorarías o recordarías la próxima vez?' maxLength={2000}/>
+    <div className='row spread'><span className='caption'>Se conserva en esta fecha y aparecerá una vez en la próxima ocasión.</span><Btn tiny kind='secondary' disabled={this.state.text===(this.props.value||'')} onClick={()=>{this.props.onDraft?.(undefined);this.props.onSave(this.state.text);this.setState({open:false})}}>Guardar nota</Btn></div></>}
   </div>}
 }
 class FriendlySelect extends React.Component<{value:string;options:SelectOption[];onChange:(value:string)=>void;ariaLabel?:string},{open:boolean;index:number;style:any}>{
@@ -433,21 +434,22 @@ function TimePicker({value,onChange}:{value:string;onChange:(x:string)=>void}):a
 function Icon({name,size=19}:{name:string;size?:number}){return <span className="icon" style={{display:'inline-flex',alignItems:'center',justifyContent:'center'}}><svg style={{width:size,height:size,fill:'none',stroke:'currentColor',strokeWidth:1.8,strokeLinecap:'round',strokeLinejoin:'round'}}><use href={'#i-'+name}/></svg></span>}
 function Btn({children,onClick,kind='',tiny=false,disabled=false,type='button',title}:{children?:any;onClick?:()=>void;kind?:string;tiny?:boolean;disabled?:boolean;type?:'button'|'submit';title?:string}){return <button className={`btn ${kind} ${tiny?'tiny':''}`} onClick={onClick} type={type} disabled={disabled} title={title}>{children}</button>}
 class Planner extends React.Component<{},State> {
-  clockTimer:any=null; audioCtx:any=null; toastTimer:any=null; backdropDown=false; initialDraft:string=''; confirmResolver:((accepted:boolean)=>void)|null=null; pendingSchedule:EventDraft|null=null;
+  noteDrafts=new Map<string,string>();
+  clockTimer:any=null; audioCtx:any=null; toastTimer:any=null; backdropDown=false; initialDraft:string=''; confirmResolver:((accepted:boolean)=>void)|null=null; pendingSchedule:EventDraft|null=null; pendingScheduleBaseline='';
   constructor(props:{}){
     super(props);
     const d=today(),initial=load();
-    this.state={recovery:initial.recovery,clockMinutes:clockNow(),expandedTodayId:'',scheduleFocusId:'',sleepStart:getPreference(SLEEP_START_STORE)||'23:00',sleepHours:safeSleepHours(Number(getPreference(SLEEP_HOURS_STORE))||8),soundsOn:getPreference(SOUND_STORE)!=='off',dragOverCardId:'',confirmDialog:null,durationDisplay:getPreference(DURATION_STORE)==='minutes'?'minutes':'hours',returnToSchedule:false,scheduleContextNote:'',data:initial.data,page:'inicio',selectedDate:d,month:firstMonth(d),modal:null,goalDraft:gDraft(),routineDraft:rDraft(),eventDraft:eDraft(d),activeEventId:'',detailPath:[],progressValue:'',progressNote:'',progressStatus:'pending',progressGoalId:'',toast:'',theme:(themeOptions.some(x=>x.id===getPreference(THEME_STORE))?getPreference(THEME_STORE):'aurora') as Theme,modalLayout:getPreference(LAYOUT_STORE)==='horizontal'?'horizontal':'vertical',guideOpen:!initial.recovery&&getPreference(GUIDE_STORE)!=='yes',guideStep:0,guideGoalId:'',guideEventId:'',helpTopic:'',helpOpen:false,areaFilter:'all',goalView:'cards',mapGrouping:'structure',colorEditorOpen:false,hexDraft:colorOptions[0],draggedStepId:'',dragTargetId:'',draggedCardType:'',draggedCardId:'',datePickerMonth:firstMonth(d),calendarDetailOpen:false,advancedOpen:getPreference(ADVANCED_STORE)==='yes',expandedGoalPick:[],helpX:null,helpY:null,reviewDraft:'',evidenceCaption:''};
+    this.state={pending:null,recovery:initial.recovery,clockMinutes:clockNow(),expandedTodayId:'',scheduleFocusId:'',sleepStart:getPreference(SLEEP_START_STORE)||'23:00',sleepHours:safeSleepHours(Number(getPreference(SLEEP_HOURS_STORE))||8),soundsOn:getPreference(SOUND_STORE)!=='off',dragOverCardId:'',confirmDialog:null,durationDisplay:getPreference(DURATION_STORE)==='minutes'?'minutes':'hours',returnToSchedule:false,scheduleContextNote:'',data:initial.data,page:'inicio',selectedDate:d,month:firstMonth(d),modal:null,goalDraft:gDraft(),routineDraft:rDraft(),eventDraft:eDraft(d),activeEventId:'',detailPath:[],progressValue:'',progressNote:'',progressStatus:'pending',progressGoalId:'',toast:'',theme:(themeOptions.some(x=>x.id===getPreference(THEME_STORE))?getPreference(THEME_STORE):'aurora') as Theme,modalLayout:getPreference(LAYOUT_STORE)==='horizontal'?'horizontal':'vertical',guideOpen:!initial.recovery&&getPreference(GUIDE_STORE)!=='yes',guideStep:0,guideGoalId:'',guideEventId:'',helpTopic:'',helpOpen:false,areaFilter:'all',goalView:'cards',mapGrouping:'structure',colorEditorOpen:false,hexDraft:colorOptions[0],draggedStepId:'',dragTargetId:'',draggedCardType:'',draggedCardId:'',datePickerMonth:firstMonth(d),calendarDetailOpen:false,advancedOpen:getPreference(ADVANCED_STORE)==='yes',expandedGoalPick:[],helpX:null,helpY:null,reviewDraft:'',evidenceCaption:''};
   }
-  componentDidMount():void{this.syncModalState();document.addEventListener('keydown',this.globalKeydown);this.resizeTextareas();this.clockTimer=setInterval(()=>this.setState({clockMinutes:clockNow()}),30000);}
+  componentDidMount():void{this.syncModalState();document.addEventListener('keydown',this.globalKeydown);window.addEventListener('beforeunload',this.beforeUnload);this.resizeTextareas();this.clockTimer=setInterval(()=>this.setState({clockMinutes:clockNow()}),30000);}
   componentDidUpdate(_:any,prev:State):void{
     this.syncModalState();
     if(prev.modal!==this.state.modal||prev.modalLayout!==this.state.modalLayout)this.resizeTextareas();
     if(prev.toast!==this.state.toast){if(this.toastTimer)clearTimeout(this.toastTimer);if(this.state.toast)this.toastTimer=setTimeout(()=>this.setState({toast:''}),3500);}
   }
-  componentWillUnmount():void{if(this.clockTimer)clearInterval(this.clockTimer);if(this.audioCtx?.close)this.audioCtx.close();if(this.confirmResolver){this.confirmResolver(false);this.confirmResolver=null;}if(this.toastTimer)clearTimeout(this.toastTimer);document.body.style.overflow='';document.removeEventListener('keydown',this.globalKeydown);document.removeEventListener('mousemove',this.moveStepDrag,true);document.removeEventListener('mouseup',this.endStepDrag,true);}
-  globalKeydown=(e:KeyboardEvent):void=>{if(e.key==='Escape'){if(this.state.confirmDialog){this.resolveConfirm(false);return;}if(this.state.helpOpen)this.setState({helpOpen:false});else if(this.state.modal)this.close();else if(this.state.guideOpen)this.finishGuide();}};
-  syncModalState=():void=>{document.body.style.overflow=this.state.confirmDialog||this.state.modal||(this.state.guideOpen&&this.state.guideStep===0)?'hidden':'';};
+  componentWillUnmount():void{if(this.clockTimer)clearInterval(this.clockTimer);if(this.audioCtx?.close)this.audioCtx.close();if(this.confirmResolver){this.confirmResolver(false);this.confirmResolver=null;}if(this.toastTimer)clearTimeout(this.toastTimer);document.body.style.overflow='';document.removeEventListener('keydown',this.globalKeydown);window.removeEventListener('beforeunload',this.beforeUnload);document.removeEventListener('mousemove',this.moveStepDrag,true);document.removeEventListener('mouseup',this.endStepDrag,true);}
+  globalKeydown=(e:KeyboardEvent):void=>{if(e.key==='Escape'){if(this.state.confirmDialog){this.resolveConfirm(false);return;}if(this.state.pending)return;if(this.state.helpOpen)this.setState({helpOpen:false});else if(this.state.modal)this.close();else if(this.state.guideOpen)this.finishGuide();}};
+  syncModalState=():void=>{document.body.style.overflow=this.state.pending&&!this.state.confirmDialog?'':this.state.confirmDialog||this.state.modal||(this.state.guideOpen&&this.state.guideStep===0)?'hidden':'';};
   resizeTextareas=():void=>{document.querySelectorAll<HTMLTextAreaElement>('.modal-body textarea').forEach(fitArea);};
   setTheme=(theme:Theme):void=>{putPreference(THEME_STORE,theme);this.setState({theme});};
   changeDurationDisplay=(durationDisplay:'hours'|'minutes'):void=>{putPreference(DURATION_STORE,durationDisplay);this.setState({durationDisplay});};
@@ -460,17 +462,97 @@ class Planner extends React.Component<{},State> {
   renderConfirm=():any=>{const dialog=this.state.confirmDialog;if(!dialog)return null;return <div className='confirmation-backdrop' onMouseDown={e=>{if(e.target===e.currentTarget)this.resolveConfirm(false)}}><section className='confirmation-dialog' role='alertdialog' aria-modal='true' aria-labelledby='confirm-title' aria-describedby='confirm-description'><div className={'confirmation-symbol '+(dialog.danger?'danger':'')}><Icon name={dialog.danger?'trash':'help'} size={24}/></div><div className='eyebrow'>FULLHOUSE · CONFIRMACIÓN</div><h2 id='confirm-title'>{dialog.title}</h2><p id='confirm-description'>{dialog.message}</p><div className='confirmation-actions'><Btn kind='secondary' onClick={()=>this.resolveConfirm(false)}>Cancelar</Btn><Btn kind={dialog.danger?'danger':''} onClick={()=>this.resolveConfirm(true)}>{dialog.acceptLabel}</Btn></div></section></div>};
   setLayout=(layout:'vertical'|'horizontal'):void=>{putPreference(LAYOUT_STORE,layout);this.setState({modalLayout:layout});};
   finishGuide=():void=>{putPreference(GUIDE_STORE,'yes');this.setState({guideOpen:false});};
-  openGuide=():void=>this.setState({modal:null,guideOpen:true,guideStep:0,page:'inicio',guideGoalId:'',guideEventId:''});
+  openGuide=():void=>{if(this.canNavigate())this.setState({modal:null,guideOpen:true,guideStep:0,page:'inicio',guideGoalId:'',guideEventId:''});};
   openHelp=(topic:string):void=>this.setState({helpOpen:true,helpTopic:topic});
   openDetail=(e:EventItem):void=>this.setState({modal:'detail',activeEventId:e.id,detailPath:[],...(this.state.guideOpen&&this.state.guideStep===5&&e.id===this.state.guideEventId?{guideStep:6}:{})});
   notice=(message:string):void=>this.setState({toast:message});
-  save = (data:Data,message='Cambios guardados'):void=>{
-    if(this.state.recovery){this.notice('Guardado bloqueado para proteger la información original. Descarga el original o vuelve a intentar la lectura.');return;}
-    try{localStorage.setItem(STORE,JSON.stringify(data));this.setState({data});this.notice(message);}
-    catch(err){this.setState({data});this.notice('No se pudo guardar: almacenamiento lleno o bloqueado. Exporta una copia.');}
+  dirtyDraft=():boolean=>{
+    const s=this.state,draft=s.modal==='goal'?s.goalDraft:s.modal==='routine'?s.routineDraft:s.modal==='event'?s.eventDraft:s.modal==='progress'?{value:s.progressValue,note:s.progressNote,status:s.progressStatus}:null;
+    return !!draft&&JSON.stringify(draft)!==this.initialDraft;
+  };
+  editingNumber=():boolean=>{const input=document.activeElement as HTMLInputElement|null,committed=input?.getAttribute('data-committed-value');return committed!==null&&committed!==undefined&&!!input?.closest('.modal-backdrop')&&input.value!==committed;};
+  hasUnsavedChanges=():boolean=>!!this.state.pending||this.editingNumber()||this.dirtyDraft()||this.noteDrafts.size>0||(!!this.pendingSchedule&&JSON.stringify(this.pendingSchedule)!==this.pendingScheduleBaseline)||
+    (this.state.page==='hoy'&&this.state.reviewDraft!==(this.state.data.dayReviews?.[today()]?.note||''));
+  beforeUnload=(event:BeforeUnloadEvent):void=>{if(this.hasUnsavedChanges()){event.preventDefault();event.returnValue='';}};
+  canNavigate=():boolean=>{
+    if(!this.hasUnsavedChanges())return true;
+    this.notice('Hay cambios sin guardar. Guarda las notas o el formulario, o ciérralo confirmando que deseas descartarlos.');return false;
+  };
+  noteProps=(e:EventItem,date:string,stepId=''):{draft:string|undefined;onDraft:(text:string|undefined)=>void;onDiscard:()=>Promise<boolean>}=>{
+    const id=JSON.stringify([e.id,date,stepId]);
+    return {draft:this.noteDrafts.get(id),onDraft:text=>{if(text===undefined)this.noteDrafts.delete(id);else this.noteDrafts.set(id,text);},onDiscard:()=>this.askConfirm('Descartar borrador de nota','Esta nota todavía no se ha guardado. ¿Quieres descartar lo que escribiste?','Descartar borrador',true)};
+  };
+  save = (data:Data,message='Cambios guardados'):boolean=>{
+    if(this.state.recovery){this.notice('Guardado bloqueado para proteger la información original. Descarga el original o vuelve a intentar la lectura.');return false;}
+    if(this.state.pending){this.notice('Ya hay cambios pendientes. Esta nueva acción no se añadió; reinténtala después de resolver la copia pendiente.');return false;}
+    let raw:string|null=null,valid=false;
+    try{
+      raw=JSON.stringify(data)??null;if(raw===null)throw Error('Datos incompletos');const candidate=JSON.parse(raw);
+      if(!validData(data)||!validData(candidate))throw Error('Datos incompatibles');
+      valid=true;
+      localStorage.setItem(STORE,raw);
+      this.setState({data:candidate});this.notice(message);return true;
+    }catch(err){
+      this.setState({pending:{raw,valid}});
+      this.notice(valid?'No se pudo guardar: almacenamiento lleno o bloqueado. Tus cambios están pendientes.':'No se pudo guardar: los datos no se pueden guardar como un respaldo compatible.');
+      return false;
+    }
+  };
+  retryPending=():void=>{
+    const pending=this.state.pending;if(!pending||this.state.recovery)return;
+    try{
+      if(!pending.valid||pending.raw===null)throw Error('Respaldo incompatible');
+      const data=JSON.parse(pending.raw);if(!validData(data))throw Error('Respaldo incompatible');
+      localStorage.setItem(STORE,pending.raw);
+      this.setState({data,pending:null});this.notice('Cambios pendientes guardados correctamente');
+    }catch(err){this.notice('Los cambios siguen pendientes. El último estado guardado no se ha modificado. Puedes exportarlos para conservarlos.');}
+  };
+  exportPending=():void=>{
+    const pending=this.state.pending;if(!pending||pending.raw===null)return;
+    try{
+      let raw=pending.raw;
+      if(pending.valid){
+        const data:Data=JSON.parse(raw);
+        // Include unsubmitted note/review drafts so another failed action cannot
+        // leave those drafts trapped behind this screen. Retry still commits only
+        // the attempted action; exporting does not submit drafts to this browser.
+        for(const [id,text] of this.noteDrafts){
+          const [eventId,date,stepId]=JSON.parse(id),key=eventId+'@'+date;
+          const log=data.logs[key]||{completed:false,checkedSteps:[]};
+          data.logs[key]=stepId?{...log,stepNotes:{...log.stepNotes,[stepId]:text}}:{...log,note:text};
+        }
+        if(this.state.page==='hoy'&&this.state.reviewDraft!==(this.state.data.dayReviews?.[today()]?.note||'')){
+          data.dayReviews={...data.dayReviews,[today()]:{note:this.state.reviewDraft,closedAt:new Date().toISOString()}};
+        }
+        if(!validData(data))throw Error('No se pudo preparar la copia pendiente');
+        raw=JSON.stringify(data);
+      }
+      const blob=new Blob([raw],{type:pending.valid?'application/json':'text/plain'}),url=URL.createObjectURL(blob);
+      const a=document.createElement('a');a.href=url;a.download='fullhouse-pendientes-'+today()+(pending.valid?'.json':'.txt');
+      document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
+      this.notice('Descarga solicitada. Comprueba el archivo antes de salir; los cambios siguen pendientes en este navegador.');
+    }catch(err){this.notice('No pudimos descargar los pendientes. No cierres esta página; puedes volver a intentarlo.');}
+  };
+  discardPending=async ():Promise<void>=>{
+    if(!this.state.pending)return;
+    if(await this.askConfirm('Descartar cambios pendientes','Se perderán estos cambios sin guardar. El último estado guardado se conserva. Exporta los pendientes primero si quieres recuperarlos.','Descartar pendientes',true)){
+      this.setState({pending:null,modal:null,guideOpen:false});this.notice('Cambios pendientes descartados por tu indicación.');
+    }
+  };
+  renderPending():any{
+    const pending=this.state.pending;if(!pending)return null;
+    return <div className='app-shell' data-theme={this.state.theme} style={{display:'block'}}><main className='content' style={{maxWidth:800,margin:'0 auto'}}><section className='panel' role='alert' aria-labelledby='pending-title'>
+      <h1 id='pending-title'>Cambios pendientes de guardar</h1>
+      <p>El último estado guardado sigue intacto. Estos cambios todavía no se han guardado en el navegador y solo están en la memoria de esta página.</p>
+      <p>{pending.valid?'El almacenamiento está lleno o bloqueado. Libera espacio o permite el almacenamiento y vuelve a intentar el guardado.':'Estos cambios no forman un respaldo compatible. No reemplazaremos la información guardada; puedes descargarlos para revisión.'}</p>
+      <p>Hemos pausado las nuevas ediciones para proteger esta copia. Antes de recargar, navegar fuera o cerrar, exporta los pendientes y comprueba la descarga. La exportación JSON incluye también las notas y la revisión del día que hayas escrito sin guardar. Puedes restaurarla después desde Ajustes.</p>
+      <div className='actions'><Btn disabled={!pending.valid} onClick={this.retryPending}>Reintentar guardado</Btn><Btn kind='secondary' disabled={pending.raw===null} onClick={this.exportPending}>Exportar cambios pendientes</Btn><Btn kind='ghost' onClick={()=>this.discardPending()}>Descartar cambios pendientes</Btn></div>
+      {this.state.toast&&<p role='status'>{this.state.toast}</p>}
+    </section></main>{this.renderConfirm()}</div>;
   }
-  route=(page:Page):void=>{if(this.state.guideOpen&&this.state.guideStep>0&&this.state.guideStep<6&&page!==guideSteps[this.state.guideStep].page){this.setState({toast:'Completa este paso de la guía o selecciona «Saltar tutorial».',page:guideSteps[this.state.guideStep].page});return;}this.setState({page,modal:null,...(page==='hoy'?{selectedDate:today(),reviewDraft:this.state.data.dayReviews?.[today()]?.note||''}:{})});window.scrollTo(0,0)};
-  chooseDay=(s:string):void=>this.setState({selectedDate:s,month:firstMonth(s),calendarDetailOpen:this.state.page==='calendario'});
+  route=(page:Page):void=>{if(!this.canNavigate())return;if(this.state.guideOpen&&this.state.guideStep>0&&this.state.guideStep<6&&page!==guideSteps[this.state.guideStep].page){this.setState({toast:'Completa este paso de la guía o selecciona «Saltar tutorial».',page:guideSteps[this.state.guideStep].page});return;}this.setState({page,modal:null,...(page==='hoy'?{selectedDate:today(),reviewDraft:this.state.data.dayReviews?.[today()]?.note||''}:{})});window.scrollTo(0,0)};
+  showTodayEvent=(id:string):void=>{if(!this.canNavigate())return;this.route('hoy');this.setState({expandedTodayId:id});};
+  chooseDay=(s:string):void=>{if(this.canNavigate())this.setState({selectedDate:s,month:firstMonth(s),calendarDetailOpen:this.state.page==='calendario'});};
   openGoal=(goal?:Goal,parentId=''):void=>{
     const draft:GoalDraft=goal?{
       id:goal.id,title:goal.title,desc:goal.desc,parentId:goal.parentId,area:goal.area||'purpose',review:goal.review?{...goal.review}:undefined,dependsOn:goal.dependsOn||'',startDate:goal.startDate||'',dueDate:goal.dueDate||'',color:goal.color,current:goal.current,target:goal.target,unit:goal.unit,mode:goalMode(goal),status:goalStatus(goal),milestones:goalMilestones(goal).map(m=>({...m}))
@@ -482,18 +564,20 @@ class Planner extends React.Component<{},State> {
   openEvent=(e?:EventItem,kind?:'occasion'):void=>{if(e?.kind==='review'){const g=this.state.data.goals.find(x=>x.id===e.goalId);if(g){this.openGoal(g);return;}}const draft:EventDraft=e?JSON.parse(JSON.stringify(e)):{...eDraft(this.state.selectedDate),...(kind==='occasion'?{kind:'occasion' as const,allDay:true}: {})};
     if(e&&e.date<today())draft.applyFrom=today();
     this.initialDraft=JSON.stringify(draft);this.setState({modal:'event',eventDraft:draft,datePickerMonth:firstMonth(draft.date)});};
-  openProgress=(g:Goal):void=>this.setState({modal:'progress',progressGoalId:g.id,progressValue:String(g.current),progressStatus:goalStatus(g),progressNote:''});
+  openProgress=(g:Goal):void=>{this.initialDraft=JSON.stringify({value:String(g.current),note:'',status:goalStatus(g)});this.setState({modal:'progress',progressGoalId:g.id,progressValue:String(g.current),progressStatus:goalStatus(g),progressNote:''});};
   openExecute=(e:EventItem):void=>this.setState({modal:'execute',activeEventId:e.id});
   close=(force:any=false):void=>{
-    const m=this.state.modal,draft=m==='goal'?this.state.goalDraft:m==='routine'?this.state.routineDraft:m==='event'?this.state.eventDraft:null;
-    const finish=()=>{if(this.state.returnToSchedule&&m==='routine'&&this.pendingSchedule){const restored=this.pendingSchedule;this.pendingSchedule=null;this.initialDraft=JSON.stringify(restored);this.setState({modal:'event',eventDraft:restored,returnToSchedule:false,scheduleContextNote:''});}else this.setState({modal:null,detailPath:[],helpOpen:false,returnToSchedule:false,scheduleContextNote:''});};
-    if(force!==true&&draft&&JSON.stringify(draft)!==this.initialDraft){this.askConfirm('Salir sin guardar','Los cambios que has realizado en esta ventana se perderán.','Salir sin guardar',true).then(ok=>{if(ok)finish();});return;}
+    const m=this.state.modal;
+    const finish=()=>{if(this.state.returnToSchedule&&m==='routine'&&this.pendingSchedule){const restored=this.pendingSchedule;this.pendingSchedule=null;this.initialDraft=this.pendingScheduleBaseline;this.pendingScheduleBaseline='';this.setState({modal:'event',eventDraft:restored,returnToSchedule:false,scheduleContextNote:''});}else this.setState({modal:null,detailPath:[],helpOpen:false,returnToSchedule:false,scheduleContextNote:''});};
+    if(force!==true&&this.state.pending)return;
+    if(force!==true&&this.dirtyDraft()){this.askConfirm('Salir sin guardar','Los cambios que has realizado en esta ventana se perderán.','Salir sin guardar',true).then(ok=>{if(ok)finish();});return;}
     finish();
   };
   editRoutineFromSchedule=(reason=''):void=>{
     const e=this.state.eventDraft,r=this.state.data.routines.find(r=>r.id===e.routineId);
     if(!r){this.notice('Selecciona una rutina antes de editar sus pasos.');return;}
     const advice=reason.includes('Faltan')||reason.includes('exceden')?'Reduce la duración de los pasos fijos o modifica los límites del horario.':reason.includes('Sobran')?'Puedes añadir uno o más contenidos flexibles, aumentar la duración de los pasos o cambiar los bloques límite.':'Puedes ajustar los minutos de los pasos y añadir contenidos flexibles para absorber el tiempo disponible.';
+    this.pendingScheduleBaseline=this.initialDraft;
     this.pendingSchedule=JSON.parse(JSON.stringify(e));
     const draft:RoutineDraft=JSON.parse(JSON.stringify(r));this.initialDraft=JSON.stringify(draft);
     this.setState({modal:'routine',routineDraft:draft,returnToSchedule:true,scheduleContextNote:(reason?reason+'\n\n':'')+advice});
@@ -628,7 +712,7 @@ class Planner extends React.Component<{},State> {
     const data=this.state.data;const clean=(steps:Step[]):Step[]=>steps.map(s=>{const children=s.children?clean(s.children):undefined;return {...s,title:s.title.trim(),children,variants:s.variants?.filter(v=>v.title.trim()&&(s.chooseWhen==='execute'||v.days.length)).map(v=>({...v,title:v.title.trim(),days:[...new Set(v.days)],children:v.children?clean(v.children):undefined,min:Math.max(0,v.min)})),min:children&&children.length?children.reduce((a,c)=>a+stepMinutes(c),0):s.flexible?Math.max(5,s.min):Math.max(1,s.min),mode:s.mode||((s.variants||[]).length?'alternatives':'always')};});const result:Routine={...x,id:x.id||uid(),title:x.title.trim(),steps:clean(x.steps)};
     this.save({...data,routines:x.id?data.routines.map(r=>r.id===x.id?result:r):[...data.routines,result],events:data.events.map(e=>e.routineId===result.id?{...e,minutes:routineMinutes(result)}:e)});
     if(this.state.returnToSchedule&&this.pendingSchedule){
-      const draft=this.pendingSchedule;this.pendingSchedule=null;this.initialDraft=JSON.stringify(draft);
+      const draft=this.pendingSchedule;this.pendingSchedule=null;this.initialDraft=this.pendingScheduleBaseline;this.pendingScheduleBaseline='';
       this.setState({modal:'event',eventDraft:draft,returnToSchedule:false,scheduleContextNote:''});
     }else this.close(true);
   }
@@ -784,13 +868,13 @@ class Planner extends React.Component<{},State> {
   toggleEvent=(e:EventItem,date:string):void=>{
     const d=this.state.data,k=key(e,date),r=d.logs[k]||{completed:false,checkedSteps:[]};
     const original=d.routines.find(x=>x.id===e.routineId);
-    if(!r.completed&&original&&unresolvedManual(activeSteps(original.steps,date,r.choices||{}),r.choices||{}).length){this.notice('Antes de completar la rutina, elige las alternativas al desglosar la rutina en Mi día.');return;}this.save({...d,logs:{...d.logs,[k]:{...r,completed:!r.completed}}},'Actividad actualizada');if(!r.completed)this.playCheckSound();
+    if(!r.completed&&original&&unresolvedManual(activeSteps(original.steps,date,r.choices||{}),r.choices||{}).length){this.notice('Antes de completar la rutina, elige las alternativas al desglosar la rutina en Mi día.');return;}if(this.save({...d,logs:{...d.logs,[k]:{...r,completed:!r.completed}}},'Actividad actualizada')&&!r.completed)this.playCheckSound();
   }
   toggleStep=(e:EventItem,date:string,stepId:string):void=>{
     const d=this.state.data,k=key(e,date),r=d.logs[k]||{completed:false,checkedSteps:[]};const routine=d.routines.find(x=>x.id===e.routineId);
     const checked=r.checkedSteps.includes(stepId)?r.checkedSteps.filter(s=>s!==stepId):[...r.checkedSteps,stepId];
     const choices=r.choices||{};const leaves=routine?leafSteps(activeSteps(routine.steps,date,choices)):[];const pending=routine?unresolvedManual(activeSteps(routine.steps,date,choices),choices):[];const completed=leaves.length>0&&pending.length===0&&leaves.every(s=>checked.includes(s.id));
-    this.save({...d,logs:{...d.logs,[k]:{...r,checkedSteps:checked,completed}}},'Paso actualizado');if(!r.checkedSteps.includes(stepId))this.playCheckSound();
+    if(this.save({...d,logs:{...d.logs,[k]:{...r,checkedSteps:checked,completed}}},'Paso actualizado')&&!r.checkedSteps.includes(stepId))this.playCheckSound();
   }
   saveOccurrenceNote=(e:EventItem,date:string,text:string,stepId?:string):void=>{
     const d=this.state.data,k=key(e,date),log=d.logs[k]||{completed:false,checkedSteps:[]};
@@ -813,10 +897,11 @@ class Planner extends React.Component<{},State> {
     const d=this.state.data,g=d.goals.find(x=>x.id===this.state.progressGoalId);if(!g)return;
     const mode=goalMode(g),val=mode==='numeric'?Number(this.state.progressValue.replace(',','.')):g.current;if(mode==='numeric'&&(!Number.isFinite(val)||val<0)){this.setState({toast:'Registra un valor válido mayor o igual a cero'});return;}
     const next={...g,current:val,status:mode==='qualitative'?this.state.progressStatus:goalStatus(g),history:[...g.history,{date:today(),value:val,note:this.state.progressNote.trim(),status:mode==='qualitative'?this.state.progressStatus:undefined}]};
-    this.save({...d,goals:d.goals.map(x=>x.id===g.id?next:x)},'Avance registrado');this.close();
+    this.save({...d,goals:d.goals.map(x=>x.id===g.id?next:x)},'Avance registrado');this.close(true);
   }
   toggleMilestone=(goalId:string,milestoneId:string):void=>{const d=this.state.data;const g=d.goals.find(x=>x.id===goalId);if(!g)return;const ms=goalMilestones(g).map(m=>m.id===milestoneId?{...m,done:!m.done}:m);const n=ms.filter(m=>m.done).length;const next={...g,milestones:ms,current:n,target:ms.length,history:[...g.history,{date:today(),value:n,note:'Hito actualizado'}]};this.save({...d,goals:d.goals.map(x=>x.id===goalId?next:x)},'Hito actualizado');};
   retryLocalLoad=():void=>{
+    if(this.state.pending){this.notice('Resuelve los cambios pendientes antes de volver a cargar los datos.');return;}
     // Check before load(): a missing captured source must not trigger legacy copy.
     if(this.state.recovery&&this.state.recovery.raw!==null){
       try{if(localStorage.getItem(this.state.recovery.key)===null){this.notice('No encontramos el original. La copia capturada sigue disponible para descargar.');return;}}
@@ -849,11 +934,13 @@ class Planner extends React.Component<{},State> {
   }
   exportData=():void=>{
     if(this.state.recovery){this.downloadOriginal();return;}
+    if(this.state.pending){this.exportPending();return;}
     const blob=new Blob([JSON.stringify(this.state.data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);
     const a=document.createElement('a');a.href=url;a.download=`fullhouse-respaldo-${today()}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
     this.notice('Respaldo descargado. Guárdalo en un lugar seguro.');
   }
   importData=async (ev:any):Promise<void>=>{
+    if(this.state.pending){this.notice('Primero reintenta, exporta o descarta los cambios pendientes antes de importar.');return;}
     if(this.state.recovery){this.notice('La restauración está bloqueada para conservar el original. Descárgalo antes de revisar el problema.');return;}
     const input=ev.target; // React 16 releases the event while confirmation is open.
     const f:File|undefined=input.files?.[0];if(!f)return;
@@ -863,6 +950,7 @@ class Planner extends React.Component<{},State> {
     reader.onerror=()=>fail('No pudimos leer el archivo. Intenta seleccionarlo de nuevo.');
     reader.onabort=()=>fail('La lectura del respaldo se interrumpió.');
     reader.onload=()=>{
+      if(this.state.pending||this.state.recovery){this.notice('La importación se ha detenido para proteger los cambios pendientes o el original.');return;}
       let data:Data;
       try{
         const parsed=JSON.parse(String(reader.result));
@@ -879,6 +967,7 @@ class Planner extends React.Component<{},State> {
     input.value='';
   }
   reset=async ():Promise<void>=>{
+    if(this.state.pending){this.notice('No se pueden restablecer ejemplos mientras hay cambios pendientes.');return;}
     if(this.state.recovery){this.notice('No se pueden restablecer ejemplos mientras el original está protegido.');return;}
     if(!(await this.askConfirm('Restablecer ejemplos','Se perderán los datos actuales. Descarga un respaldo antes de continuar.','Restablecer',true)))return;
     this.save(seed(),'Ejemplos restablecidos');this.setState({page:'inicio',selectedDate:today(),month:firstMonth(today())});
@@ -927,7 +1016,7 @@ class Planner extends React.Component<{},State> {
     return <div>{es.map(e=>{
       const isDone=done(d,e,date),routine=d.routines.find(r=>r.id===e.routineId),log=d.logs[key(e,date)];
       return compact?<div key={e.id} className={`agenda-item ${isDone?'is-done':''}`}><div className="agenda-time">{eventTime(e,date,d)}</div><div className="agenda-main"><div className="agenda-name">{e.title}</div><div className="agenda-sub">{this.dur(durationOn(e,date,d))} {routine?'· '+routine.steps.length+' pasos':''}</div></div><button className={`check-circle ${isDone?'checked':''}`} onClick={()=>this.toggleEvent(e,date)} aria-label={isDone?'Marcar pendiente':'Marcar completado'}>{isDone&&<Icon name="check" size={13}/>}</button></div>
-      :<div key={e.id} className={`schedule-line ${isDone?'is-done':''}`}><div className="schedule-time">{eventTime(e,date,d)}</div><div className="schedule-body"><div className="schedule-name">{e.title}</div><div className="schedule-meta"><span>{this.dur(durationOn(e,date,d))}</span>{e.repeat!=='none'&&<span>↻ Recurrente</span>}{routine&&<span>{routine.steps.length} pasos</span>}</div>{e.note&&<div className="schedule-notes">{e.note}</div>}<div className="actions" style={{marginTop:9}}>{routine&&<Btn tiny kind="secondary" onClick={()=>this.setState({page:'hoy',expandedTodayId:e.id})}>Ver pasos en Mi día</Btn>}{e.anchor!=='between'&&<Btn tiny kind="ghost" title="Mover 15 minutos antes (solo este día)" onClick={()=>this.shiftEvent(e,date,-15)}>−15 min</Btn>}{e.anchor!=='between'&&<Btn tiny kind="ghost" title="Mover 15 minutos después (solo este día)" onClick={()=>this.shiftEvent(e,date,15)}>+15 min</Btn>}</div></div><div className="mini-actions"><button className={`check-circle ${isDone?'checked':''}`} onClick={()=>this.toggleEvent(e,date)} aria-label={isDone?'Marcar pendiente':'Marcar completado'}>{isDone&&<Icon name="check" size={13}/>}</button><Btn tiny kind="ghost" onClick={()=>this.openEvent(e)} title="Editar actividad"><Icon name="edit" size={14}/></Btn></div></div>
+      :<div key={e.id} className={`schedule-line ${isDone?'is-done':''}`}><div className="schedule-time">{eventTime(e,date,d)}</div><div className="schedule-body"><div className="schedule-name">{e.title}</div><div className="schedule-meta"><span>{this.dur(durationOn(e,date,d))}</span>{e.repeat!=='none'&&<span>↻ Recurrente</span>}{routine&&<span>{routine.steps.length} pasos</span>}</div>{e.note&&<div className="schedule-notes">{e.note}</div>}<div className="actions" style={{marginTop:9}}>{routine&&<Btn tiny kind="secondary" onClick={()=>this.showTodayEvent(e.id)}>Ver pasos en Mi día</Btn>}{e.anchor!=='between'&&<Btn tiny kind="ghost" title="Mover 15 minutos antes (solo este día)" onClick={()=>this.shiftEvent(e,date,-15)}>−15 min</Btn>}{e.anchor!=='between'&&<Btn tiny kind="ghost" title="Mover 15 minutos después (solo este día)" onClick={()=>this.shiftEvent(e,date,15)}>+15 min</Btn>}</div></div><div className="mini-actions"><button className={`check-circle ${isDone?'checked':''}`} onClick={()=>this.toggleEvent(e,date)} aria-label={isDone?'Marcar pendiente':'Marcar completado'}>{isDone&&<Icon name="check" size={13}/>}</button><Btn tiny kind="ghost" onClick={()=>this.openEvent(e)} title="Editar actividad"><Icon name="edit" size={14}/></Btn></div></div>
     })}</div>;
   }
   renderToday():any{
@@ -957,7 +1046,7 @@ class Planner extends React.Component<{},State> {
             {r&&<div className='today-task-progress'><div style={{width:Math.round(progress.done/progress.total*100)+'%'}}/></div>}
             {selected&&<div className='today-inline-procedure'><div className='today-inline-heading'><h3><Icon name={r?.icon||'checklist'} size={20}/> {r?'Pasos de esta rutina':'Registro del bloque'}</h3><small>{r?`${progress.done}/${progress.total} pasos realizados`:'Actividad sin pasos'}</small></div>
               {r&&<div className='inline-steps'>{this.renderCheckSteps(active,e,date,log,alloc)}</div>}
-              <details className='today-extra-notes' open={!r}><summary>Notas y fotografías de este bloque <Icon name='right' size={14}/></summary><NoteEditor key={'daily-'+e.id} label='Nota de esta actividad' value={log.note||''} carry={upcomingNote(data,e,date)} onSave={text=>this.saveOccurrenceNote(e,date,text)}/>{(e.requestEvidence||r?.requestEvidence)&&<p className='evidence-prompt'>Puedes dejar evidencia de este bloque, si lo deseas.</p>}{this.evidenceSection(e,date)}</details>
+              <details className='today-extra-notes' open={!r}><summary>Notas y fotografías de este bloque <Icon name='right' size={14}/></summary><NoteEditor {...this.noteProps(e,date)} key={'daily-'+e.id} label='Nota de esta actividad' value={log.note||''} carry={upcomingNote(data,e,date)} onSave={text=>this.saveOccurrenceNote(e,date,text)}/>{(e.requestEvidence||r?.requestEvidence)&&<p className='evidence-prompt'>Puedes dejar evidencia de este bloque, si lo deseas.</p>}{this.evidenceSection(e,date)}</details>
             </div>}
           </article>;}) : <div className='today-empty-state'><Icon name='sun' size={32}/><h3>Agenda libre por ahora</h3><p>Nada que ver por aquí. Puedes aprovechar este espacio o preparar tu próximo plan.</p><div className='actions'><Btn onClick={()=>this.openRoutine()}><Icon name='plus'/> Crear rutina</Btn><Btn kind='secondary' onClick={()=>this.openEvent(undefined,'occasion')}><Icon name='calendar'/> Añadir evento</Btn></div></div>}
         {items.length>0&&items.every(e=>done(data,e,date))&&<div className='today-empty-state'><Icon name='spark' size={28}/><h3>¡Todo al día!</h3><p>Has completado los bloques que programaste. Puedes revisar tus resultados o dejar espacio para descansar.</p><Btn kind='secondary' onClick={()=>this.openRoutine()}>Preparar otra rutina</Btn></div>}
@@ -1074,7 +1163,7 @@ class Planner extends React.Component<{},State> {
       <div className='row spread'><div><div className='eyebrow'>ACERCAMIENTO · {eventTime(e,date,data)} – {timeString(Math.min(1439,base+durationOn(e,date,data)))}</div><h2><Icon name={r?.icon||'calendar'} size={24}/> {e.title}</h2><p className='caption'>{r?.desc||e.note||'Observa la duración de este bloque y su distribución.'}</p></div><button className='icon-btn' aria-label='Cerrar acercamiento' onClick={()=>this.setState({scheduleFocusId:'',detailPath:[]})}><Icon name='close'/></button></div>
       {path.length>0&&<div className='schedule-zoom-crumb'><button onClick={()=>this.setState({detailPath:[]})}>{e.title}</button>{path.map((id,i)=><span key={id}> / <button onClick={()=>this.setState({detailPath:path.slice(0,i+1)})}>{getStepByPath(steps,path.slice(0,i+1))?.title||'Paso'}</button></span>)}</div>}
       {blocks.length?<div className='schedule-zoom-blocks'>{blocks.map(({s,minutes:m})=><button className='schedule-zoom-block' key={s.id} type='button' onClick={()=>s.children?.length?this.setState({detailPath:[...path,s.id]}):this.notice(s.desc||'Este paso no tiene más subpasos.')} style={{'--zoom-step-color':goalColor(data,s.goalId)||color,flexGrow:Math.max(1,m)} as any}><strong>{s.title}</strong><small>{this.dur(m)} {s.children?.length?'· Acercar':'· '+(s.desc||'Sin más detalles')}</small></button>)}</div>:<div className='today-empty-state'>Este bloque no tiene subpasos. {e.note||''}</div>}
-      <div className='row spread schedule-zoom-footer'><span className='caption'>Tiempo distribuido: {this.dur(total)} {r?'· '+steps.length+' pasos principales':''}</span><div className='actions'>{path.length>0&&<Btn kind='secondary' onClick={()=>this.setState({detailPath:path.slice(0,-1)})}><Icon name='left' size={14}/> Alejar</Btn>}<Btn kind='secondary' onClick={()=>this.openEvent(e)}><Icon name='edit' size={14}/> Editar bloque</Btn>{date===today()&&<Btn onClick={()=>this.setState({page:'hoy',expandedTodayId:e.id})}>Realizar en Mi día</Btn>}</div></div>
+      <div className='row spread schedule-zoom-footer'><span className='caption'>Tiempo distribuido: {this.dur(total)} {r?'· '+steps.length+' pasos principales':''}</span><div className='actions'>{path.length>0&&<Btn kind='secondary' onClick={()=>this.setState({detailPath:path.slice(0,-1)})}><Icon name='left' size={14}/> Alejar</Btn>}<Btn kind='secondary' onClick={()=>this.openEvent(e)}><Icon name='edit' size={14}/> Editar bloque</Btn>{date===today()&&<Btn onClick={()=>this.showTodayEvent(e.id)}>Realizar en Mi día</Btn>}</div></div>
     </div>;
   }
   renderDetail():any{
@@ -1086,7 +1175,7 @@ class Planner extends React.Component<{},State> {
     return <div className="detail-zoom"><div className="detail-crumbs"><button onClick={()=>this.setState({detailPath:[]})}>{e.title}</button>{path.map((id,i)=><span key={id}> / <button onClick={()=>this.setState({detailPath:path.slice(0,i+1)})}>{getStepByPath(r?.steps||[],path.slice(0,i+1))?.title||'Paso'}</button></span>)}</div>
       {path.length===0?<><div className="detail-spotlight"><span className="detail-time"><Icon name="clock"/> {fmtDate(date)} · {eventTime(e,date,d)} · {this.dur(durationOn(e,date,d))}</span><h3>{e.title}</h3><p>{e.note||r?.desc||'Sin descripción adicional para este bloque.'}</p><div className="detail-tags">{g&&<span style={{borderColor:g.color}}><span className="circle-tint" style={{background:g.color}}/>{g.title}</span>}{e.repeat!=='none'&&<span>↻ Recurrente</span>}</div></div><div className="detail-actions"><Btn kind="secondary" onClick={()=>this.openEvent(e)}><Icon name="edit"/> Editar bloque</Btn>{r&&<Btn onClick={()=>this.openExecute(e)}><Icon name="checklist"/> Ejecutar rutina</Btn>}<Btn kind="secondary" onClick={()=>this.toggleEvent(e,date)}>{done(d,e,date)?'Marcar pendiente':'Marcar completada'}</Btn></div></>:<div className="detail-spotlight"><div className="detail-time"><Icon name="clock"/> {this.dur(current?effectiveStepMinutes(current,allocation):0)} previstos</div><h3>{current?.title||'Paso'}</h3><p>{current?.desc||'No hay instrucciones adicionales para este paso.'}</p>{current&&!current.children?.length&&<Btn kind="secondary" onClick={()=>this.toggleStep(e,date,current.id)}>{log.checkedSteps.includes(current.id)?'✓ Completado · Desmarcar':'Marcar paso completado'}</Btn>}</div>}
       {choices.length>0&&<><h3 className="detail-section-title">{path.length?'Elementos de '+stepLevelName(path.length-1).toLowerCase():'Dentro de este bloque'}</h3><div className="zoom-children">{choices.map((s,i)=><button key={s.id} className="zoom-child" onClick={()=>this.setState({detailPath:[...path,s.id]})}><span className="zoom-index" style={goalColor(d,s.goalId)?{background:goalColor(d,s.goalId),color:readableOn(goalColor(d,s.goalId)!)}:{}}>{i+1}</span><div className="flex"><strong>{s.title}</strong><div className="caption">{this.dur(effectiveStepMinutes(s,allocation))} · {s.children?.length?s.children.length+' elementos':'Ver instrucciones'}</div></div><Icon name="right" size={18}/></button>)}</div></>}
-      {this.evidenceSection(e,date,current?.id||'')}<NoteEditor key={e.id+'-'+date+'-'+(current?.id||'block')} value={current?log.stepNotes?.[current.id]||'':log.note||''} carry={upcomingNote(d,e,date,current?.id)} label={current?'Nota de este paso':'Nota de esta actividad o rutina'} onSave={text=>this.saveOccurrenceNote(e,date,text,current?.id)}/>
+      {this.evidenceSection(e,date,current?.id||'')}<NoteEditor {...this.noteProps(e,date,current?.id)} key={e.id+'-'+date+'-'+(current?.id||'block')} value={current?log.stepNotes?.[current.id]||'':log.note||''} carry={upcomingNote(d,e,date,current?.id)} label={current?'Nota de este paso':'Nota de esta actividad o rutina'} onSave={text=>this.saveOccurrenceNote(e,date,text,current?.id)}/>
       {!r&&<div className="notice">Para desglosar este bloque en pasos, asígnale una rutina desde «Editar bloque».</div>}
       {path.length>0&&<Btn kind="ghost" onClick={()=>this.setState({detailPath:path.slice(0,-1)})}><Icon name="left"/> Volver al nivel anterior</Btn>}</div>;
   }
@@ -1318,7 +1407,7 @@ class Planner extends React.Component<{},State> {
     const manual=s.mode==='alternatives'&&s.chooseWhen==='execute';const chosen=log.choices?.[s.id]||'';
     return <div className={'execution-step '+(s.goalId?'goal-linked-step':'')} key={s.id} style={{'--linked-goal-color':goalColor(this.state.data,s.goalId)||eventTint(this.state.data,e)} as any}><div className="routine-step"><button className={'check-circle '+(log.checkedSteps.includes(s.id)?'checked':'')} onClick={()=>this.toggleStep(e,date,s.id)} aria-label={'Marcar '+s.title} disabled={!!(s.children&&s.children.length)||(manual&&!chosen)}>{log.checkedSteps.includes(s.id)&&<Icon name="check" size={13}/>}</button><div className="flex"><div className="agenda-name">{i+1}. {manual&&!chosen?'Elige una alternativa':s.title}</div>{s.desc&&<div className="agenda-sub">{s.desc}</div>}<div className="agenda-sub">{this.dur(effectiveStepMinutes(s,allocation))} {s.flexible?'· flexible':''} · {s.children?.length?'Incluye '+s.children.length+' elementos':'Paso individual'}</div></div></div>
     {manual&&<div className='execution-choice'><strong>¿Qué opción realizarás hoy?</strong><div className='execution-options'>{[{id:'__base',title:originalStepTitle(this.state.data,e.routineId,s.id)||s.title},...(s.variants||[]).map(v=>({id:v.id,title:v.title}))].map(v=><button key={v.id} className={chosen===v.id?'active':''} type='button' onClick={()=>this.selectVariant(e,date,s.id,v.id)}>{v.title}</button>)}</div>{!chosen&&<p className='caption'>Selecciona una alternativa antes de marcar este paso.</p>}</div>}
-    {(!manual||!!chosen)&&<details className='step-extras'><summary><Icon name='book' size={14}/> Notas y evidencias de este paso</summary>{(s.requestEvidence||this.state.data.routines.find(r=>r.id===e.routineId)?.requestEvidence)&&<div className='evidence-prompt'>Puedes adjuntar un recuerdo de este paso.</div>}{this.evidenceSection(e,date,s.id)}<NoteEditor key={e.id+'-'+date+'-'+s.id} label={'Nota de '+(s.title||'este paso')} value={log.stepNotes?.[s.id]||''} carry={upcomingNote(this.state.data,e,date,s.id)} onSave={text=>this.saveOccurrenceNote(e,date,text,s.id)}/></details>}
+    {(!manual||!!chosen)&&<details className='step-extras'><summary><Icon name='book' size={14}/> Notas y evidencias de este paso</summary>{(s.requestEvidence||this.state.data.routines.find(r=>r.id===e.routineId)?.requestEvidence)&&<div className='evidence-prompt'>Puedes adjuntar un recuerdo de este paso.</div>}{this.evidenceSection(e,date,s.id)}<NoteEditor {...this.noteProps(e,date,s.id)} key={e.id+'-'+date+'-'+s.id} label={'Nota de '+(s.title||'este paso')} value={log.stepNotes?.[s.id]||''} carry={upcomingNote(this.state.data,e,date,s.id)} onSave={text=>this.saveOccurrenceNote(e,date,text,s.id)}/></details>}
     {s.children&&s.children.length>0&&(!manual||!!chosen)&&this.renderCheckSteps(s.children,e,date,log,allocation,level+1)}
     </div>})}</div>;
   executeForm():any{
@@ -1329,11 +1418,12 @@ class Planner extends React.Component<{},State> {
     const allocation=leafAllocation(r.steps,durationOn(e,date,this.state.data));
     const missing=unresolvedManual(r.steps,log.choices||{});
     return <><div className="notice"><strong>{e.title}</strong> · {fmtDate(date)} a las {eventTime(e,date,this.state.data)}. Las alternativas, notas y pasos marcados se guardan solo para este día.</div>{missing.length>0&&<div className='manual-warning'>✦ Hay {missing.length} paso(s) con alternativas pendientes de elegir.</div>}
-      {(e.requestEvidence||original.requestEvidence)&&<div className='evidence-prompt'>Si quieres, deja una fotografía de lo que realizaste.</div>}{this.evidenceSection(e,date)}<NoteEditor key={e.id+'-'+date+'-routine'} label='Nota general de esta ejecución' value={log.note||''} carry={upcomingNote(this.state.data,e,date)} onSave={text=>this.saveOccurrenceNote(e,date,text)}/>
+      {(e.requestEvidence||original.requestEvidence)&&<div className='evidence-prompt'>Si quieres, deja una fotografía de lo que realizaste.</div>}{this.evidenceSection(e,date)}<NoteEditor {...this.noteProps(e,date)} key={e.id+'-'+date+'-routine'} label='Nota general de esta ejecución' value={log.note||''} carry={upcomingNote(this.state.data,e,date)} onSave={text=>this.saveOccurrenceNote(e,date,text)}/>
       <div style={{marginTop:15}}>{this.renderCheckSteps(r.steps,e,date,log,allocation)}</div><div className="divider"/><div className="row spread"><span className="caption">{leafSteps(r.steps).filter(s=>log.checkedSteps.includes(s.id)).length} / {leafSteps(r.steps).length} pasos completados</span>{log.completed&&<span className="small-tag">Actividad completada</span>}</div></>;
   }
   render():any{
     if(this.state.recovery)return this.renderRecovery();
+    if(this.state.pending)return this.renderPending();
     const title:{[K in Page]:string}={hoy:'Mi día',inicio:'Inicio',metas:'Metas',rutinas:'Rutinas',horario:'Horario',calendario:'Calendario',progreso:'Progreso',ajustes:'Ajustes'};
     return <div className="app-shell" data-theme={this.state.theme}>{this.renderSidebar()}<main className="main"><header className="topbar"><div className="crumb"><Icon name="home" size={16}/><span>Mi espacio</span><span>/</span><strong>{title[this.state.page]}</strong></div><div className="top-right"><span className="pill"><span className="dot"/> Datos locales</span><button className="icon-btn guide-top-button" onClick={this.openGuide} title="Guía de inicio" aria-label="Abrir guía de inicio"><Icon name="help"/></button></div></header>
       <div className="content">{this.state.page==='hoy'?this.renderToday():this.state.page==='inicio'?this.renderHome():this.state.page==='metas'?this.renderGoals():this.state.page==='rutinas'?this.renderRoutines():this.state.page==='horario'?this.renderSchedule():this.state.page==='calendario'?this.renderCalendar():this.state.page==='progreso'?this.renderProgress():this.renderSettings()}</div></main>{this.renderModal()}{this.renderConfirm()}{this.renderGuide()}{this.renderHelpPanel()}{this.state.toast&&<div className="toast" role="status"><span>{this.state.toast}</span><button aria-label="Cerrar aviso" onClick={()=>{if(this.toastTimer)clearTimeout(this.toastTimer);this.setState({toast:''});}}>×</button></div>}</div>;

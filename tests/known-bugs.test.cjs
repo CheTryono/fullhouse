@@ -4,12 +4,6 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { app, plain, DAY, emptyData, step, routine, event } = require('./helpers/app.cjs');
 
-test('BUG-01: failed persistence must not leave an apparently saved in-memory replacement', () => {
-  const before = { ...emptyData(), routines: [routine()] };
-  const a = app({ data: before, stored: { 'fullhouse-v01': JSON.stringify(before) }, failWrite: true });
-  a.controller.save(emptyData());
-  assert.deepEqual(plain(a.controller.state.data), before, 'Until explicit unsaved-state recovery exists, preserve the last saved state');
-});
 test('BUG-04: shifting past midnight must reject the change and keep the event visible', () => {
   const e = event('late', { time: '23:00', minutes: 60 });
   const before = { ...emptyData(), events: [e] };

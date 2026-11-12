@@ -182,7 +182,7 @@ Con Node.js 20 o posterior, ejecuta desde la raíz `npm ci`, `npm run check` y
 `npm run test:regression`. La infraestructura usa el ejecutor nativo de Node y
 TypeScript fijado en el lockfile; no añade dependencias a la aplicación servida.
 
-`npm test` incluye también tres reproducciones de errores existentes y termina
+`npm test` incluye también dos reproducciones de errores existentes y termina
 actualmente con código 1. No son pruebas omitidas: la base estable pasa por
 separado y los fallos quedan visibles en `npm run test:known-bugs`.
 Consulta [tests/README.md](tests/README.md) para cobertura, resultados,
@@ -202,3 +202,28 @@ el problema; no borres los datos del sitio. **Volver a intentar la lectura**
 permite recuperarse de un bloqueo temporal o volver a leer datos compatibles.
 Si el navegador no permite leer el almacenamiento, la descarga estará desactivada
 hasta recuperar el acceso. No hay reparación automática ni migración destructiva.
+
+
+## Si no se pueden guardar tus cambios
+
+Fullhouse mantiene separado el último estado guardado de los cambios pendientes.
+Si el navegador rechaza una escritura, muestra una pantalla persistente y pausa
+las nuevas ediciones para proteger la copia pendiente. No anuncia un guardado
+exitoso ni sustituye el estado confirmado.
+
+- **Reintentar guardado:** vuelve a intentar la misma acción. Solo pasa al estado
+  guardado cuando el navegador acepta la escritura.
+- **Exportar cambios pendientes:** descarga un respaldo JSON compatible, incluidas
+  las notas y la revisión diaria escritas sin guardar. Comprueba la descarga;
+  puedes restaurarla desde Ajustes después de recargar. Exportar no confirma el
+  guardado local ni elimina la copia pendiente.
+- **Descartar cambios pendientes:** requiere confirmación explícita y conserva el
+  último estado guardado. Los borradores independientes de notas/revisión pueden
+  seguir necesitando guardarse o descartarse por separado.
+
+Los borradores de formularios, notas y revisión diaria impiden navegar sin
+resolverlos. Se solicita la advertencia del navegador al recargar, salir o cerrar
+con cambios sin guardar. Los pendientes viven en memoria: un cierre forzado o la
+terminación del proceso por el sistema operativo puede impedir la advertencia y
+perderlos. La exportación comprobada es la vía segura de conservación si el
+almacenamiento continúa rechazando escrituras.

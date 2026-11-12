@@ -498,12 +498,12 @@ class NumberField extends React.Component {
     }
     componentDidUpdate(prev) { var _a; if (!this.state.editing && prev.value !== this.props.value)
         this.setState({ text: String((_a = this.props.value) !== null && _a !== void 0 ? _a : '') }); }
-    render() { return React.createElement("input", { type: "text", inputMode: "decimal", "aria-label": this.props.ariaLabel || 'Cantidad', value: this.state.text, onFocus: () => this.setState({ editing: true }), onChange: (e) => { if (/^\d*([.,]\d*)?$/.test(e.target.value))
+    render() { var _a; return React.createElement("input", { type: "text", inputMode: "decimal", "data-committed-value": String((_a = this.props.value) !== null && _a !== void 0 ? _a : ''), "aria-label": this.props.ariaLabel || 'Cantidad', value: this.state.text, onFocus: () => this.setState({ editing: true }), onChange: (e) => { if (/^\d*([.,]\d*)?$/.test(e.target.value))
             this.setState({ text: e.target.value }); }, onBlur: this.commit }); }
 }
 class NoteEditor extends React.Component {
-    constructor(props) { super(props); this.state = { text: props.value || '', open: false }; }
-    componentDidUpdate(prev) { if (prev.value !== this.props.value)
+    constructor(props) { var _a, _b; super(props); this.state = { text: (_b = (_a = props.draft) !== null && _a !== void 0 ? _a : props.value) !== null && _b !== void 0 ? _b : '', open: props.draft !== undefined }; }
+    componentDidUpdate(prev) { if (prev.value !== this.props.value && this.props.draft === undefined)
         this.setState({ text: this.props.value || '' }); }
     render() {
         return React.createElement("div", { className: 'day-note-editor ' + (this.state.open ? 'is-expanded' : 'is-collapsed') },
@@ -511,7 +511,14 @@ class NoteEditor extends React.Component {
                 React.createElement("div", { className: 'day-note-title' },
                     React.createElement(Icon, { name: 'book', size: 17 }),
                     React.createElement("strong", null, this.props.label)),
-                React.createElement(Btn, { tiny: true, kind: 'secondary', onClick: () => this.setState({ open: !this.state.open, text: this.props.value || '' }) }, this.state.open ? 'Cerrar' : this.props.value ? 'Ver / editar nota' : 'Añadir nota')),
+                React.createElement(Btn, { tiny: true, kind: 'secondary', onClick: async () => { var _a, _b, _c, _d; if (this.state.open && this.state.text !== (this.props.value || '')) {
+                        if (!(await ((_b = (_a = this.props).onDiscard) === null || _b === void 0 ? void 0 : _b.call(_a))))
+                            return;
+                        (_d = (_c = this.props).onDraft) === null || _d === void 0 ? void 0 : _d.call(_c, undefined);
+                        this.setState({ text: this.props.value || '', open: false });
+                    }
+                    else
+                        this.setState({ open: !this.state.open }); } }, this.state.open ? 'Cerrar' : this.props.value ? 'Ver / editar nota' : 'Añadir nota')),
             !!this.props.value && !this.state.open && React.createElement("p", { className: 'saved-note-excerpt' },
                 "\u270E ",
                 this.props.value),
@@ -520,10 +527,10 @@ class NoteEditor extends React.Component {
                 React.createElement("p", null, this.props.carry),
                 React.createElement("small", null, "Aparece solamente esta vez; no cambia las instrucciones permanentes.")),
             this.state.open && React.createElement(React.Fragment, null,
-                React.createElement(AutoTextarea, { value: this.state.text, onChange: (ev) => this.setState({ text: ev.target.value }), placeholder: '\u00BFQu\u00E9 sucedi\u00F3? \u00BFQu\u00E9 mejorar\u00EDas o recordar\u00EDas la pr\u00F3xima vez?', maxLength: 2000 }),
+                React.createElement(AutoTextarea, { value: this.state.text, onChange: (ev) => { var _a, _b; const text = ev.target.value; (_b = (_a = this.props).onDraft) === null || _b === void 0 ? void 0 : _b.call(_a, text === (this.props.value || '') ? undefined : text); this.setState({ text }); }, placeholder: '\u00BFQu\u00E9 sucedi\u00F3? \u00BFQu\u00E9 mejorar\u00EDas o recordar\u00EDas la pr\u00F3xima vez?', maxLength: 2000 }),
                 React.createElement("div", { className: 'row spread' },
                     React.createElement("span", { className: 'caption' }, "Se conserva en esta fecha y aparecer\u00E1 una vez en la pr\u00F3xima ocasi\u00F3n."),
-                    React.createElement(Btn, { tiny: true, kind: 'secondary', disabled: this.state.text === (this.props.value || ''), onClick: () => { this.props.onSave(this.state.text); this.setState({ open: false }); } }, "Guardar nota"))));
+                    React.createElement(Btn, { tiny: true, kind: 'secondary', disabled: this.state.text === (this.props.value || ''), onClick: () => { var _a, _b; (_b = (_a = this.props).onDraft) === null || _b === void 0 ? void 0 : _b.call(_a, undefined); this.props.onSave(this.state.text); this.setState({ open: false }); } }, "Guardar nota"))));
     }
 }
 class FriendlySelect extends React.Component {
@@ -632,6 +639,7 @@ function Btn({ children, onClick, kind = '', tiny = false, disabled = false, typ
 class Planner extends React.Component {
     constructor(props) {
         super(props);
+        this.noteDrafts = new Map();
         this.clockTimer = null;
         this.audioCtx = null;
         this.toastTimer = null;
@@ -639,11 +647,14 @@ class Planner extends React.Component {
         this.initialDraft = '';
         this.confirmResolver = null;
         this.pendingSchedule = null;
+        this.pendingScheduleBaseline = '';
         this.globalKeydown = (e) => { if (e.key === 'Escape') {
             if (this.state.confirmDialog) {
                 this.resolveConfirm(false);
                 return;
             }
+            if (this.state.pending)
+                return;
             if (this.state.helpOpen)
                 this.setState({ helpOpen: false });
             else if (this.state.modal)
@@ -651,7 +662,7 @@ class Planner extends React.Component {
             else if (this.state.guideOpen)
                 this.finishGuide();
         } };
-        this.syncModalState = () => { document.body.style.overflow = this.state.confirmDialog || this.state.modal || (this.state.guideOpen && this.state.guideStep === 0) ? 'hidden' : ''; };
+        this.syncModalState = () => { document.body.style.overflow = this.state.pending && !this.state.confirmDialog ? '' : this.state.confirmDialog || this.state.modal || (this.state.guideOpen && this.state.guideStep === 0) ? 'hidden' : ''; };
         this.resizeTextareas = () => { document.querySelectorAll('.modal-body textarea').forEach(fitArea); };
         this.setTheme = (theme) => { putPreference(THEME_STORE, theme); this.setState({ theme }); };
         this.changeDurationDisplay = (durationDisplay) => { putPreference(DURATION_STORE, durationDisplay); this.setState({ durationDisplay }); };
@@ -693,30 +704,141 @@ class Planner extends React.Component {
                     React.createElement(Btn, { kind: dialog.danger ? 'danger' : '', onClick: () => this.resolveConfirm(true) }, dialog.acceptLabel)))); };
         this.setLayout = (layout) => { putPreference(LAYOUT_STORE, layout); this.setState({ modalLayout: layout }); };
         this.finishGuide = () => { putPreference(GUIDE_STORE, 'yes'); this.setState({ guideOpen: false }); };
-        this.openGuide = () => this.setState({ modal: null, guideOpen: true, guideStep: 0, page: 'inicio', guideGoalId: '', guideEventId: '' });
+        this.openGuide = () => { if (this.canNavigate())
+            this.setState({ modal: null, guideOpen: true, guideStep: 0, page: 'inicio', guideGoalId: '', guideEventId: '' }); };
         this.openHelp = (topic) => this.setState({ helpOpen: true, helpTopic: topic });
         this.openDetail = (e) => this.setState({ modal: 'detail', activeEventId: e.id, detailPath: [], ...(this.state.guideOpen && this.state.guideStep === 5 && e.id === this.state.guideEventId ? { guideStep: 6 } : {}) });
         this.notice = (message) => this.setState({ toast: message });
+        this.dirtyDraft = () => {
+            const s = this.state, draft = s.modal === 'goal' ? s.goalDraft : s.modal === 'routine' ? s.routineDraft : s.modal === 'event' ? s.eventDraft : s.modal === 'progress' ? { value: s.progressValue, note: s.progressNote, status: s.progressStatus } : null;
+            return !!draft && JSON.stringify(draft) !== this.initialDraft;
+        };
+        this.editingNumber = () => { const input = document.activeElement, committed = input === null || input === void 0 ? void 0 : input.getAttribute('data-committed-value'); return committed !== null && committed !== undefined && !!(input === null || input === void 0 ? void 0 : input.closest('.modal-backdrop')) && input.value !== committed; };
+        this.hasUnsavedChanges = () => {
+            var _a, _b;
+            return !!this.state.pending || this.editingNumber() || this.dirtyDraft() || this.noteDrafts.size > 0 || (!!this.pendingSchedule && JSON.stringify(this.pendingSchedule) !== this.pendingScheduleBaseline) ||
+                (this.state.page === 'hoy' && this.state.reviewDraft !== (((_b = (_a = this.state.data.dayReviews) === null || _a === void 0 ? void 0 : _a[today()]) === null || _b === void 0 ? void 0 : _b.note) || ''));
+        };
+        this.beforeUnload = (event) => { if (this.hasUnsavedChanges()) {
+            event.preventDefault();
+            event.returnValue = '';
+        } };
+        this.canNavigate = () => {
+            if (!this.hasUnsavedChanges())
+                return true;
+            this.notice('Hay cambios sin guardar. Guarda las notas o el formulario, o ciérralo confirmando que deseas descartarlos.');
+            return false;
+        };
+        this.noteProps = (e, date, stepId = '') => {
+            const id = JSON.stringify([e.id, date, stepId]);
+            return { draft: this.noteDrafts.get(id), onDraft: text => { if (text === undefined)
+                    this.noteDrafts.delete(id);
+                else
+                    this.noteDrafts.set(id, text); }, onDiscard: () => this.askConfirm('Descartar borrador de nota', 'Esta nota todavía no se ha guardado. ¿Quieres descartar lo que escribiste?', 'Descartar borrador', true) };
+        };
         this.save = (data, message = 'Cambios guardados') => {
+            var _a;
             if (this.state.recovery) {
                 this.notice('Guardado bloqueado para proteger la información original. Descarga el original o vuelve a intentar la lectura.');
-                return;
+                return false;
             }
+            if (this.state.pending) {
+                this.notice('Ya hay cambios pendientes. Esta nueva acción no se añadió; reinténtala después de resolver la copia pendiente.');
+                return false;
+            }
+            let raw = null, valid = false;
             try {
-                localStorage.setItem(STORE, JSON.stringify(data));
-                this.setState({ data });
+                raw = (_a = JSON.stringify(data)) !== null && _a !== void 0 ? _a : null;
+                if (raw === null)
+                    throw Error('Datos incompletos');
+                const candidate = JSON.parse(raw);
+                if (!validData(data) || !validData(candidate))
+                    throw Error('Datos incompatibles');
+                valid = true;
+                localStorage.setItem(STORE, raw);
+                this.setState({ data: candidate });
                 this.notice(message);
+                return true;
             }
             catch (err) {
-                this.setState({ data });
-                this.notice('No se pudo guardar: almacenamiento lleno o bloqueado. Exporta una copia.');
+                this.setState({ pending: { raw, valid } });
+                this.notice(valid ? 'No se pudo guardar: almacenamiento lleno o bloqueado. Tus cambios están pendientes.' : 'No se pudo guardar: los datos no se pueden guardar como un respaldo compatible.');
+                return false;
             }
         };
-        this.route = (page) => { var _a, _b; if (this.state.guideOpen && this.state.guideStep > 0 && this.state.guideStep < 6 && page !== guideSteps[this.state.guideStep].page) {
+        this.retryPending = () => {
+            const pending = this.state.pending;
+            if (!pending || this.state.recovery)
+                return;
+            try {
+                if (!pending.valid || pending.raw === null)
+                    throw Error('Respaldo incompatible');
+                const data = JSON.parse(pending.raw);
+                if (!validData(data))
+                    throw Error('Respaldo incompatible');
+                localStorage.setItem(STORE, pending.raw);
+                this.setState({ data, pending: null });
+                this.notice('Cambios pendientes guardados correctamente');
+            }
+            catch (err) {
+                this.notice('Los cambios siguen pendientes. El último estado guardado no se ha modificado. Puedes exportarlos para conservarlos.');
+            }
+        };
+        this.exportPending = () => {
+            var _a, _b;
+            const pending = this.state.pending;
+            if (!pending || pending.raw === null)
+                return;
+            try {
+                let raw = pending.raw;
+                if (pending.valid) {
+                    const data = JSON.parse(raw);
+                    // Include unsubmitted note/review drafts so another failed action cannot
+                    // leave those drafts trapped behind this screen. Retry still commits only
+                    // the attempted action; exporting does not submit drafts to this browser.
+                    for (const [id, text] of this.noteDrafts) {
+                        const [eventId, date, stepId] = JSON.parse(id), key = eventId + '@' + date;
+                        const log = data.logs[key] || { completed: false, checkedSteps: [] };
+                        data.logs[key] = stepId ? { ...log, stepNotes: { ...log.stepNotes, [stepId]: text } } : { ...log, note: text };
+                    }
+                    if (this.state.page === 'hoy' && this.state.reviewDraft !== (((_b = (_a = this.state.data.dayReviews) === null || _a === void 0 ? void 0 : _a[today()]) === null || _b === void 0 ? void 0 : _b.note) || '')) {
+                        data.dayReviews = { ...data.dayReviews, [today()]: { note: this.state.reviewDraft, closedAt: new Date().toISOString() } };
+                    }
+                    if (!validData(data))
+                        throw Error('No se pudo preparar la copia pendiente');
+                    raw = JSON.stringify(data);
+                }
+                const blob = new Blob([raw], { type: pending.valid ? 'application/json' : 'text/plain' }), url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'fullhouse-pendientes-' + today() + (pending.valid ? '.json' : '.txt');
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 2000);
+                this.notice('Descarga solicitada. Comprueba el archivo antes de salir; los cambios siguen pendientes en este navegador.');
+            }
+            catch (err) {
+                this.notice('No pudimos descargar los pendientes. No cierres esta página; puedes volver a intentarlo.');
+            }
+        };
+        this.discardPending = async () => {
+            if (!this.state.pending)
+                return;
+            if (await this.askConfirm('Descartar cambios pendientes', 'Se perderán estos cambios sin guardar. El último estado guardado se conserva. Exporta los pendientes primero si quieres recuperarlos.', 'Descartar pendientes', true)) {
+                this.setState({ pending: null, modal: null, guideOpen: false });
+                this.notice('Cambios pendientes descartados por tu indicación.');
+            }
+        };
+        this.route = (page) => { var _a, _b; if (!this.canNavigate())
+            return; if (this.state.guideOpen && this.state.guideStep > 0 && this.state.guideStep < 6 && page !== guideSteps[this.state.guideStep].page) {
             this.setState({ toast: 'Completa este paso de la guía o selecciona «Saltar tutorial».', page: guideSteps[this.state.guideStep].page });
             return;
         } this.setState({ page, modal: null, ...(page === 'hoy' ? { selectedDate: today(), reviewDraft: ((_b = (_a = this.state.data.dayReviews) === null || _a === void 0 ? void 0 : _a[today()]) === null || _b === void 0 ? void 0 : _b.note) || '' } : {}) }); window.scrollTo(0, 0); };
-        this.chooseDay = (s) => this.setState({ selectedDate: s, month: firstMonth(s), calendarDetailOpen: this.state.page === 'calendario' });
+        this.showTodayEvent = (id) => { if (!this.canNavigate())
+            return; this.route('hoy'); this.setState({ expandedTodayId: id }); };
+        this.chooseDay = (s) => { if (this.canNavigate())
+            this.setState({ selectedDate: s, month: firstMonth(s), calendarDetailOpen: this.state.page === 'calendario' }); };
         this.openGoal = (goal, parentId = '') => {
             var _a;
             const draft = goal ? {
@@ -740,19 +862,22 @@ class Planner extends React.Component {
             this.initialDraft = JSON.stringify(draft);
             this.setState({ modal: 'event', eventDraft: draft, datePickerMonth: firstMonth(draft.date) });
         };
-        this.openProgress = (g) => this.setState({ modal: 'progress', progressGoalId: g.id, progressValue: String(g.current), progressStatus: goalStatus(g), progressNote: '' });
+        this.openProgress = (g) => { this.initialDraft = JSON.stringify({ value: String(g.current), note: '', status: goalStatus(g) }); this.setState({ modal: 'progress', progressGoalId: g.id, progressValue: String(g.current), progressStatus: goalStatus(g), progressNote: '' }); };
         this.openExecute = (e) => this.setState({ modal: 'execute', activeEventId: e.id });
         this.close = (force = false) => {
-            const m = this.state.modal, draft = m === 'goal' ? this.state.goalDraft : m === 'routine' ? this.state.routineDraft : m === 'event' ? this.state.eventDraft : null;
+            const m = this.state.modal;
             const finish = () => { if (this.state.returnToSchedule && m === 'routine' && this.pendingSchedule) {
                 const restored = this.pendingSchedule;
                 this.pendingSchedule = null;
-                this.initialDraft = JSON.stringify(restored);
+                this.initialDraft = this.pendingScheduleBaseline;
+                this.pendingScheduleBaseline = '';
                 this.setState({ modal: 'event', eventDraft: restored, returnToSchedule: false, scheduleContextNote: '' });
             }
             else
                 this.setState({ modal: null, detailPath: [], helpOpen: false, returnToSchedule: false, scheduleContextNote: '' }); };
-            if (force !== true && draft && JSON.stringify(draft) !== this.initialDraft) {
+            if (force !== true && this.state.pending)
+                return;
+            if (force !== true && this.dirtyDraft()) {
                 this.askConfirm('Salir sin guardar', 'Los cambios que has realizado en esta ventana se perderán.', 'Salir sin guardar', true).then(ok => { if (ok)
                     finish(); });
                 return;
@@ -766,6 +891,7 @@ class Planner extends React.Component {
                 return;
             }
             const advice = reason.includes('Faltan') || reason.includes('exceden') ? 'Reduce la duración de los pasos fijos o modifica los límites del horario.' : reason.includes('Sobran') ? 'Puedes añadir uno o más contenidos flexibles, aumentar la duración de los pasos o cambiar los bloques límite.' : 'Puedes ajustar los minutos de los pasos y añadir contenidos flexibles para absorber el tiempo disponible.';
+            this.pendingScheduleBaseline = this.initialDraft;
             this.pendingSchedule = JSON.parse(JSON.stringify(e));
             const draft = JSON.parse(JSON.stringify(r));
             this.initialDraft = JSON.stringify(draft);
@@ -1041,7 +1167,8 @@ class Planner extends React.Component {
             if (this.state.returnToSchedule && this.pendingSchedule) {
                 const draft = this.pendingSchedule;
                 this.pendingSchedule = null;
-                this.initialDraft = JSON.stringify(draft);
+                this.initialDraft = this.pendingScheduleBaseline;
+                this.pendingScheduleBaseline = '';
                 this.setState({ modal: 'event', eventDraft: draft, returnToSchedule: false, scheduleContextNote: '' });
             }
             else
@@ -1328,8 +1455,7 @@ class Planner extends React.Component {
                 this.notice('Antes de completar la rutina, elige las alternativas al desglosar la rutina en Mi día.');
                 return;
             }
-            this.save({ ...d, logs: { ...d.logs, [k]: { ...r, completed: !r.completed } } }, 'Actividad actualizada');
-            if (!r.completed)
+            if (this.save({ ...d, logs: { ...d.logs, [k]: { ...r, completed: !r.completed } } }, 'Actividad actualizada') && !r.completed)
                 this.playCheckSound();
         };
         this.toggleStep = (e, date, stepId) => {
@@ -1340,8 +1466,7 @@ class Planner extends React.Component {
             const leaves = routine ? leafSteps(activeSteps(routine.steps, date, choices)) : [];
             const pending = routine ? unresolvedManual(activeSteps(routine.steps, date, choices), choices) : [];
             const completed = leaves.length > 0 && pending.length === 0 && leaves.every(s => checked.includes(s.id));
-            this.save({ ...d, logs: { ...d.logs, [k]: { ...r, checkedSteps: checked, completed } } }, 'Paso actualizado');
-            if (!r.checkedSteps.includes(stepId))
+            if (this.save({ ...d, logs: { ...d.logs, [k]: { ...r, checkedSteps: checked, completed } } }, 'Paso actualizado') && !r.checkedSteps.includes(stepId))
                 this.playCheckSound();
         };
         this.saveOccurrenceNote = (e, date, text, stepId) => {
@@ -1381,12 +1506,16 @@ class Planner extends React.Component {
             }
             const next = { ...g, current: val, status: mode === 'qualitative' ? this.state.progressStatus : goalStatus(g), history: [...g.history, { date: today(), value: val, note: this.state.progressNote.trim(), status: mode === 'qualitative' ? this.state.progressStatus : undefined }] };
             this.save({ ...d, goals: d.goals.map(x => x.id === g.id ? next : x) }, 'Avance registrado');
-            this.close();
+            this.close(true);
         };
         this.toggleMilestone = (goalId, milestoneId) => { const d = this.state.data; const g = d.goals.find(x => x.id === goalId); if (!g)
             return; const ms = goalMilestones(g).map(m => m.id === milestoneId ? { ...m, done: !m.done } : m); const n = ms.filter(m => m.done).length; const next = { ...g, milestones: ms, current: n, target: ms.length, history: [...g.history, { date: today(), value: n, note: 'Hito actualizado' }] }; this.save({ ...d, goals: d.goals.map(x => x.id === goalId ? next : x) }, 'Hito actualizado'); };
         this.retryLocalLoad = () => {
             var _a, _b;
+            if (this.state.pending) {
+                this.notice('Resuelve los cambios pendientes antes de volver a cargar los datos.');
+                return;
+            }
             // Check before load(): a missing captured source must not trigger legacy copy.
             if (this.state.recovery && this.state.recovery.raw !== null) {
                 try {
@@ -1426,6 +1555,10 @@ class Planner extends React.Component {
                 this.downloadOriginal();
                 return;
             }
+            if (this.state.pending) {
+                this.exportPending();
+                return;
+            }
             const blob = new Blob([JSON.stringify(this.state.data, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -1439,6 +1572,10 @@ class Planner extends React.Component {
         };
         this.importData = async (ev) => {
             var _a;
+            if (this.state.pending) {
+                this.notice('Primero reintenta, exporta o descarta los cambios pendientes antes de importar.');
+                return;
+            }
             if (this.state.recovery) {
                 this.notice('La restauración está bloqueada para conservar el original. Descárgalo antes de revisar el problema.');
                 return;
@@ -1456,6 +1593,10 @@ class Planner extends React.Component {
             reader.onerror = () => fail('No pudimos leer el archivo. Intenta seleccionarlo de nuevo.');
             reader.onabort = () => fail('La lectura del respaldo se interrumpió.');
             reader.onload = () => {
+                if (this.state.pending || this.state.recovery) {
+                    this.notice('La importación se ha detenido para proteger los cambios pendientes o el original.');
+                    return;
+                }
                 let data;
                 try {
                     const parsed = JSON.parse(String(reader.result));
@@ -1490,6 +1631,10 @@ class Planner extends React.Component {
             input.value = '';
         };
         this.reset = async () => {
+            if (this.state.pending) {
+                this.notice('No se pueden restablecer ejemplos mientras hay cambios pendientes.');
+                return;
+            }
             if (this.state.recovery) {
                 this.notice('No se pueden restablecer ejemplos mientras el original está protegido.');
                 return;
@@ -1763,13 +1908,13 @@ class Planner extends React.Component {
                         " Notas y evidencias de este paso"),
                     (s.requestEvidence || ((_c = this.state.data.routines.find(r => r.id === e.routineId)) === null || _c === void 0 ? void 0 : _c.requestEvidence)) && React.createElement("div", { className: 'evidence-prompt' }, "Puedes adjuntar un recuerdo de este paso."),
                     this.evidenceSection(e, date, s.id),
-                    React.createElement(NoteEditor, { key: e.id + '-' + date + '-' + s.id, label: 'Nota de ' + (s.title || 'este paso'), value: ((_d = log.stepNotes) === null || _d === void 0 ? void 0 : _d[s.id]) || '', carry: upcomingNote(this.state.data, e, date, s.id), onSave: text => this.saveOccurrenceNote(e, date, text, s.id) })),
+                    React.createElement(NoteEditor, { ...this.noteProps(e, date, s.id), key: e.id + '-' + date + '-' + s.id, label: 'Nota de ' + (s.title || 'este paso'), value: ((_d = log.stepNotes) === null || _d === void 0 ? void 0 : _d[s.id]) || '', carry: upcomingNote(this.state.data, e, date, s.id), onSave: text => this.saveOccurrenceNote(e, date, text, s.id) })),
                 s.children && s.children.length > 0 && (!manual || !!chosen) && this.renderCheckSteps(s.children, e, date, log, allocation, level + 1));
         }));
         const d = today(), initial = load();
-        this.state = { recovery: initial.recovery, clockMinutes: clockNow(), expandedTodayId: '', scheduleFocusId: '', sleepStart: getPreference(SLEEP_START_STORE) || '23:00', sleepHours: safeSleepHours(Number(getPreference(SLEEP_HOURS_STORE)) || 8), soundsOn: getPreference(SOUND_STORE) !== 'off', dragOverCardId: '', confirmDialog: null, durationDisplay: getPreference(DURATION_STORE) === 'minutes' ? 'minutes' : 'hours', returnToSchedule: false, scheduleContextNote: '', data: initial.data, page: 'inicio', selectedDate: d, month: firstMonth(d), modal: null, goalDraft: gDraft(), routineDraft: rDraft(), eventDraft: eDraft(d), activeEventId: '', detailPath: [], progressValue: '', progressNote: '', progressStatus: 'pending', progressGoalId: '', toast: '', theme: (themeOptions.some(x => x.id === getPreference(THEME_STORE)) ? getPreference(THEME_STORE) : 'aurora'), modalLayout: getPreference(LAYOUT_STORE) === 'horizontal' ? 'horizontal' : 'vertical', guideOpen: !initial.recovery && getPreference(GUIDE_STORE) !== 'yes', guideStep: 0, guideGoalId: '', guideEventId: '', helpTopic: '', helpOpen: false, areaFilter: 'all', goalView: 'cards', mapGrouping: 'structure', colorEditorOpen: false, hexDraft: colorOptions[0], draggedStepId: '', dragTargetId: '', draggedCardType: '', draggedCardId: '', datePickerMonth: firstMonth(d), calendarDetailOpen: false, advancedOpen: getPreference(ADVANCED_STORE) === 'yes', expandedGoalPick: [], helpX: null, helpY: null, reviewDraft: '', evidenceCaption: '' };
+        this.state = { pending: null, recovery: initial.recovery, clockMinutes: clockNow(), expandedTodayId: '', scheduleFocusId: '', sleepStart: getPreference(SLEEP_START_STORE) || '23:00', sleepHours: safeSleepHours(Number(getPreference(SLEEP_HOURS_STORE)) || 8), soundsOn: getPreference(SOUND_STORE) !== 'off', dragOverCardId: '', confirmDialog: null, durationDisplay: getPreference(DURATION_STORE) === 'minutes' ? 'minutes' : 'hours', returnToSchedule: false, scheduleContextNote: '', data: initial.data, page: 'inicio', selectedDate: d, month: firstMonth(d), modal: null, goalDraft: gDraft(), routineDraft: rDraft(), eventDraft: eDraft(d), activeEventId: '', detailPath: [], progressValue: '', progressNote: '', progressStatus: 'pending', progressGoalId: '', toast: '', theme: (themeOptions.some(x => x.id === getPreference(THEME_STORE)) ? getPreference(THEME_STORE) : 'aurora'), modalLayout: getPreference(LAYOUT_STORE) === 'horizontal' ? 'horizontal' : 'vertical', guideOpen: !initial.recovery && getPreference(GUIDE_STORE) !== 'yes', guideStep: 0, guideGoalId: '', guideEventId: '', helpTopic: '', helpOpen: false, areaFilter: 'all', goalView: 'cards', mapGrouping: 'structure', colorEditorOpen: false, hexDraft: colorOptions[0], draggedStepId: '', dragTargetId: '', draggedCardType: '', draggedCardId: '', datePickerMonth: firstMonth(d), calendarDetailOpen: false, advancedOpen: getPreference(ADVANCED_STORE) === 'yes', expandedGoalPick: [], helpX: null, helpY: null, reviewDraft: '', evidenceCaption: '' };
     }
-    componentDidMount() { this.syncModalState(); document.addEventListener('keydown', this.globalKeydown); this.resizeTextareas(); this.clockTimer = setInterval(() => this.setState({ clockMinutes: clockNow() }), 30000); }
+    componentDidMount() { this.syncModalState(); document.addEventListener('keydown', this.globalKeydown); window.addEventListener('beforeunload', this.beforeUnload); this.resizeTextareas(); this.clockTimer = setInterval(() => this.setState({ clockMinutes: clockNow() }), 30000); }
     componentDidUpdate(_, prev) {
         this.syncModalState();
         if (prev.modal !== this.state.modal || prev.modalLayout !== this.state.modalLayout)
@@ -1787,7 +1932,25 @@ class Planner extends React.Component {
         this.confirmResolver(false);
         this.confirmResolver = null;
     } if (this.toastTimer)
-        clearTimeout(this.toastTimer); document.body.style.overflow = ''; document.removeEventListener('keydown', this.globalKeydown); document.removeEventListener('mousemove', this.moveStepDrag, true); document.removeEventListener('mouseup', this.endStepDrag, true); }
+        clearTimeout(this.toastTimer); document.body.style.overflow = ''; document.removeEventListener('keydown', this.globalKeydown); window.removeEventListener('beforeunload', this.beforeUnload); document.removeEventListener('mousemove', this.moveStepDrag, true); document.removeEventListener('mouseup', this.endStepDrag, true); }
+    renderPending() {
+        const pending = this.state.pending;
+        if (!pending)
+            return null;
+        return React.createElement("div", { className: 'app-shell', "data-theme": this.state.theme, style: { display: 'block' } },
+            React.createElement("main", { className: 'content', style: { maxWidth: 800, margin: '0 auto' } },
+                React.createElement("section", { className: 'panel', role: 'alert', "aria-labelledby": 'pending-title' },
+                    React.createElement("h1", { id: 'pending-title' }, "Cambios pendientes de guardar"),
+                    React.createElement("p", null, "El \u00FAltimo estado guardado sigue intacto. Estos cambios todav\u00EDa no se han guardado en el navegador y solo est\u00E1n en la memoria de esta p\u00E1gina."),
+                    React.createElement("p", null, pending.valid ? 'El almacenamiento está lleno o bloqueado. Libera espacio o permite el almacenamiento y vuelve a intentar el guardado.' : 'Estos cambios no forman un respaldo compatible. No reemplazaremos la información guardada; puedes descargarlos para revisión.'),
+                    React.createElement("p", null, "Hemos pausado las nuevas ediciones para proteger esta copia. Antes de recargar, navegar fuera o cerrar, exporta los pendientes y comprueba la descarga. La exportaci\u00F3n JSON incluye tambi\u00E9n las notas y la revisi\u00F3n del d\u00EDa que hayas escrito sin guardar. Puedes restaurarla despu\u00E9s desde Ajustes."),
+                    React.createElement("div", { className: 'actions' },
+                        React.createElement(Btn, { disabled: !pending.valid, onClick: this.retryPending }, "Reintentar guardado"),
+                        React.createElement(Btn, { kind: 'secondary', disabled: pending.raw === null, onClick: this.exportPending }, "Exportar cambios pendientes"),
+                        React.createElement(Btn, { kind: 'ghost', onClick: () => this.discardPending() }, "Descartar cambios pendientes")),
+                    this.state.toast && React.createElement("p", { role: 'status' }, this.state.toast))),
+            this.renderConfirm());
+    }
     renderRecovery() {
         const recovery = this.state.recovery;
         if (!recovery)
@@ -1891,7 +2054,7 @@ class Planner extends React.Component {
                                 " pasos")),
                         e.note && React.createElement("div", { className: "schedule-notes" }, e.note),
                         React.createElement("div", { className: "actions", style: { marginTop: 9 } },
-                            routine && React.createElement(Btn, { tiny: true, kind: "secondary", onClick: () => this.setState({ page: 'hoy', expandedTodayId: e.id }) }, "Ver pasos en Mi d\u00EDa"),
+                            routine && React.createElement(Btn, { tiny: true, kind: "secondary", onClick: () => this.showTodayEvent(e.id) }, "Ver pasos en Mi d\u00EDa"),
                             e.anchor !== 'between' && React.createElement(Btn, { tiny: true, kind: "ghost", title: "Mover 15 minutos antes (solo este d\u00EDa)", onClick: () => this.shiftEvent(e, date, -15) }, "\u221215 min"),
                             e.anchor !== 'between' && React.createElement(Btn, { tiny: true, kind: "ghost", title: "Mover 15 minutos despu\u00E9s (solo este d\u00EDa)", onClick: () => this.shiftEvent(e, date, 15) }, "+15 min"))),
                     React.createElement("div", { className: "mini-actions" },
@@ -2001,7 +2164,7 @@ class Planner extends React.Component {
                                     React.createElement("summary", null,
                                         "Notas y fotograf\u00EDas de este bloque ",
                                         React.createElement(Icon, { name: 'right', size: 14 })),
-                                    React.createElement(NoteEditor, { key: 'daily-' + e.id, label: 'Nota de esta actividad', value: log.note || '', carry: upcomingNote(data, e, date), onSave: text => this.saveOccurrenceNote(e, date, text) }),
+                                    React.createElement(NoteEditor, { ...this.noteProps(e, date), key: 'daily-' + e.id, label: 'Nota de esta actividad', value: log.note || '', carry: upcomingNote(data, e, date), onSave: text => this.saveOccurrenceNote(e, date, text) }),
                                     (e.requestEvidence || (r === null || r === void 0 ? void 0 : r.requestEvidence)) && React.createElement("p", { className: 'evidence-prompt' }, "Puedes dejar evidencia de este bloque, si lo deseas."),
                                     this.evidenceSection(e, date))));
                     }) : React.createElement("div", { className: 'today-empty-state' },
@@ -2551,7 +2714,7 @@ class Planner extends React.Component {
                     React.createElement(Btn, { kind: 'secondary', onClick: () => this.openEvent(e) },
                         React.createElement(Icon, { name: 'edit', size: 14 }),
                         " Editar bloque"),
-                    date === today() && React.createElement(Btn, { onClick: () => this.setState({ page: 'hoy', expandedTodayId: e.id }) }, "Realizar en Mi d\u00EDa"))));
+                    date === today() && React.createElement(Btn, { onClick: () => this.showTodayEvent(e.id) }, "Realizar en Mi d\u00EDa"))));
     }
     renderDetail() {
         var _a, _b, _c;
@@ -2613,7 +2776,7 @@ class Planner extends React.Component {
                             ((_a = s.children) === null || _a === void 0 ? void 0 : _a.length) ? s.children.length + ' elementos' : 'Ver instrucciones')),
                     React.createElement(Icon, { name: "right", size: 18 })); }))),
             this.evidenceSection(e, date, (current === null || current === void 0 ? void 0 : current.id) || ''),
-            React.createElement(NoteEditor, { key: e.id + '-' + date + '-' + ((current === null || current === void 0 ? void 0 : current.id) || 'block'), value: current ? ((_c = log.stepNotes) === null || _c === void 0 ? void 0 : _c[current.id]) || '' : log.note || '', carry: upcomingNote(d, e, date, current === null || current === void 0 ? void 0 : current.id), label: current ? 'Nota de este paso' : 'Nota de esta actividad o rutina', onSave: text => this.saveOccurrenceNote(e, date, text, current === null || current === void 0 ? void 0 : current.id) }),
+            React.createElement(NoteEditor, { ...this.noteProps(e, date, current === null || current === void 0 ? void 0 : current.id), key: e.id + '-' + date + '-' + ((current === null || current === void 0 ? void 0 : current.id) || 'block'), value: current ? ((_c = log.stepNotes) === null || _c === void 0 ? void 0 : _c[current.id]) || '' : log.note || '', carry: upcomingNote(d, e, date, current === null || current === void 0 ? void 0 : current.id), label: current ? 'Nota de este paso' : 'Nota de esta actividad o rutina', onSave: text => this.saveOccurrenceNote(e, date, text, current === null || current === void 0 ? void 0 : current.id) }),
             !r && React.createElement("div", { className: "notice" }, "Para desglosar este bloque en pasos, as\u00EDgnale una rutina desde \u00ABEditar bloque\u00BB."),
             path.length > 0 && React.createElement(Btn, { kind: "ghost", onClick: () => this.setState({ detailPath: path.slice(0, -1) }) },
                 React.createElement(Icon, { name: "left" }),
@@ -3519,7 +3682,7 @@ class Planner extends React.Component {
                 " paso(s) con alternativas pendientes de elegir."),
             (e.requestEvidence || original.requestEvidence) && React.createElement("div", { className: 'evidence-prompt' }, "Si quieres, deja una fotograf\u00EDa de lo que realizaste."),
             this.evidenceSection(e, date),
-            React.createElement(NoteEditor, { key: e.id + '-' + date + '-routine', label: 'Nota general de esta ejecuci\u00F3n', value: log.note || '', carry: upcomingNote(this.state.data, e, date), onSave: text => this.saveOccurrenceNote(e, date, text) }),
+            React.createElement(NoteEditor, { ...this.noteProps(e, date), key: e.id + '-' + date + '-routine', label: 'Nota general de esta ejecuci\u00F3n', value: log.note || '', carry: upcomingNote(this.state.data, e, date), onSave: text => this.saveOccurrenceNote(e, date, text) }),
             React.createElement("div", { style: { marginTop: 15 } }, this.renderCheckSteps(r.steps, e, date, log, allocation)),
             React.createElement("div", { className: "divider" }),
             React.createElement("div", { className: "row spread" },
@@ -3533,6 +3696,8 @@ class Planner extends React.Component {
     render() {
         if (this.state.recovery)
             return this.renderRecovery();
+        if (this.state.pending)
+            return this.renderPending();
         const title = { hoy: 'Mi día', inicio: 'Inicio', metas: 'Metas', rutinas: 'Rutinas', horario: 'Horario', calendario: 'Calendario', progreso: 'Progreso', ajustes: 'Ajustes' };
         return React.createElement("div", { className: "app-shell", "data-theme": this.state.theme },
             this.renderSidebar(),
