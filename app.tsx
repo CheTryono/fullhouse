@@ -234,6 +234,19 @@ function eventFrame(e:EventItem,date:string,data:Data,visited:Set<string>=new Se
   if(start<0||start+length>1440)return null;
   return {start,end:start+length,length};
 }
+/* Check only dependent intervals changed by movements on this one date. */
+function dependentMovementIssue(before:Data,after:Data,date:string):string {
+  for(const e of before.events){
+    if(e.anchor!=='between'||!occurs(e,date))continue;
+    const previous=eventFrame(e,date,before),next=eventFrame(e,date,after);
+    if(previous?.start===next?.start&&previous?.end===next?.end)continue;
+    if(!next)return 'El cambio dejaría sin espacio a un bloque dependiente. Se conserva el horario anterior. Edita las horas de sus rutinas límite.';
+    const r=after.routines.find(r=>r.id===e.routineId);
+    if(r&&routineBalance(r,date,next.length,after.logs[key(e,date)]?.choices||{}).error)
+      return 'El cambio no deja un intervalo adecuado para los pasos de «'+e.title+'». Se conserva el horario anterior. Ajusta sus límites o tiempos.';
+  }
+  return '';
+}
 function eventsOn(data:Data,date:string):EventItem[]{return data.events.filter(e=>occurs(e,date)&&(e.allDay||!!eventFrame(e,date,data))).sort((a,b)=>eventTime(a,date,data).localeCompare(eventTime(b,date,data)));}
 function eventTime(e:EventItem,date:string,data?:Data):string {const frame=data?eventFrame(e,date,data):null;return frame?timeString(frame.start):e.overrides?.[date]?.time||e.time;}
 function scheduleStart(e:EventItem,date:string,data:Data):number{return eventFrame(e,date,data)?.start??minutes(e.time);}
@@ -674,7 +687,7 @@ class Planner extends React.Component<{},State> {
       }else if(!frame)issue='La duración no cabe en este día o los horarios son inválidos.';
       if(frame&&r){const balance=routineBalance(r,day,frame.length,data.logs[key(prepared,day)]?.choices||{});if(balance.error)issue=balance.error;}
       const overlaps=frame?data.events.filter(item=>item.id!==prepared.id&&occurs(item,day)&&!item.allDay).filter(item=>{const f=eventFrame(item,day,data);return !!f&&f.start<frame.end&&f.end>frame.start;}).map(item=>item.title):[];
-      result.push({date:day,label:fmtDate(day),start:frame?timeString(frame.start):'—',end:frame?timeString(frame.end):'—',length:frame?.length||0,issue,overlaps,skipped});
+      result.push({date:day,label:fmtDate(day),start:frame?timeString(frame.start):'—',end:frame?(frame.end===1440?'24:00':timeString(frame.end)):'—',length:frame?.length||0,issue,overlaps,skipped});
       if(draft.repeat==='none')break;
     }
     return result;
@@ -740,6 +753,7 @@ class Planner extends React.Component<{},State> {
     const data=this.state.data;
     const previewRows=this.schedulePreview(x);
     const blocking=previewRows.filter(row=>row.issue&&(x.anchor==='between'||!row.skipped));
+    if(!x.routineId&&blocking.length){this.notice('La actividad debe comenzar y terminar dentro del mismo día, hasta las 24:00. Se conserva la programación anterior.');return;}
     if(x.routineId&&blocking.length){
       const details=blocking.slice(0,3).map(row=>`${row.label}: ${row.issue}`).join('\n');
       if(await this.askConfirm('La rutina necesita ajustes',`No se puede programar todavía.\n\n${details}\n\nPuedes editar sus tiempos y volver a esta programación sin perder lo que has rellenado.`,'Editar rutina'))this.editRoutineFromSchedule(details);
@@ -795,8 +809,7 @@ class Planner extends React.Component<{},State> {
         }else cursor=f.end;
       }
       const adjusted={...next,events:updated};
-      const broken=next.events.filter(item=>item.anchor==='between'&&occurs(item,date)&&!!eventFrame(item,date,next)&&!eventFrame(item,date,adjusted));
-      if(broken.length){this.notice('El desplazamiento dejaría sin intervalo a «'+broken[0].title+'». Mantén el solapamiento o ajusta las rutinas límite.');return null;}
+      const issue=dependentMovementIssue(next,adjusted,date);if(issue){this.notice(issue);return null;}
       return adjusted;
     };
 
@@ -887,10 +900,17 @@ class Planner extends React.Component<{},State> {
   };
   shiftEvent=(e:EventItem,date:string,delta:number):void=>{
     if(e.anchor==='between'){this.notice('Este bloque depende de dos rutinas. Para moverlo, reprograma alguna de sus rutinas límite.');return;}
-    const d=this.state.data;const newTime=timeString(bound(minutes(eventTime(e,date,d))+delta,0,1439));const next={...e,overrides:{...e.overrides,[date]:{...e.overrides[date],time:newTime}}};
+    if(e.allDay){this.notice('Las actividades de todo el día no se desplazan por minutos.');return;}
+    const d=this.state.data,start=Math.max(0,minutes(eventTime(e,date,d))+delta);
+    // Keep the existing clamp to 00:00. Never wrap/clamp an overflowing end to
+    // another apparent time: validate before timeString() and before save().
+    if(!Number.isFinite(delta)||!Number.isFinite(start)||start>=1440){this.notice('No se puede mover fuera del día (00:00–24:00). Se conserva el horario anterior.');return;}
+    const newTime=timeString(start),next={...e,overrides:{...e.overrides,[date]:{...e.overrides[date],time:newTime}}};
     const newData={...d,events:d.events.map(x=>x.id===e.id?next:x)};
+    if(!eventFrame(next,date,newData)){this.notice('No se puede mover: la actividad debe comenzar y terminar dentro del mismo día, hasta las 24:00. Se conserva el horario anterior.');return;}
+    // Validate the whole dependency chain, not just the direct neighbors.
+    const issue=dependentMovementIssue(d,newData,date);if(issue){this.notice(issue);return;}
     const affected=e.routineId?d.events.filter(x=>x.anchor==='between'&&(x.afterRoutineId===e.routineId||x.beforeRoutineId===e.routineId)&&occurs(x,date)):[];
-    if(affected.some(x=>!!eventFrame(x,date,d)&&!eventFrame(x,date,newData))){this.notice('El cambio dejaría sin espacio a un bloque dependiente. Edita las horas de sus rutinas límite.');return;}
     this.save(newData,`Actividad movida a las ${newTime}`+(affected.length?' · Bloques dependientes ajustados':''));
   }
   saveProgress=():void=>{
@@ -1160,7 +1180,7 @@ class Planner extends React.Component<{},State> {
     const path=this.state.detailPath,view=get(steps,path),frame=eventFrame(e,date,data),base=frame?.start||0;
     const blocks=view.map(s=>({s,minutes:effectiveStepMinutes(s,allocation)}));const total=blocks.reduce((n,x)=>n+x.minutes,0),color=eventTint(data,e);
     return <div className='schedule-zoom' style={{'--zoom-color':color} as any}>
-      <div className='row spread'><div><div className='eyebrow'>ACERCAMIENTO · {eventTime(e,date,data)} – {timeString(Math.min(1439,base+durationOn(e,date,data)))}</div><h2><Icon name={r?.icon||'calendar'} size={24}/> {e.title}</h2><p className='caption'>{r?.desc||e.note||'Observa la duración de este bloque y su distribución.'}</p></div><button className='icon-btn' aria-label='Cerrar acercamiento' onClick={()=>this.setState({scheduleFocusId:'',detailPath:[]})}><Icon name='close'/></button></div>
+      <div className='row spread'><div><div className='eyebrow'>ACERCAMIENTO · {eventTime(e,date,data)} – {base+durationOn(e,date,data)===1440?'24:00':timeString(base+durationOn(e,date,data))}</div><h2><Icon name={r?.icon||'calendar'} size={24}/> {e.title}</h2><p className='caption'>{r?.desc||e.note||'Observa la duración de este bloque y su distribución.'}</p></div><button className='icon-btn' aria-label='Cerrar acercamiento' onClick={()=>this.setState({scheduleFocusId:'',detailPath:[]})}><Icon name='close'/></button></div>
       {path.length>0&&<div className='schedule-zoom-crumb'><button onClick={()=>this.setState({detailPath:[]})}>{e.title}</button>{path.map((id,i)=><span key={id}> / <button onClick={()=>this.setState({detailPath:path.slice(0,i+1)})}>{getStepByPath(steps,path.slice(0,i+1))?.title||'Paso'}</button></span>)}</div>}
       {blocks.length?<div className='schedule-zoom-blocks'>{blocks.map(({s,minutes:m})=><button className='schedule-zoom-block' key={s.id} type='button' onClick={()=>s.children?.length?this.setState({detailPath:[...path,s.id]}):this.notice(s.desc||'Este paso no tiene más subpasos.')} style={{'--zoom-step-color':goalColor(data,s.goalId)||color,flexGrow:Math.max(1,m)} as any}><strong>{s.title}</strong><small>{this.dur(m)} {s.children?.length?'· Acercar':'· '+(s.desc||'Sin más detalles')}</small></button>)}</div>:<div className='today-empty-state'>Este bloque no tiene subpasos. {e.note||''}</div>}
       <div className='row spread schedule-zoom-footer'><span className='caption'>Tiempo distribuido: {this.dur(total)} {r?'· '+steps.length+' pasos principales':''}</span><div className='actions'>{path.length>0&&<Btn kind='secondary' onClick={()=>this.setState({detailPath:path.slice(0,-1)})}><Icon name='left' size={14}/> Alejar</Btn>}<Btn kind='secondary' onClick={()=>this.openEvent(e)}><Icon name='edit' size={14}/> Editar bloque</Btn>{date===today()&&<Btn onClick={()=>this.showTodayEvent(e.id)}>Realizar en Mi día</Btn>}</div></div>

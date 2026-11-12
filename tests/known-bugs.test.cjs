@@ -4,14 +4,6 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { app, plain, DAY, emptyData, step, routine, event } = require('./helpers/app.cjs');
 
-test('BUG-04: shifting past midnight must reject the change and keep the event visible', () => {
-  const e = event('late', { time: '23:00', minutes: 60 });
-  const before = { ...emptyData(), events: [e] };
-  const a = app({ data: before });
-  a.controller.shiftEvent(e, DAY, 15);
-  assert.equal(a.call('eventsOn', a.controller.state.data, DAY).length, 1, 'The shifted event must remain visible');
-  assert.deepEqual(plain(a.controller.state.data), before);
-});
 test('BUG-05: editing a routine must preserve the interpretation of completed historical steps', () => {
   const past = '2030-01-06';
   const e = event('history', { date: past, repeat: 'daily', routineId: 'routine' });

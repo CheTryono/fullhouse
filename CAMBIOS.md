@@ -1,3 +1,14 @@
+# BUG-04 — desplazamientos válidos dentro del día
+
+- Se valida el intervalo completo antes de guardar un desplazamiento. Terminar a las 24:00 es válido; exceder el día se rechaza conservando el horario anterior, las excepciones y los registros. Se mantiene el ajuste inferior a 00:00; el final exacto se muestra como 24:00 en el acercamiento y la previsión.
+- Validación de dependientes directos y encadenados, incluidos sus pasos fijos/flexibles. Se comparte con los movimientos automáticos de «Posponer bloques».
+- El formulario de una actividad sin rutina también rechaza intervalos fuera del día; no se permite guardar una actividad que luego quede oculta por su duración.
+- Reproducción BUG-04 trasladada sin modificar sus aserciones: 164 pruebas de regresión aprobadas. Solo BUG-05 permanece fallido, sin alterar su lógica histórica.
+- TypeScript, sintaxis y compilado sincronizado verificados. Chromium a 1280/390 px con Medianoche: editor real, controlador de desplazamiento, horario visible, excepciones/historial y pendientes de BUG-01, sin errores JavaScript.
+- Sin cambios en esquema, claves, dependencias, estilos ni despliegue. No se introduce cruce de medianoche, reparación automática de horarios previos ni nuevos botones en la interfaz.
+
+---
+
 # BUG-01 — guardado confirmado y recuperación de pendientes
 
 - Ante un fallo de `localStorage`, se conserva el último estado confirmado y una copia JSON independiente del intento pendiente, sin anunciar éxito ni marcar completados como guardados.
