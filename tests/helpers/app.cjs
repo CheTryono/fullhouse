@@ -12,12 +12,13 @@ const event = (id = 'event', patch = {}) => ({
   goalId: '', routineId: '', repeat: 'none', note: '', overrides: {}, ...patch,
 });
 
-function app({ data = emptyData(), stored = {}, failRead = false, failWrite = false, fileFailure = '', useLoadedData = false } = {}) {
+function app({ data = emptyData(), stored = {}, failRead = false, failWrite = false, writeError = 'QuotaExceededError', fileFailure = '', useLoadedData = false } = {}) {
   const storage = new Map(Object.entries(stored));
   const confirmations = [];
   const warnings = [];
   const downloads = [];
   const blobs = new Map();
+  const listeners = new Map();
   // This adapter exercises controller methods, not React rendering/batching.
   class Component {
     constructor(props) { this.props = props; }
@@ -38,14 +39,15 @@ function app({ data = emptyData(), stored = {}, failRead = false, failWrite = fa
     }
   }
   const context = vm.createContext({
-    Date: Clock, FileReader, Blob, setTimeout() {},
+    Date: Clock, FileReader, Blob, setTimeout() {}, setInterval() { return 1; }, clearInterval() {}, clearTimeout() {},
+    window: { addEventListener(name, fn) { listeners.set(name, fn); }, removeEventListener(name) { listeners.delete(name); }, scrollTo() {} },
     URL: { createObjectURL(blob) { const url = 'blob:synthetic-' + blobs.size; blobs.set(url, blob); return url; }, revokeObjectURL() {} },
     React: { Component, createElement() {} }, ReactDOM: { render() {} },
-    document: { getElementById() { return null; }, body: { appendChild() {} }, createElement() { return { click() { downloads.push({ name: this.download, blob: blobs.get(this.href) }); }, remove() {} }; } },
+    document: { addEventListener() {}, removeEventListener() {}, querySelectorAll() { return []; }, getElementById() { return null; }, body: { style: {}, appendChild() {} }, createElement() { return { click() { downloads.push({ name: this.download, blob: blobs.get(this.href) }); }, remove() {} }; } },
     console: { warn(...args) { warnings.push(args); } },
     localStorage: {
       getItem(name) { if (failRead) throw new Error('Synthetic read failure'); return storage.get(name) ?? null; },
-      setItem(name, value) { if (failWrite) throw new Error('Synthetic quota failure'); storage.set(name, String(value)); },
+      setItem(name, value) { if (failWrite) { const error = new Error('Synthetic storage failure'); error.name = writeError; throw error; } storage.set(name, String(value)); },
     },
   });
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../../app.js'), 'utf8'), context, { filename: 'app.js' });
@@ -54,7 +56,8 @@ function app({ data = emptyData(), stored = {}, failRead = false, failWrite = fa
   controller.state.guideOpen = false;
   controller.askConfirm = async (...args) => { confirmations.push(args); return true; };
   return {
-    controller, storage, warnings, confirmations, downloads,
+    controller, storage, warnings, confirmations, downloads, listeners,
+    setWriteFailure(value) { failWrite = value; },
     setReadFailure(value) { failRead = value; },
     call(name, ...args) { return vm.runInContext(name, context)(...args); },
     async importBackup(text, accept = true) {

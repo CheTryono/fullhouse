@@ -1,3 +1,15 @@
+# BUG-01 — guardado confirmado y recuperación de pendientes
+
+- Ante un fallo de `localStorage`, se conserva el último estado confirmado y una copia JSON independiente del intento pendiente, sin anunciar éxito ni marcar completados como guardados.
+- Pantalla persistente con edición pausada, reintento, exportación y descarte con confirmación. La exportación incluye también notas/revisión diaria escritas sin guardar; el reintento confirma solo la acción original.
+- Validación de datos antes de guardarlos o reintentarlos. Importaciones y recuperación de PR #2 conservadas, con protección adicional ante una importación que termine mientras hay pendientes.
+- Protección de borradores, notas y campos numéricos aún en edición al navegar o salir. Aviso `beforeunload`; el cierre forzado sigue requiriendo una exportación previa para conservar pendientes.
+- Reproducción BUG-01 trasladada a regresión: 126 aprobadas; permanecen dos fallos explícitos correspondientes a BUG-04 y BUG-05, sin corregirlos en esta tarea.
+- Chromium, escritorio y vista móvil con Medianoche: cuatro combinaciones de cuota/permisos verificadas, incluidos reintentos, exportación y avisos de salida. Prueba reutilizable en `tests/browser/`.
+- Se mantienen `version: 1`, `fullhouse-v01`, respaldos históricos y bibliotecas. Sin cambios en despliegue ni nuevas dependencias.
+
+---
+
 # Protección de datos locales durante la carga — ampliación de PR #2
 
 - Revisión de tipos y escritores históricos; nueve respaldos sintéticos generados con los métodos originales de guardado/exportación de Fullhouse 0.1–0.9, con commits y generador reproducible.

@@ -27,7 +27,7 @@ npm test
   existentes. Termina con código 1; no son pruebas omitidas ni fallos convertidos
   en éxitos.
 - `npm test` ejecuta ambas suites y conserva el código de fallo del ejecutor.
-  Actualmente debe fallar por los tres casos documentados abajo.
+  Actualmente debe fallar por los dos casos documentados abajo.
 
 No es necesario iniciar un servidor ni acceder a servicios externos para ejecutar
 las pruebas. Cada caso obtiene su propio contexto, almacenamiento y controlador.
@@ -52,7 +52,7 @@ Este arnés depende de los nombres internos actuales; renombrar o modularizar la
 funciones requerirá adaptar el arnés. Cuando se extraigan módulos, podrán
 importarse directamente conservando los mismos casos y datos.
 
-## Cobertura: 93 pruebas que pasan
+## Cobertura: 126 pruebas que pasan
 
 | Área | Comportamientos comprobados |
 | --- | --- |
@@ -126,11 +126,64 @@ antigua, acceso bloqueado y copia antigua fallida. No existe recuperación que
 reemplace deliberadamente el contenido desde esta pantalla: el original se
 conserva para revisión y un reintento solo desbloquea con datos legibles y válidos.
 
-## Tres pruebas que fallan por errores existentes
+## BUG-01 corregido: estado confirmado y copia pendiente
+
+La reproducción original pasa ahora en `regression.test.cjs`, sin cambiar su
+aserción sobre el último estado confirmado. `state.data` contiene únicamente un
+estado aceptado por `localStorage`; `state.pending` es un metadato de interfaz,
+fuera del esquema exportado. Guarda una cadena JSON independiente de referencias
+mutables, sujeta al mismo validador de respaldos. Una escritura rechazada no
+sustituye `data` ni los bytes originales y no muestra éxito ni emite el sonido de
+completado. No se escriben claves nuevas ni se cambia `version: 1`.
+
+Mientras hay pendientes, una pantalla persistente bloquea nuevas ediciones,
+importaciones y restablecimientos para no reemplazar esa copia. Los reintentos
+conservan la misma acción y solo confirman tras escribir correctamente. Exportar
+prepara un respaldo válido con la acción pendiente y los borradores de notas y
+revisión diaria aún escritos; no los confirma ni elimina. Reintentar solo confirma
+la acción original: otros borradores siguen independientes. Si la información
+no es serializable o válida, nunca se escribe como estado confirmado; el texto
+serializable incompatible se ofrece como `.txt` para revisión, no como respaldo.
+
+Las pruebas cubren cuota llena y rechazo por permisos, fallos repetidos, reintento
+exitoso, inmutabilidad de la copia pendiente, exportación/restauración después de
+recargar, rechazo de datos inválidos y descarte confirmado/cancelado. Comprueban
+acciones reales: metas, rutinas, eventos, pasos, actividades, notas y subnotas,
+avances, hitos, alternativas, revisión diaria y eliminación de metas. Se mantiene
+la protección de PR #2 y se detiene una importación en curso si aparece un
+pendiente antes de terminar la lectura.
+
+El aviso `beforeunload` se registra y retira con el componente. También cubre
+borradores sin enviar, incluyendo campos numéricos aún enfocados; la navegación
+interna no los descarta. Los borradores de notas viven en el controlador para
+sobrevivir a desmontajes temporales de su editor, y cerrar un editor de nota
+modificada solicita confirmación. Se conserva también el borrador de programación al abrir el editor de su rutina
+y volver, incluso después de un reintento fallido. Las pruebas de navegador reutilizables están
+en [browser/pending-save.cjs](browser/pending-save.cjs); sus requisitos y ejecución
+se explican en [browser/README.md](browser/README.md).
+
+### Decisión y límites de esta corrección
+
+Se eligió una copia pendiente en memoria con edición pausada. Volver atrás sin
+conservar el intento perdería el trabajo; tratarlo como guardado sería engañoso;
+seguir editando exigiría fusionar varias operaciones y resolver conflictos. Una
+segunda base local (por ejemplo IndexedDB) ampliaría esta tarea y también podría
+fallar por cuota o permisos. Por eso la exportación es la recuperación durable
+cuando el almacenamiento no funciona.
+
+No hay garantía de aviso ante cierre forzado, fallo del proceso o terminación por
+el sistema operativo, especialmente en móviles. No se implementa coordinación de
+escrituras entre varias pestañas. Las preferencias visuales siguen usando sus
+claves independientes; esta corrección protege los datos principales guardados
+por `save()`. Los borradores de formularios no enviados se protegen al salir,
+pero no se convierten automáticamente en entidades del respaldo. Los datos
+confirmados y las importaciones conservan el formato existente. BUG-04 y BUG-05
+permanecen deliberadamente fuera de alcance.
+
+## Dos pruebas que fallan por errores existentes
 
 | Identificador | Contrato comprobado | Resultado actual |
 | --- | --- | --- |
-| BUG-01 | Un fallo de escritura conserva el último estado guardado mientras no exista una recuperación explícita del estado pendiente. | El método general `save` conserva los bytes previos pero sustituye los datos en memoria. La restauración de respaldos ya evita ese método; el defecto sigue pendiente en otros guardados. |
 | BUG-04 | Un desplazamiento que excede el final del día se rechaza y mantiene visible la actividad. | Una actividad de 23:00 a 24:00 movida 15 minutos guarda 23:15; luego desaparece de `eventsOn` porque su marco es inválido. |
 | BUG-05 | Editar una plantilla no cambia los pasos ni minutos interpretados de una ejecución histórica completada. | El historial usa la plantilla actual y muestra los pasos y tiempos nuevos. |
 
@@ -164,9 +217,9 @@ Node.js 24.22.1, npm 11.9.0 y TypeScript 5.9.3:
 | Comando | Resultado |
 | --- | --- |
 | `npm run check` | Código 0; TypeScript y sintaxis correctos, compilación en memoria idéntica a `app.js`. |
-| `npm run test:regression` | Código 0; 93 aprobadas, ninguna fallida ni omitida. |
-| `npm run test:known-bugs` | Código 1; 3 fallidas por los defectos documentados, ninguna omitida. |
-| `npm test` | Código 1; 96 ejecutadas, 93 aprobadas y 3 fallidas, ninguna omitida. |
+| `npm run test:regression` | Código 0; 126 aprobadas, ninguna fallida ni omitida. |
+| `npm run test:known-bugs` | Código 1; 2 fallidas por los defectos documentados, ninguna omitida. |
+| `npm test` | Código 1; 128 ejecutadas, 126 aprobadas y 2 fallidas, ninguna omitida. |
 
 También se ejecutó una comprobación puntual en Chromium con Playwright del
 entorno: escritorio 1280×900 y móvil 390×844, ambos con Medianoche. Se comprobó
@@ -190,3 +243,16 @@ la advertencia persistente, ausencia de ejemplos/tutorial, conservación frente 
 reintentos, descarga exacta del original y recuperación al volver a leer una
 exportación histórica válida con minutos fraccionarios. No hubo errores JS.
 El script de navegador fue una verificación temporal del entorno.
+
+
+BUG-01 comprobado con la nueva prueba de navegador mantenida en el repositorio:
+
+```sh
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/pending-save.cjs
+```
+
+Resultado: cuatro combinaciones aprobadas (1280/390 px × cuota/permisos), con
+Medianoche. Se verificaron guardado pendiente de meta/paso/nota/revisión,
+exportación, reintentos, avisos al recargar/navegar/cerrar, borradores numéricos y
+cancelación de descartes, sin errores JavaScript. Son perfiles desechables con
+datos sintéticos; no se probaron dispositivos móviles físicos.
