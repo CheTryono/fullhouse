@@ -9,7 +9,7 @@ test('save persists version 1 and reload restores logs, choices, notes and evide
   const a = app(); a.controller.save(data);
   assert.deepEqual(JSON.parse(a.storage.get('fullhouse-v01')), data);
   const b = app({ stored: Object.fromEntries(a.storage) });
-  assert.deepEqual(plain(b.call('load')), data);
+  assert.deepEqual(plain(b.call('load').data), data);
 });
 test('failed storage write warns and preserves previous persisted bytes', () => {
   const previous = JSON.stringify(emptyData());
@@ -18,17 +18,17 @@ test('failed storage write warns and preserves previous persisted bytes', () => 
   assert.equal(a.storage.get('fullhouse-v01'), previous);
   assert.match(a.controller.state.toast, /No se pudo guardar/);
 });
-test('failed storage read returns usable examples without writing', () => {
+test('failed storage read enters recovery without writing', () => {
   const a = app({ failRead: true });
-  assert.equal(a.call('load').version, 1);
-  assert.ok(a.call('load').routines.length > 0);
+  assert.deepEqual(plain(a.call('load').data), emptyData());
+  assert.equal(a.call('load').recovery.key, 'fullhouse-v01');
   assert.equal(a.storage.size, 0);
   assert.ok(a.warnings.length > 0);
 });
 test('legacy store is copied without removing the original', () => {
   const bytes = JSON.stringify(emptyData());
   const a = app({ stored: { 'botanica-planificador-v01': bytes } });
-  assert.deepEqual(plain(a.call('load')), emptyData());
+  assert.deepEqual(plain(a.call('load').data), emptyData());
   assert.equal(a.storage.get('fullhouse-v01'), bytes);
   assert.equal(a.storage.get('botanica-planificador-v01'), bytes);
 });
@@ -228,7 +228,7 @@ for (const [name, fixture] of [['early version-1', legacyBackup], ['modern versi
     assert.deepEqual(plain(a.controller.state.data), backup);
     assert.deepEqual(JSON.parse(a.storage.get('fullhouse-v01')), backup);
     const b = app({ stored: Object.fromEntries(a.storage) });
-    assert.deepEqual(plain(b.call('load')), backup);
+    assert.deepEqual(plain(b.call('load').data), backup);
   });
 }
 test('application examples also satisfy the backup validator', () => {
@@ -343,3 +343,100 @@ for (const accept of [true, false]) {
     assert.deepEqual(plain(a.controller.state.data), accept ? legacyBackup() : emptyData());
   });
 }
+
+const fs = require('node:fs');
+const path = require('node:path');
+for (const file of fs.readdirSync(path.join(__dirname, 'fixtures/historical')).filter(name => name.endsWith('.json'))) {
+  const fixture = require(`./fixtures/historical/${file}`);
+  test(`actual ${fixture.version} writer export (${fixture.commit.slice(0, 7)}) loads and imports unchanged`, async () => {
+    const bytes = JSON.stringify(fixture.data, null, 2);
+    const a = app({ stored: { 'fullhouse-v01': bytes }, useLoadedData: true });
+    assert.equal(a.controller.state.recovery, null);
+    assert.equal(a.call('validData', fixture.data), true);
+    assert.deepEqual(plain(a.controller.state.data), fixture.data);
+    assert.equal(a.storage.get('fullhouse-v01'), bytes);
+    const b = app(); await b.importBackup(bytes);
+    assert.deepEqual(plain(b.controller.state.data), fixture.data);
+    assert.deepEqual(JSON.parse(b.storage.get('fullhouse-v01')), fixture.data);
+  });
+}
+for (const raw of ['', '{broken', JSON.stringify({ ...emptyData(), routines: [null] }), JSON.stringify({ ...emptyData(), version: 99 })]) {
+  test(`invalid existing local data enters recovery and blocks save/import/reset (${JSON.stringify(raw)})`, async () => {
+    const original = { 'fullhouse-v01': raw, 'botanica-planificador-v01': JSON.stringify(legacyBackup()) };
+    const a = app({ stored: original, useLoadedData: true });
+    assert.deepEqual(plain(a.controller.state.data), emptyData());
+    assert.equal(a.controller.state.recovery.raw, raw);
+    assert.equal(a.controller.state.recovery.key, 'fullhouse-v01');
+    assert.equal(a.controller.state.guideOpen, false);
+    a.controller.save(modernBackup());
+    await a.importBackup(JSON.stringify(modernBackup()));
+    await a.controller.reset();
+    a.controller.retryLocalLoad();
+    assert.deepEqual(Object.fromEntries(a.storage), original);
+    const reopened = app({ stored: Object.fromEntries(a.storage), useLoadedData: true });
+    assert.equal(reopened.controller.state.recovery.raw, raw);
+    assert.deepEqual(plain(reopened.controller.state.data), emptyData());
+    assert.deepEqual(plain(a.controller.state.data), emptyData());
+    assert.ok(a.controller.state.recovery);
+    assert.equal(a.confirmations.length, 0);
+    a.controller.exportData();
+    assert.equal(a.downloads.length, 1);
+    assert.equal(await a.downloads[0].blob.text(), raw);
+    assert.ok(a.controller.state.recovery, 'Downloading must not unlock overwrites');
+    assert.deepEqual(Object.fromEntries(a.storage), original);
+  });
+}
+test('an invalid legacy store is preserved and never migrated', () => {
+  const bytes = '  {broken legacy  ';
+  const a = app({ stored: { 'botanica-planificador-v01': bytes }, useLoadedData: true });
+  assert.equal(a.controller.state.recovery.key, 'botanica-planificador-v01');
+  a.controller.save(modernBackup());
+  assert.equal(a.storage.has('fullhouse-v01'), false);
+  assert.equal(a.storage.get('botanica-planificador-v01'), bytes);
+});
+test('failed legacy copy remains recoverable and leaves the source unchanged', async () => {
+  const bytes = JSON.stringify(legacyBackup(), null, 2);
+  const a = app({ stored: { 'botanica-planificador-v01': bytes }, failWrite: true, useLoadedData: true });
+  assert.equal(a.controller.state.recovery.key, 'botanica-planificador-v01');
+  a.controller.downloadOriginal();
+  assert.equal(await a.downloads[0].blob.text(), bytes);
+  assert.equal(a.storage.has('fullhouse-v01'), false);
+  assert.equal(a.storage.get('botanica-planificador-v01'), bytes);
+});
+test('unreadable storage blocks all writes, and retry recovers after access returns', async () => {
+  const bytes = JSON.stringify(legacyBackup(), null, 2);
+  const a = app({ stored: { 'fullhouse-v01': bytes }, failRead: true, useLoadedData: true });
+  assert.equal(a.controller.state.recovery.raw, null);
+  a.controller.save(modernBackup()); await a.importBackup(JSON.stringify(modernBackup())); await a.controller.reset();
+  assert.equal(a.storage.get('fullhouse-v01'), bytes);
+  a.controller.downloadOriginal(); assert.equal(a.downloads.length, 0);
+  a.setReadFailure(false); a.controller.retryLocalLoad();
+  assert.equal(a.controller.state.recovery, null);
+  assert.deepEqual(plain(a.controller.state.data), legacyBackup());
+  assert.equal(a.storage.get('fullhouse-v01'), bytes);
+});
+test('a readable recovery snapshot survives a later failed read or external removal', async () => {
+  const raw = '{broken';
+  const a = app({ stored: { 'fullhouse-v01': raw }, useLoadedData: true });
+  a.setReadFailure(true); a.controller.retryLocalLoad();
+  assert.equal(a.controller.state.recovery.raw, raw);
+  a.setReadFailure(false); a.storage.delete('fullhouse-v01'); a.controller.retryLocalLoad();
+  assert.equal(a.controller.state.recovery.raw, raw);
+  a.controller.downloadOriginal(); assert.equal(await a.downloads[0].blob.text(), raw);
+  assert.equal(a.storage.has('fullhouse-v01'), false);
+});
+test('a new installation alone receives examples, while a valid empty store stays empty', () => {
+  const fresh = app({ useLoadedData: true });
+  assert.equal(fresh.controller.state.recovery, null);
+  assert.ok(fresh.controller.state.data.routines.length > 0);
+  const existing = app({ useLoadedData: true, stored: { 'fullhouse-v01': JSON.stringify(emptyData()) } });
+  assert.equal(existing.controller.state.recovery, null);
+  assert.deepEqual(plain(existing.controller.state.data), emptyData());
+});
+test('retry after external removal does not copy legacy data over the captured source', () => {
+  const a = app({ stored: { 'fullhouse-v01': '{original', 'botanica-planificador-v01': JSON.stringify(legacyBackup()) }, useLoadedData: true });
+  a.storage.delete('fullhouse-v01');
+  a.controller.retryLocalLoad();
+  assert.equal(a.controller.state.recovery.raw, '{original');
+  assert.equal(a.storage.has('fullhouse-v01'), false);
+});

@@ -52,7 +52,7 @@ Este arnés depende de los nombres internos actuales; renombrar o modularizar la
 funciones requerirá adaptar el arnés. Cuando se extraigan módulos, podrán
 importarse directamente conservando los mismos casos y datos.
 
-## Cobertura: 74 pruebas que pasan
+## Cobertura: 93 pruebas que pasan
 
 | Área | Comportamientos comprobados |
 | --- | --- |
@@ -84,11 +84,13 @@ revisiones posteriores siguen siendo opcionales; los campos desconocidos se
 conservan. No se exige que referencias históricas apunten a elementos todavía
 existentes. No hay normalización, eliminación de campos ni migración de datos.
 
-`fixtures/backups.cjs` contiene representaciones sintéticas de un respaldo
-antiguo mínimo y otro con funcionalidades recientes, no archivos de personas.
-La compatibilidad se comprueba sin campos opcionales modernos y con historial
-huérfano, además de importar/recargar sin perder contenido. No se afirma haber
-verificado archivos reales de todas las versiones anteriores.
+Además de las fixtures mínimas de `fixtures/backups.cjs`, se prueban nueve
+exportaciones generadas por los escritores reales de las versiones 0.1–0.9.
+Consulta [su procedencia y reproducción](fixtures/historical/README.md). La
+comparación encontró un caso real inicialmente rechazado: horas con minutos
+fraccionarios calculadas al programar desde la hora de término. Ahora se conservan
+sin normalización. La cobertura es representativa, no una garantía sobre toda
+combinación histórica posible; cualquier rechazo restante activa la protección.
 
 La importación valida antes de escribir y solo actualiza el estado tras una
 escritura correcta. Las pruebas comprueban igualdad del estado anterior y de los
@@ -100,6 +102,29 @@ el evento; hay casos para aceptar y cancelar con el evento ya liberado.
 
 La fixture inicial de evidencia se ajustó para incluir `caption`, como el formato
 que exporta la aplicación. No se ha cambiado el formato de datos de producción.
+
+## Protección adicional de la carga local
+
+`load()` distingue una instalación nueva, datos válidos y un fallo de carga. Solo
+la ausencia confirmada de ambos almacenes permite ejemplos. Un valor existente,
+incluso la cadena vacía, JSON roto o versión desconocida, nunca se interpreta como
+una instalación nueva. Un almacén actual inválido tampoco permite recurrir al
+anterior ni copiarlo sobre el actual. Un error de acceso o de copia no destructiva
+del almacén anterior activa la misma protección.
+
+El estado de recuperación conserva la clave y el texto original capturado. La
+interfaz persistente ofrece descargar ese texto sin parsearlo y reintentar la
+lectura; bloquea guardar, importar y restablecer. Descargar no desbloquea las
+escrituras. Si el almacenamiento no se pudo leer, no se inventa un respaldo y la
+descarga queda desactivada. Una lectura fallida posterior o la desaparición externa
+del original no elimina la captura disponible.
+
+Las pruebas comprueban bytes y memoria tras intentos de escritura, importación,
+restablecimiento, reapertura y reintentos; la descarga reproduce el original
+exacto, incluso si está malformado. Se comprueban tanto la clave actual como la
+antigua, acceso bloqueado y copia antigua fallida. No existe recuperación que
+reemplace deliberadamente el contenido desde esta pantalla: el original se
+conserva para revisión y un reintento solo desbloquea con datos legibles y válidos.
 
 ## Tres pruebas que fallan por errores existentes
 
@@ -139,9 +164,9 @@ Node.js 24.22.1, npm 11.9.0 y TypeScript 5.9.3:
 | Comando | Resultado |
 | --- | --- |
 | `npm run check` | Código 0; TypeScript y sintaxis correctos, compilación en memoria idéntica a `app.js`. |
-| `npm run test:regression` | Código 0; 74 aprobadas, ninguna fallida ni omitida. |
+| `npm run test:regression` | Código 0; 93 aprobadas, ninguna fallida ni omitida. |
 | `npm run test:known-bugs` | Código 1; 3 fallidas por los defectos documentados, ninguna omitida. |
-| `npm test` | Código 1; 77 ejecutadas, 74 aprobadas y 3 fallidas, ninguna omitida. |
+| `npm test` | Código 1; 96 ejecutadas, 93 aprobadas y 3 fallidas, ninguna omitida. |
 
 También se ejecutó una comprobación puntual en Chromium con Playwright del
 entorno: escritorio 1280×900 y móvil 390×844, ambos con Medianoche. Se comprobó
@@ -156,3 +181,12 @@ una comprobación temporal del entorno, no parte de la suite reutilizable del
 repositorio. No se añaden dependencias de navegador al proyecto. Las
 bibliotecas incluidas, la configuración TypeScript y el esquema de almacenamiento
 no cambiaron; `app.js` fue recompilado desde `app.tsx`.
+
+
+Protección adicional comprobada en Chromium con
+`node /tmp/fullhouse-recovery-browser.cjs`: escritorio de 1280 px y móvil de 390 px
+con Aurora, Océano, Atardecer, Bosque y Medianoche (10 combinaciones). Se verificó
+la advertencia persistente, ausencia de ejemplos/tutorial, conservación frente a
+reintentos, descarga exacta del original y recuperación al volver a leer una
+exportación histórica válida con minutos fraccionarios. No hubo errores JS.
+El script de navegador fue una verificación temporal del entorno.

@@ -100,27 +100,28 @@ function seed() {
         ], logs: {} };
 }
 function load() {
-    try {
-        const current = localStorage.getItem(STORE);
-        if (current) {
-            const parsed = JSON.parse(current);
-            if (validData(parsed))
-                return parsed;
+    // Existing but unreadable data must never look like a new installation.
+    // Do not fall back to the legacy store when the current store is present.
+    for (const key of [STORE, LEGACY_STORE]) {
+        let raw = null;
+        const blocked = () => ({ data: { version: 1, goals: [], routines: [], events: [], logs: {} }, recovery: { key, raw } });
+        try {
+            raw = localStorage.getItem(key);
+            if (raw === null)
+                continue;
+            const parsed = JSON.parse(raw);
+            if (!validData(parsed))
+                return blocked();
+            if (key === LEGACY_STORE)
+                localStorage.setItem(STORE, raw); // Original is retained.
+            return { data: parsed, recovery: null };
         }
-        // Migración sin pérdida cuando el prototipo anterior se abrió en el mismo origen.
-        const legacy = localStorage.getItem(LEGACY_STORE);
-        if (legacy) {
-            const parsed = JSON.parse(legacy);
-            if (validData(parsed)) {
-                localStorage.setItem(STORE, legacy);
-                return parsed;
-            }
+        catch (err) {
+            console.warn('No se pudo cargar el almacenamiento; original protegido', err);
+            return blocked();
         }
     }
-    catch (err) {
-        console.warn('No se pudo leer el almacenamiento', err);
-    }
-    return seed();
+    return { data: seed(), recovery: null };
 }
 /* Validate known fields without normalizing or dropping historical/unknown fields.
    Optional additions stay optional so version-1 backups from earlier releases work. */
@@ -137,7 +138,7 @@ function validData(v) {
         Object.entries(optional).every(([key, check]) => x[key] === undefined || check(x[key]));
     const date = (x) => text(x) && /^\d{4}-\d{2}-\d{2}$/.test(x) && Number.isFinite(Date.parse(x + 'T12:00:00Z')) && new Date(x + 'T12:00:00Z').toISOString().slice(0, 10) === x;
     const optionalDate = (x) => x === '' || date(x);
-    const time = (x) => text(x) && /^([01]\d|2[0-3]):[0-5]\d$/.test(x);
+    const time = (x) => text(x) && /^([01]\d|2[0-3]):[0-5]\d(?:\.\d+)?$/.test(x);
     const timestamp = (x) => text(x) && Number.isFinite(Date.parse(x));
     const days = array(x => Number.isInteger(x) && x >= 0 && x <= 6);
     const status = oneOf(['pending', 'working', 'improving', 'consolidated', 'achieved']);
@@ -697,6 +698,10 @@ class Planner extends React.Component {
         this.openDetail = (e) => this.setState({ modal: 'detail', activeEventId: e.id, detailPath: [], ...(this.state.guideOpen && this.state.guideStep === 5 && e.id === this.state.guideEventId ? { guideStep: 6 } : {}) });
         this.notice = (message) => this.setState({ toast: message });
         this.save = (data, message = 'Cambios guardados') => {
+            if (this.state.recovery) {
+                this.notice('Guardado bloqueado para proteger la información original. Descarga el original o vuelve a intentar la lectura.');
+                return;
+            }
             try {
                 localStorage.setItem(STORE, JSON.stringify(data));
                 this.setState({ data });
@@ -1380,7 +1385,47 @@ class Planner extends React.Component {
         };
         this.toggleMilestone = (goalId, milestoneId) => { const d = this.state.data; const g = d.goals.find(x => x.id === goalId); if (!g)
             return; const ms = goalMilestones(g).map(m => m.id === milestoneId ? { ...m, done: !m.done } : m); const n = ms.filter(m => m.done).length; const next = { ...g, milestones: ms, current: n, target: ms.length, history: [...g.history, { date: today(), value: n, note: 'Hito actualizado' }] }; this.save({ ...d, goals: d.goals.map(x => x.id === goalId ? next : x) }, 'Hito actualizado'); };
+        this.retryLocalLoad = () => {
+            var _a, _b;
+            // Check before load(): a missing captured source must not trigger legacy copy.
+            if (this.state.recovery && this.state.recovery.raw !== null) {
+                try {
+                    if (localStorage.getItem(this.state.recovery.key) === null) {
+                        this.notice('No encontramos el original. La copia capturada sigue disponible para descargar.');
+                        return;
+                    }
+                }
+                catch (err) { /* load() below reports the read failure and retains the snapshot. */ }
+            }
+            const result = load();
+            // Keep an earlier readable snapshot when a subsequent read is unavailable.
+            const recovery = ((_a = result.recovery) === null || _a === void 0 ? void 0 : _a.raw) === null && ((_b = this.state.recovery) === null || _b === void 0 ? void 0 : _b.key) === result.recovery.key && this.state.recovery.raw !== null ? this.state.recovery : result.recovery;
+            this.setState({ data: result.data, recovery, page: 'inicio', toast: '', guideOpen: false });
+        };
+        this.downloadOriginal = () => {
+            const recovery = this.state.recovery;
+            if (!recovery || recovery.raw === null)
+                return;
+            try {
+                const blob = new Blob([recovery.raw], { type: 'text/plain;charset=utf-8' }), url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'fullhouse-original-' + recovery.key + '.txt';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 2000);
+                this.notice('Se ha solicitado la descarga del original sin cambios. Comprueba que el archivo se haya guardado.');
+            }
+            catch (err) {
+                this.notice('No pudimos descargar el original. Sigue protegido en este navegador; vuelve a intentarlo.');
+            }
+        };
         this.exportData = () => {
+            if (this.state.recovery) {
+                this.downloadOriginal();
+                return;
+            }
             const blob = new Blob([JSON.stringify(this.state.data, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -1394,6 +1439,10 @@ class Planner extends React.Component {
         };
         this.importData = async (ev) => {
             var _a;
+            if (this.state.recovery) {
+                this.notice('La restauración está bloqueada para conservar el original. Descárgalo antes de revisar el problema.');
+                return;
+            }
             const input = ev.target; // React 16 releases the event while confirmation is open.
             const f = (_a = input.files) === null || _a === void 0 ? void 0 : _a[0];
             if (!f)
@@ -1441,6 +1490,10 @@ class Planner extends React.Component {
             input.value = '';
         };
         this.reset = async () => {
+            if (this.state.recovery) {
+                this.notice('No se pueden restablecer ejemplos mientras el original está protegido.');
+                return;
+            }
             if (!(await this.askConfirm('Restablecer ejemplos', 'Se perderán los datos actuales. Descarga un respaldo antes de continuar.', 'Restablecer', true)))
                 return;
             this.save(seed(), 'Ejemplos restablecidos');
@@ -1713,8 +1766,8 @@ class Planner extends React.Component {
                     React.createElement(NoteEditor, { key: e.id + '-' + date + '-' + s.id, label: 'Nota de ' + (s.title || 'este paso'), value: ((_d = log.stepNotes) === null || _d === void 0 ? void 0 : _d[s.id]) || '', carry: upcomingNote(this.state.data, e, date, s.id), onSave: text => this.saveOccurrenceNote(e, date, text, s.id) })),
                 s.children && s.children.length > 0 && (!manual || !!chosen) && this.renderCheckSteps(s.children, e, date, log, allocation, level + 1));
         }));
-        const d = today();
-        this.state = { clockMinutes: clockNow(), expandedTodayId: '', scheduleFocusId: '', sleepStart: getPreference(SLEEP_START_STORE) || '23:00', sleepHours: safeSleepHours(Number(getPreference(SLEEP_HOURS_STORE)) || 8), soundsOn: getPreference(SOUND_STORE) !== 'off', dragOverCardId: '', confirmDialog: null, durationDisplay: getPreference(DURATION_STORE) === 'minutes' ? 'minutes' : 'hours', returnToSchedule: false, scheduleContextNote: '', data: load(), page: 'inicio', selectedDate: d, month: firstMonth(d), modal: null, goalDraft: gDraft(), routineDraft: rDraft(), eventDraft: eDraft(d), activeEventId: '', detailPath: [], progressValue: '', progressNote: '', progressStatus: 'pending', progressGoalId: '', toast: '', theme: (themeOptions.some(x => x.id === getPreference(THEME_STORE)) ? getPreference(THEME_STORE) : 'aurora'), modalLayout: getPreference(LAYOUT_STORE) === 'horizontal' ? 'horizontal' : 'vertical', guideOpen: getPreference(GUIDE_STORE) !== 'yes', guideStep: 0, guideGoalId: '', guideEventId: '', helpTopic: '', helpOpen: false, areaFilter: 'all', goalView: 'cards', mapGrouping: 'structure', colorEditorOpen: false, hexDraft: colorOptions[0], draggedStepId: '', dragTargetId: '', draggedCardType: '', draggedCardId: '', datePickerMonth: firstMonth(d), calendarDetailOpen: false, advancedOpen: getPreference(ADVANCED_STORE) === 'yes', expandedGoalPick: [], helpX: null, helpY: null, reviewDraft: '', evidenceCaption: '' };
+        const d = today(), initial = load();
+        this.state = { recovery: initial.recovery, clockMinutes: clockNow(), expandedTodayId: '', scheduleFocusId: '', sleepStart: getPreference(SLEEP_START_STORE) || '23:00', sleepHours: safeSleepHours(Number(getPreference(SLEEP_HOURS_STORE)) || 8), soundsOn: getPreference(SOUND_STORE) !== 'off', dragOverCardId: '', confirmDialog: null, durationDisplay: getPreference(DURATION_STORE) === 'minutes' ? 'minutes' : 'hours', returnToSchedule: false, scheduleContextNote: '', data: initial.data, page: 'inicio', selectedDate: d, month: firstMonth(d), modal: null, goalDraft: gDraft(), routineDraft: rDraft(), eventDraft: eDraft(d), activeEventId: '', detailPath: [], progressValue: '', progressNote: '', progressStatus: 'pending', progressGoalId: '', toast: '', theme: (themeOptions.some(x => x.id === getPreference(THEME_STORE)) ? getPreference(THEME_STORE) : 'aurora'), modalLayout: getPreference(LAYOUT_STORE) === 'horizontal' ? 'horizontal' : 'vertical', guideOpen: !initial.recovery && getPreference(GUIDE_STORE) !== 'yes', guideStep: 0, guideGoalId: '', guideEventId: '', helpTopic: '', helpOpen: false, areaFilter: 'all', goalView: 'cards', mapGrouping: 'structure', colorEditorOpen: false, hexDraft: colorOptions[0], draggedStepId: '', dragTargetId: '', draggedCardType: '', draggedCardId: '', datePickerMonth: firstMonth(d), calendarDetailOpen: false, advancedOpen: getPreference(ADVANCED_STORE) === 'yes', expandedGoalPick: [], helpX: null, helpY: null, reviewDraft: '', evidenceCaption: '' };
     }
     componentDidMount() { this.syncModalState(); document.addEventListener('keydown', this.globalKeydown); this.resizeTextareas(); this.clockTimer = setInterval(() => this.setState({ clockMinutes: clockNow() }), 30000); }
     componentDidUpdate(_, prev) {
@@ -1735,6 +1788,22 @@ class Planner extends React.Component {
         this.confirmResolver = null;
     } if (this.toastTimer)
         clearTimeout(this.toastTimer); document.body.style.overflow = ''; document.removeEventListener('keydown', this.globalKeydown); document.removeEventListener('mousemove', this.moveStepDrag, true); document.removeEventListener('mouseup', this.endStepDrag, true); }
+    renderRecovery() {
+        const recovery = this.state.recovery;
+        if (!recovery)
+            return null;
+        return React.createElement("div", { className: 'app-shell', "data-theme": this.state.theme, style: { display: 'block' } },
+            React.createElement("main", { className: 'content', style: { maxWidth: 800, margin: '0 auto' } },
+                React.createElement("section", { className: 'panel', role: 'alert', "aria-labelledby": 'recovery-title' },
+                    React.createElement("h1", { id: 'recovery-title' }, "Tu informaci\u00F3n est\u00E1 protegida"),
+                    React.createElement("p", null, "Encontramos informaci\u00F3n local que no pudimos abrir o comprobar. No hemos cargado ejemplos ni reemplazado el original."),
+                    React.createElement("p", null, "Para evitar p\u00E9rdidas, el guardado, la importaci\u00F3n y el restablecimiento est\u00E1n bloqueados. Descarga el original sin cambios para conservarlo y revisarlo. Si el problema era temporal, vuelve a intentar la lectura."),
+                    recovery.raw === null && React.createElement("p", null, "No pudimos leer el almacenamiento. La descarga estar\u00E1 disponible cuando el navegador permita acceder a \u00E9l. No borres los datos del sitio."),
+                    React.createElement("div", { className: 'actions' },
+                        React.createElement(Btn, { disabled: recovery.raw === null, onClick: this.downloadOriginal }, "Descargar original sin cambios"),
+                        React.createElement(Btn, { kind: 'secondary', onClick: this.retryLocalLoad }, "Volver a intentar la lectura")),
+                    this.state.toast && React.createElement("p", { role: 'status' }, this.state.toast))));
+    }
     renderSidebar() {
         const links = [{ id: 'hoy', label: 'Mi día', icon: 'checklist' }, { id: 'horario', label: 'Horario', icon: 'clock' }, { id: 'inicio', label: 'Inicio', icon: 'home' }, { id: 'metas', label: 'Metas', icon: 'target' }, { id: 'rutinas', label: 'Rutinas', icon: 'checklist' }, { id: 'calendario', label: 'Calendario', icon: 'calendar' }, { id: 'progreso', label: 'Progreso', icon: 'chart' }, { id: 'ajustes', label: 'Ajustes', icon: 'settings' }];
         return React.createElement(React.Fragment, null,
@@ -3462,6 +3531,8 @@ class Planner extends React.Component {
                 log.completed && React.createElement("span", { className: "small-tag" }, "Actividad completada")));
     }
     render() {
+        if (this.state.recovery)
+            return this.renderRecovery();
         const title = { hoy: 'Mi día', inicio: 'Inicio', metas: 'Metas', rutinas: 'Rutinas', horario: 'Horario', calendario: 'Calendario', progreso: 'Progreso', ajustes: 'Ajustes' };
         return React.createElement("div", { className: "app-shell", "data-theme": this.state.theme },
             this.renderSidebar(),

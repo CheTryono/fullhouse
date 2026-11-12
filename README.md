@@ -187,3 +187,18 @@ actualmente con código 1. No son pruebas omitidas: la base estable pasa por
 separado y los fallos quedan visibles en `npm run test:known-bugs`.
 Consulta [tests/README.md](tests/README.md) para cobertura, resultados,
 limitaciones y criterios para corregir esos defectos en tareas posteriores.
+
+
+## Protección cuando los datos locales no pueden abrirse
+
+Si Fullhouse no puede leer o validar información ya almacenada, muestra «Tu
+información está protegida». No carga ejemplos ni sustituye el original por un
+almacén anterior. Mientras dure el problema, bloquea el guardado, la importación
+y el restablecimiento.
+
+Usa **Descargar original sin cambios** para guardar el texto exacto, incluso si
+no es JSON válido. Comprueba que el archivo se descargó y consérvalo para revisar
+el problema; no borres los datos del sitio. **Volver a intentar la lectura**
+permite recuperarse de un bloqueo temporal o volver a leer datos compatibles.
+Si el navegador no permite leer el almacenamiento, la descarga estará desactivada
+hasta recuperar el acceso. No hay reparación automática ni migración destructiva.
