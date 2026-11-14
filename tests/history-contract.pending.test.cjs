@@ -1,12 +1,7 @@
 const test = require('node:test');
 // Son requisitos de integración, NO pruebas aprobadas ni sustitutos de BUG-05.
 for (const scenario of [
-  'P2: capturar una sola vez al primer paso, completado, elección, nota o foto persistidos',
-  'P2: no capturar al abrir la vista ni interpretar capturedAt como inicio físico',
-  'P2: reintento de escritura fallida confirma captura y progreso juntos sin pérdida',
-  'P2: alternativas por día y manuales, subpasos y reparto fijo/flexible se congelan',
-  'P2: corrección y reapertura explícitas conservan marcas y auditoría',
-  'P2: continuidad entre días, recurrencia y excepciones preservan executionId/seriesId',
+  'P4: confirmar captura y progreso juntos mediante el guardado real de BUG-01',
   'P3: historial no cambia al editar, reprogramar, cancelar o eliminar plantillas',
   'P3: progreso usa denominadores congelados y distingue legado estimado',
   'P3: metas eliminadas y revisiones no cambian etiquetas históricas',

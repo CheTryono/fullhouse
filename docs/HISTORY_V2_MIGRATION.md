@@ -34,7 +34,8 @@ v2 completo, referencias y fotos antes de confirmar cualquier importación.
 Rechazar versiones desconocidas conservando memoria, bytes y pendientes existentes.
 No ofrecer una exportación v1 con pérdida como respaldo completo de v2.
 Exportar v2 debe incluir definiciones referenciadas, capturas, auditorías y fotos.
-No hay exportación ni importación v2 implementada en esta fase.
+El codec aislado de fase 2 serializa/valida v1/v2 en memoria. No hay exportación
+ni importación v2 implementada en la interfaz ni conexión con almacenamiento.
 
 ## Protocolo de activación propuesto
 
@@ -101,3 +102,12 @@ cuando no cabe; adopción de legado, presentación de ramas corregidas y agregad
 mixtos. La implementación puede empezar con codec y acciones aisladas sin activar
 persistencia. La activación y cualquier migración de producción necesitan revisión
 propia, pruebas de fallos y autorización posterior.
+
+## Avance de fase 2 (sin activar almacenamiento)
+
+El [motor aislado](HISTORY_V2_ENGINE.md) construye candidatos inmutables y permite
+reintentar una operación retenida sin regenerar IDs. Se ha probado un escritor
+sintético que falla antes de confirmar; no se añade un escritor de navegador.
+`accept` compara el documento actual con el anterior/candidato dentro de la misma
+instancia: no sustituye Web Locks, el manifiesto, la verificación de lectura ni la
+recuperación tras reinicio. El protocolo de activación descrito sigue pendiente.

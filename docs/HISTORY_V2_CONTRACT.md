@@ -1,16 +1,19 @@
-# BUG-05 · contrato propuesto, fase 1
+# BUG-05 · contrato histórico v2
 
-Estado: contrato y herramientas offline; **no es funcionalidad de producción**.
-Base revisada: `origin/main` / `7a05350` (BUG-01 a BUG-04 conservados).
+Estado: contrato aprobado y motor aislado de fase 2; **no activado en producción**.
+Base actual: `origin/main` / `5e1f683` (BUG-01 a BUG-04 conservados).
 La aplicación sigue escribiendo `version: 1` en `fullhouse-v01`. BUG-05 permanece
-reproducible. No hay lector v2, migrador, captura automática ni nueva interfaz.
+reproducible. Hay codec y operaciones v2 aislados; no hay lector v2 público,
+migrador, captura desde Planner ni nueva interfaz.
 
 ## Representación normativa
 
 `contracts/history-v2.d.ts` define el documento completo; el validador separado
-`contracts/history-v2.cjs` verifica invariantes estructurales y algunas transiciones.
+`contracts/history-v2.cjs` delega al codec de `history/codec.cjs`, que verifica
+estructura, referencias, auditorías y transiciones de una ejecución.
 No se importa desde la aplicación. Reutiliza mediante inyección su validador v1
-para comprobar el contenido anterior; no constituye aún un codec de producción.
+para comprobar el contenido anterior. El [motor de fase 2](HISTORY_V2_ENGINE.md)
+explica API, límites y validaciones; no está conectado a producción.
 
 | Campo | Regla |
 | --- | --- |
@@ -94,8 +97,8 @@ recogerla no forma parte de esta fase.
 
 El checkpoint conserva progreso, resolución y referencias de evidencias previas;
 no duplica bytes de imagen. El evento de corrección tiene ID, instante y motivo.
-Los métodos offline validan estas reglas parcialmente: no son una máquina de
-estados completa ni sustituyen pruebas futuras de acciones reales de la aplicación.
+El motor aislado implementa estas transiciones; las pruebas del motor no sustituyen
+las futuras pruebas de acciones reales de la aplicación.
 Las notas pueden editarse mediante acción explícita; no se pretende registrar cada
 pulsación como auditoría. Borrar una marca deberá ser una acción explícita, nunca
 un efecto lateral de cambiar alternativa. El detalle de esa UX queda para fase 2.
@@ -135,16 +138,17 @@ requieren otra tarea y autorización; esta fase no altera archivos personales.
 
 ## Etapas de implementación y límites de las pruebas
 
-1. **Esta entrega:** tipos, validación offline, ejemplos sintéticos, documentación y
-   casos TODO. La reproducción real de BUG-05 sigue fallando.
-2. **Escritura:** codec v2 endurecido, resolución e identidad, captura atómica,
-   correcciones y continuidad. Pruebas de acciones reales, cuota y recuperación.
+1. **Fase 1 completada (PR #5):** tipos, contrato y ejemplos sintéticos.
+   La reproducción real de BUG-05 sigue fallando.
+2. **Motor aislado implementado:** codec v2 endurecido, resolución e identidad,
+   candidatos atómicos en memoria, correcciones y continuidad. Reintento simulado;
+   sin escritor público ni garantía de atomicidad del almacenamiento.
 3. **Lectura:** historial y progreso por captura; legado desconocido/estimado,
    eliminación, recurrencias y excepciones; pruebas visuales y móviles.
 4. **Activación separada:** migración, exportación/importación, conflictos entre
    pestañas, reversión y pruebas Chromium; autorización antes de tocar datos reales.
 
-Los validadores de contrato prueban propiedades de documentos sintéticos y algunas
-transiciones, no que la aplicación las implemente. Falta endurecer el codec para
-entradas arbitrarias, auditorías anidadas, claves desconocidas y transiciones
-multiejecución: no utilizarlo aún para aceptar respaldos de usuarios.
+Las pruebas comprueban documentos y operaciones reales del motor con datos sintéticos,
+no su integración en la aplicación. Las transiciones multiejecución no se admiten:
+componer acciones requiere una futura transacción explícita. No conectar el codec
+a respaldos de usuarios sin las barreras de importación/recuperación de fase 4.
