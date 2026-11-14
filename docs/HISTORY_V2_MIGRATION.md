@@ -111,3 +111,13 @@ sintético que falla antes de confirmar; no se añade un escritor de navegador.
 `accept` compara el documento actual con el anterior/candidato dentro de la misma
 instancia: no sustituye Web Locks, el manifiesto, la verificación de lectura ni la
 recuperación tras reinicio. El protocolo de activación descrito sigue pendiente.
+
+## Lectura de fase 3 sin migración
+
+El [laboratorio sintético](HISTORY_V2_VIEWS.md) prepara las vistas de lectura y
+progreso sin activar claves. Los checkpoints nuevos pueden incluir `lifecycle?`;
+el lector actualizado acepta v2 anteriores sin ese campo y muestra fechas
+ desconocidas, sin backfill. Lectores estrictos anteriores pueden rechazar la
+extensión: coordinar capacidades de lectores/pestañas antes de la activación.
+La adopción explícita de legado sigue siendo una propuesta; no se han añadido
+archivos de hechos ni referencias de fotos nuevos al esquema operativo.

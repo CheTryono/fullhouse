@@ -14,8 +14,8 @@ No es un compromiso de fechas ni autorización de despliegue.
 | ✅ | Límites del día y dependencias (BUG-04) | PR #4 fusionada; base main 7a05350 |
 | ✅ | Publicación actual del prototipo en GitHub Pages | Confirmada por el propietario; no es alojamiento comercial |
 | ✅ | BUG-05 fase 1: contrato histórico, compatibilidad y pruebas | PR #5 fusionada; main 5e1f683; reproducción pública todavía fallida |
-| 🔄 | BUG-05 fase 2: motor y codec aislados | Implementados y probados en esta rama; pendientes de revisión. No conectados a Planner ni almacenamiento |
-| ⬜ | BUG-05 fase 3: lectura y progreso históricos | Contexto verificable, legado desconocido y estimaciones identificadas |
+| ✅ | BUG-05 fase 2: motor y codec aislados | PR #6 fusionada; main 31f2ae3; sin activación pública |
+| 🔄 | BUG-05 fase 3: lectura y progreso históricos | Lector central, adaptador y seis vistas en laboratorio aislado; pruebas sintéticas/Chromium. Pendiente de revisión; Planner sigue en v1 |
 | ⬜ | BUG-05 fase 4: migración y activación revisadas | Recuperación, respaldos v2, concurrencia y rollback |
 | ⬜ | Automatizar pruebas en GitHub Actions | Separar pruebas que deben pasar y error conocido explícito; no ocultarlo |
 | ⬜ | Entorno de previsualización por PR | Aislado de datos y publicación de producción |

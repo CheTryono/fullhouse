@@ -1,10 +1,11 @@
 # BUG-05 · contrato histórico v2
 
-Estado: contrato aprobado y motor aislado de fase 2; **no activado en producción**.
-Base actual: `origin/main` / `5e1f683` (BUG-01 a BUG-04 conservados).
+Estado: contrato aprobado, motor y lectura aislada de fase 3; **no activado en producción**.
+Base actual: `origin/main` / `31f2ae3` (BUG-01 a BUG-04 conservados).
 La aplicación sigue escribiendo `version: 1` en `fullhouse-v01`. BUG-05 permanece
 reproducible. Hay codec y operaciones v2 aislados; no hay lector v2 público,
-migrador, captura desde Planner ni nueva interfaz.
+migrador ni captura desde Planner. Las nuevas interfaces existen únicamente en un
+[laboratorio sintético aislado](HISTORY_V2_VIEWS.md), no en la aplicación pública.
 
 ## Representación normativa
 
@@ -95,6 +96,11 @@ recogerla no forma parte de esta fase.
   Marcas de ramas ahora inactivas, notas y fotos se conservan, pero esas marcas no
   satisfacen unidades de la nueva rama. La interfaz futura debe distinguirlas.
 
+Desde fase 3 el checkpoint nuevo incluye `lifecycle?` con el ciclo de vida previo.
+Es opcional al leer datos anteriores; su ausencia se presenta como desconocida, sin
+reescrituras ni inferencias de timestamps. Véase la compatibilidad y el detalle en
+[lectura y auditoría de fase 3](HISTORY_V2_VIEWS.md).
+
 El checkpoint conserva progreso, resolución y referencias de evidencias previas;
 no duplica bytes de imagen. El evento de corrección tiene ID, instante y motivo.
 El motor aislado implementa estas transiciones; las pruebas del motor no sustituyen
@@ -143,7 +149,7 @@ requieren otra tarea y autorización; esta fase no altera archivos personales.
 2. **Motor aislado implementado:** codec v2 endurecido, resolución e identidad,
    candidatos atómicos en memoria, correcciones y continuidad. Reintento simulado;
    sin escritor público ni garantía de atomicidad del almacenamiento.
-3. **Lectura:** historial y progreso por captura; legado desconocido/estimado,
+3. **Lectura implementada en laboratorio:** historial y progreso por captura; legado desconocido/estimado,
    eliminación, recurrencias y excepciones; pruebas visuales y móviles.
 4. **Activación separada:** migración, exportación/importación, conflictos entre
    pestañas, reversión y pruebas Chromium; autorización antes de tocar datos reales.

@@ -12,7 +12,7 @@ const strings = v => Array.isArray(v) && v.every(id) && new Set(v).size === v.le
 const subset = (a, b) => a.every(x => b.includes(x));
 function checkpoint(log) {
   return { completed: log.completed, checkedSteps: log.checkedSteps, choices: log.choices || {}, note: log.note || '',
-    stepNotes: log.stepNotes || {}, evidenceIds: (log.evidences || []).map(e => e.id), resolution: log.history.resolution };
+    stepNotes: log.stepNotes || {}, evidenceIds: (log.evidences || []).map(e => e.id), resolution: log.history.resolution, lifecycle: log.history.state };
 }
 function recipeIndex(definition) {
   const steps = new Map();
@@ -184,7 +184,16 @@ function strengthen(doc, isLegacyData) {
     for(const x of h.corrections) {
       fields(x,['id','recordedAt','reason','kind','before']);
       check(ts(x.recordedAt) && Date.parse(x.recordedAt)>=correctionAt && Date.parse(x.recordedAt)<=Date.parse(h.state.lastRecordedAt),'invalid correction chronology'); correctionAt=Date.parse(x.recordedAt);
-      fields(x.before,['completed','checkedSteps','choices','note','stepNotes','evidenceIds','resolution']);
+      fields(x.before,['completed','checkedSteps','choices','note','stepNotes','evidenceIds','resolution'],['lifecycle']);
+      if(x.before.lifecycle!==undefined) {
+        const state=x.before.lifecycle;
+        fields(state,['status','completionSource','lastRecordedAt','completedRecordedAt']);
+        check(x.kind==='reopen'?['completed','closed-partial'].includes(state.status):state.status==='active','correction kind/prior state mismatch');
+        check(['active','completed','closed-partial'].includes(state.status) && x.before.completed===(state.status==='completed'),'invalid prior lifecycle');
+        check(ts(state.lastRecordedAt) && Date.parse(state.lastRecordedAt)>=Date.parse(c.capturedAt) && Date.parse(state.lastRecordedAt)<=Date.parse(x.recordedAt),'invalid prior lifecycle time');
+        if(state.completionSource==='steps')check(x.before.resolution.unitsKnown && x.before.resolution.unitStepIds.length>0 && x.before.resolution.unitStepIds.every(id=>x.before.checkedSteps.includes(id)),'prior automatic completion missing units');
+        check(state.status==='completed' ? ['manual','steps'].includes(state.completionSource) && ts(state.completedRecordedAt) && Date.parse(state.completedRecordedAt)>=Date.parse(c.capturedAt) && Date.parse(state.completedRecordedAt)<=Date.parse(state.lastRecordedAt) : state.completionSource===null && state.completedRecordedAt===null,'invalid prior completion');
+      }
       const fake=copy(log); delete fake.history; Object.assign(fake,{completed:x.before.completed,checkedSteps:x.before.checkedSteps,choices:x.before.choices,note:x.before.note,stepNotes:x.before.stepNotes});
       check(isLegacyData({version:1,goals:[],routines:[],events:[],logs:{audit:fake}}),'invalid audit payload');
       check(strings(x.before.evidenceIds) && subset(x.before.evidenceIds,(log.evidences || []).map(e=>e.id)),'invalid audit evidence');

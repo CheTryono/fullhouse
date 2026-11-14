@@ -391,3 +391,32 @@ Resultados de fase 2 (base `5e1f683`):
 No hay pruebas omitidas mediante `skip`. Los TODO no cuentan como aprobados.
 BUG-05 continúa fallando porque Planner todavía usa plantillas actuales al leer
 historial. No se realizó verificación visual nueva: no cambia ninguna pantalla.
+
+## Lectura histórica y vistas · fase 3 (laboratorio)
+
+`history-contract.reader.test.cjs` amplía el mismo comando de contrato con lectura
+central, huérfanos, deduplicación por serie/fecha, continuidad, alternativas pendientes,
+denominadores congelados, metas/revisiones, errores y estimaciones explícitas.
+El bundle se prueba en VM sin APIs Node; el adaptador también captura una revisión
+generada por saveGoal real sobre el arnés sintético. Las aserciones de tipos incluyen
+los DTOs de lectura y la imposibilidad de tratar un registro incompleto como árbol
+verificado. No se modifican las pruebas originales de BUG-05.
+
+Los nuevos checkpoints conservan `lifecycle?`. Se comprueba que el codec acepta los
+anteriores sin rellenarlos y rechaza cronologías incoherentes. El fixture antiguo
+sin metadatos se presenta con fecha desconocida. No se altera ningún respaldo real.
+
+Los tres TODO P3 se sustituyeron por pruebas reales; permanecen cinco TODO P4.
+La [prueba Chromium](browser/README.md) utiliza doce fixtures con el motor real en
+una página aislada. Ningún resultado implica activación en las pantallas públicas.
+
+| Comando | Resultado de fase 3 (base 31f2ae3) |
+| --- | --- |
+| `npm run check` | Correcto; app.tsx/app.js sin cambios y sincronizados |
+| `npm run check:history-contract` | Correcto; tipos de motor/lector/adaptador |
+| `npm run test:regression` | 164 aprobadas |
+| `npm run test:history-contract` | 83 aprobadas, 5 TODO, 0 fallidas |
+| `npm test` | 247 aprobadas, 5 TODO, 1 fallo conocido BUG-05; salida 1 |
+| Chromium `history-view.cjs` | 120 combinaciones; sin errores JS ni intentos de Storage |
+
+Los TODO no cuentan como aprobados y no hay pruebas omitidas con `skip`.

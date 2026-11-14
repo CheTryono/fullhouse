@@ -257,3 +257,8 @@ capturas y correcciones probadas sobre documentos sintéticos. Los módulos de
 `history/` y `contracts/` siguen fuera de la aplicación pública:
 la aplicación continúa usando `version: 1` y `fullhouse-v01`, sin migración activada.
 Véanse [comandos y límites de las pruebas](tests/README.md).
+
+La fase 3 incorpora un [lector histórico y laboratorio visual](docs/HISTORY_V2_VIEWS.md).
+Para revisar únicamente los escenarios sintéticos: `node scripts/serve-history-lab.cjs`.
+El laboratorio no accede al almacenamiento del navegador y no se incluye en Pages.
+Las pantallas públicas siguen en v1; BUG-05 todavía no se considera corregido allí.

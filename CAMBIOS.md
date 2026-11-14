@@ -1,3 +1,26 @@
+# BUG-05 · fase 3: lectura y vistas históricas en laboratorio aislado
+
+- Base main 31f2ae3; lector central y adaptador de identidades/ocurrencias/intervalos.
+  Reutiliza funciones puras reales de app.tsx y el motor v2 en un bundle de laboratorio.
+- Mi día, horario, calendario, detalle, archivo y progreso preparados en una página
+  sintética sin almacenamiento. Capturas, huérfanos, notas, fotos, alternativas y
+  continuaciones no se reinterpretan desde plantillas actuales. Legado y estimaciones
+  se distinguen explícitamente; referencias rotas se muestran como incompletas.
+- Métricas separadas: pasos/denominadores congelados, completas/capturadas y
+  completas/programadas actualmente. Sin doble crédito al continuar ni duplicación
+  de entrada entre programación e índice. Metas históricas conservan sus etiquetas.
+- Ampliación mínima: lifecycle opcional en checkpoints nuevos; los antiguos siguen
+  válidos y muestran desconocido donde falten fechas. Sin backfill ni migraciones.
+- Adopción de legado documentada como propuesta, no implementada ni silenciosa.
+- Check y tipos correctos; regresión 164 aprobadas; contrato 83 aprobadas y 5 TODO.
+  npm test: 247 aprobadas, 5 TODO y único fallo esperado BUG-05 (salida 1).
+- Chromium: 120 combinaciones (12 escenarios × 5 paletas × escritorio/móvil), sin
+  errores JS, desbordamientos horizontales ni intentos de acceso a Storage.
+- app.tsx, app.js, estilos e interfaz públicos, dependencias y Pages intactos.
+  No se activa v2, no se escribe v02 ni se migra v01. BUG-05 público sigue pendiente.
+
+---
+
 # BUG-05 · fase 2: motor y codec históricos aislados
 
 - Base `origin/main` `5e1f683`, rama independiente. Motor reutilizable en `history/`
