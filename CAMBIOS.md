@@ -1,3 +1,22 @@
+# BUG-05 · fase 1: contrato histórico (sin activación)
+
+- Contrato híbrido propuesto `version: 2`: revisiones inmutables, capturas por ejecución,
+  identidad de series/ejecuciones, continuidad, correcciones y procedencia histórica.
+- Tipos y validador offline independientes de producción; datos sintéticos y pruebas
+  de compatibilidad con las nueve exportaciones históricas existentes (0.1–0.9).
+- Diseño de migración: se recomienda `fullhouse-v02` para aislar pestañas antiguas,
+  conservando v1 y contemplando cuota, conflictos, recuperación y reversión explícita.
+  No se activa migración, almacenamiento v2 ni interfaz nueva.
+- `ROADMAP.md` distingue avances comprobados, BUG-05 en curso y tareas futuras.
+- Verificación: `npm run check` y `npm run check:history-contract` correctos;
+  `npm run test:regression`: 164 aprobadas; `npm run test:history-contract`:
+  22 aprobadas y 13 TODO de integración, sin fallos. `npm test`: 186 aprobadas,
+  13 TODO y un fallo real esperado (BUG-05), código de salida 1.
+- `app.tsx`, `app.js`, interfaz, despliegue y reproducción de BUG-05 intactos.
+  No se ha comprobado una nueva interfaz en navegador porque no se incorpora ninguna.
+
+---
+
 # BUG-04 — desplazamientos válidos dentro del día
 
 - Se valida el intervalo completo antes de guardar un desplazamiento. Terminar a las 24:00 es válido; exceder el día se rechaza conservando el horario anterior, las excepciones y los registros. Se mantiene el ajuste inferior a 00:00; el final exacto se muestra como 24:00 en el acercamiento y la previsión.

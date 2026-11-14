@@ -309,3 +309,44 @@ Resultado: escritorio 1280 px y móvil 390 px aprobados, Medianoche, sin errores
 JavaScript. Interacción con el editor real, visibilidad/posición de bloques,
 comprobación de las 24:00, dependencias, excepciones e historial, y rechazo de
 cuota con exportación/reintento correctos. No se utilizaron datos personales.
+
+## Contrato histórico v2 · fase 1
+
+```sh
+npm run check:history-contract
+npm run test:history-contract
+```
+
+- `contracts/history-v2.d.ts` declara el formato propuesto. La comprobación de
+  tipos incluye aserciones negativas `@ts-expect-error` de inmutabilidad y versión.
+- `contracts/history-v2.cjs` valida documentos/transiciones **offline** con el
+  validador v1 real inyectado por el arnés. No es un codec de importación aprobado.
+- `tests/fixtures/history-v2.cjs` crea exclusivamente datos sintéticos. Se prueban
+  parciales, completados manuales/por pasos, duración real diferenciada, continuidad,
+  corrección de alternativa sin borrar marcas ni duplicar fotos, cambios de plantilla,
+  eliminación, reprogramación y referencias inválidas. Se reutilizan las exportaciones
+  históricas reales sintéticas 0.1–0.9 sin alterarlas.
+- Una prueba ejecuta la importación actual y verifica que v2 siga siendo rechazado
+  sin cambiar memoria ni `fullhouse-v01` y sin crear `fullhouse-v02`.
+- `history-contract.pending.test.cjs` contiene requisitos `test.todo` de integración.
+  El ejecutor los cuenta como TODO, **no como pruebas aprobadas**. Todavía faltan
+  captura real, vistas/estadísticas v2, migración y concurrencia, entre otros.
+- `known-bugs.test.cjs` conserva BUG-05 con su fallo real. Ni este contrato ni los
+  TODO permiten afirmar que el historial de producción ya esté corregido.
+
+No hay cambios de interfaz; no se ha realizado una nueva verificación visual de
+Chromium en esta fase. Las pruebas actuales del controlador no sustituyen esa
+verificación al integrar las nuevas rutas.
+
+Resultados de fase 1, base `7a05350`:
+
+| Comando | Resultado |
+| --- | --- |
+| `npm run check` | Correcto: TypeScript, sintaxis y app.js sincronizado |
+| `npm run check:history-contract` | Correcto: tipos y aserciones negativas |
+| `npm run test:regression` | 164 aprobadas |
+| `npm run test:history-contract` | 22 aprobadas, 13 TODO, 0 fallidas |
+| `npm test` | 186 aprobadas, 13 TODO, 1 fallida (BUG-05), salida 1 |
+
+Los TODO no incrementan las aprobadas. BUG-05 sigue mostrando que la definición
+actual reemplaza los pasos/minutos originales de una ejecución ya completada.
