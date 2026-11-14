@@ -246,3 +246,12 @@ protección de pendientes de BUG-01.
 No se corrigen automáticamente horarios inválidos que ya estuvieran almacenados,
 ni se añaden controles nuevos a la interfaz. La prueba de Chromium y sus límites
 están documentados en `tests/browser/README.md`.
+
+## Plan de desarrollo e historial v2 (propuesta)
+
+El [ROADMAP](ROADMAP.md) distingue avances comprobados de trabajo pendiente.
+La fase 1 de BUG-05 formaliza el [contrato histórico](docs/HISTORY_V2_CONTRACT.md)
+y el [diseño de migración y recuperación](docs/HISTORY_V2_MIGRATION.md).
+Los tipos y validadores de `contracts/` son herramientas offline de desarrollo:
+la aplicación continúa usando `version: 1` y `fullhouse-v01`, sin migración activada.
+Véanse [comandos y límites de las pruebas](tests/README.md).
