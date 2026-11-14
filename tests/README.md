@@ -420,3 +420,35 @@ una página aislada. Ningún resultado implica activación en las pantallas púb
 | Chromium `history-view.cjs` | 120 combinaciones; sin errores JS ni intentos de Storage |
 
 Los TODO no cuentan como aprobados y no hay pruebas omitidas con `skip`.
+
+## Integración y persistencia simuladas · fase 4A
+
+`history-contract.integration.test.cjs` usa métodos reales de Planner extraídos por
+AST, con save como sink de candidato y constructor/load/Storage excluidos. Comprueba
+creación/edición, captura, completado automático agrupado, reprogramación/serie,
+desplazamientos, límites, borrado de plantilla, cierre/reapertura/continuación y
+conservación del legado. Se utilizan IDs reservados, fecha y confirmación explícitos.
+
+`history-contract.persistence.test.cjs` prueba puertos Map/cola compartida: fallos de
+escritura/readback, cuotas, errores antes/después del manifiesto, ACK perdido,
+recuperación por journal, corruptos, cambios v1, dos clientes, operaciones obsoletas,
+importación, fotos y borradores. Incluye 2.000 ejecuciones/500 revisiones y un patrón
+JPEG 256×256 sintético comprimido. No es una medición de cuota del navegador real.
+
+Los cinco TODO se conservan y etiquetan **P4B público**: las simulaciones aprobadas
+no prueban un escritor v2 público que todavía no existe. BUG-05 original no cambia.
+
+| Comando | Resultado (base 4324abc) |
+| --- | --- |
+| `npm run check` | Correcto; TypeScript/app.js público sincronizados |
+| `npm run check:history-contract` | Correcto; contratos de puertos/tokens/candidatos |
+| `npm run test:regression` | 164 aprobadas |
+| `npm run test:history-contract` | 113 aprobadas, 5 TODO, 0 fallidas |
+| `npm test` | 277 aprobadas, 5 TODO, 1 fallo conocido BUG-05; salida 1 |
+| Chromium `history-integration.cjs` | 28 casos (14 × escritorio/móvil), sin Storage público ni errores JS |
+| Chromium `history-view.cjs` | 120 combinaciones de escenarios/paletas/tamaños conservadas |
+| `node scripts/measure-history-storage.cjs` | Cuatro modelos validados; tamaños en documento de persistencia |
+
+No hay `skip`; los TODO no cuentan como aprobados. Los registros reales no se usan.
+El [protocolo](../docs/HISTORY_V2_PERSISTENCE.md) enumera limitaciones: puertos nativos,
+resolución manual completa, capacidad, legado y formularios/adjuntos públicos.

@@ -158,3 +158,11 @@ Las pruebas comprueban documentos y operaciones reales del motor con datos sint�
 no su integración en la aplicación. Las transiciones multiejecución no se admiten:
 componer acciones requiere una futura transacción explícita. No conectar el codec
 a respaldos de usuarios sin las barreras de importación/recuperación de fase 4.
+
+## Preparación 4A sin activar el esquema
+
+El [puente y protocolo simulados](HISTORY_V2_PERSISTENCE.md) confirman candidatos de
+motor/planificación de forma conjunta, con reintento estable y lector sobre estado
+confirmado. No amplían Data v2 ni adoptan legado. Los metadatos de persistencia van
+fuera del respaldo, en manifiesto/intento de las claves simuladas. La compatibilidad
+funcional del legado y el presupuesto de espacio son condiciones previas a 4B.

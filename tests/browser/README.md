@@ -88,3 +88,28 @@ sintéticas por paleta/tamaño. Revisión manual: iniciar
 `node scripts/serve-history-lab.cjs` y abrir la URL impresa. Ningún archivo ni
 control del laboratorio se incluye en el workflow de Pages. No se prueban aquí
 migraciones, escrituras v2 ni dispositivos móviles físicos.
+
+## Integración y guardado simulados · fase 4A
+
+```sh
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-integration.cjs
+```
+
+El mismo servidor ofrece `/integration`; el bundle incluye controlador descartable
+con métodos de planificación reales extraídos por AST, motor, lector, codec y
+repositorio. Solo se inyecta un Map y una cola compartida. Storage se intercepta
+como error: se exige cero llamadas, incluyendo preferencias. No se monta Planner.
+
+En Chromium 1280/390 px, Medianoche: nota/primer registro, escritura/readback fallidos,
+cuota, aviso beforeunload cancelando recarga con pendientes, reintento sin duplicar
+fotos, dos clientes, cliente antiguo v1, interrupción
+antes/después de manifiesto y recuperación explícita, importación inválida, descarga
+y restauración de fotos en destino simulado vacío, completado/edición/reapertura/
+continuidad, reprogramación/dependencias, legado bloqueado y alternativas auditadas.
+Son 28 casos (14 por tamaño). No hay errores JS/consola ni desbordamiento horizontal.
+El test del lector conserva aparte sus 120 combinaciones con cinco paletas.
+
+Los botones de fallo/restablecimiento afectan únicamente al Map sintético. No se
+publican, no reemplazan guardado v1 ni prueban un adapter nativo aún no implementado.
+Los paquetes de recuperación contienen borradores y ramas separadas; no se presentan
+como un respaldo ordinario ni se restauran ciegamente sobre claves existentes.
