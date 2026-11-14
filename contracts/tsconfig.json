@@ -4,5 +4,5 @@
     "noEmit": true, "strict": false, "skipLibCheck": false,
     "lib": ["DOM", "ES2020"]
   },
-  "files": ["../react-shim.d.ts", "../app.tsx", "history-v2.d.ts", "../tests/contracts/history-v2.types.ts", "../tests/contracts/history-engine.types.ts"]
+  "files": ["../react-shim.d.ts", "../app.tsx", "history-v2.d.ts", "../tests/contracts/history-v2.types.ts", "../tests/contracts/history-engine.types.ts", "../tests/contracts/history-reader.types.ts"]
 }

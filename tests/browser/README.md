@@ -64,3 +64,27 @@ en esta PR. Para ejercitar esa acción, el script envuelve `ReactDOM.render` sol
 en el navegador de prueba y captura su retorno público (la instancia real).
 Después verifica el almacenamiento y el DOM del horario. El editor sí se prueba
 con clics y selección reales. No hay hooks nuevos en el código de producción.
+
+## Historial v2 — laboratorio aislado de fase 3
+
+```sh
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-view.cjs
+```
+
+El servidor loopback y el bundle se crean en memoria y se cierran al terminar.
+No se sirve app.js ni se monta Planner; sí se ejecuta el motor/codec/lector real y
+funciones puras extraídas de app.tsx (ocurrencias, intervalos, validación y pasos).
+Los eventos de revisión reales generados por saveGoal se verifican además en Node.
+
+Se comprueban 120 combinaciones: doce escenarios × cinco paletas × escritorio
+1280 px y móvil 390 px. Cada combinación visita Mi día, archivo, detalle, horario,
+calendario y progreso, con aserciones específicas sobre datos históricos, auditoría,
+notas, fotos cargadas, estimación explícita, pendientes, duplicación y estadísticas.
+También verifica ausencia de errores JS/consola y desbordamiento horizontal.
+Toda llamada de Storage se intercepta como error; se exige cero intentos.
+
+`FULLHOUSE_HISTORY_SCREENSHOTS=/tmp/fullhouse-history-view` guarda capturas
+sintéticas por paleta/tamaño. Revisión manual: iniciar
+`node scripts/serve-history-lab.cjs` y abrir la URL impresa. Ningún archivo ni
+control del laboratorio se incluye en el workflow de Pages. No se prueban aquí
+migraciones, escrituras v2 ni dispositivos móviles físicos.

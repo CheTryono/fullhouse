@@ -60,6 +60,7 @@ export interface ProgressCheckpoint {
   note: string;
   stepNotes: Record<string, string>;
   evidenceIds: string[]; // Referencias; nunca bytes de imagen.
+  lifecycle?: History['state']; // Ausente en checkpoints anteriores: desconocido.
   resolution: Resolution;
 }
 export interface Correction {

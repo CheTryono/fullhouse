@@ -133,3 +133,12 @@ Faltan integrar captura/lectura/progreso en Planner, accesibilidad y Chromium, y
 barreras de guardado pendiente. Fase 4 seguirá encargándose de migración, cuota real,
 conflictos de pestañas y reversión. BUG-05 de la aplicación sigue fallando en su prueba
 original hasta integrar y verificar sus rutas reales.
+
+## Integración de fase 3 (sigue fuera de producción)
+
+El [lector, adaptador y laboratorio](HISTORY_V2_VIEWS.md) reutilizan este motor en
+el navegador sin APIs Node. Los checkpoints nuevos incorporan `lifecycle?` para
+mostrar completado/reapertura; se siguen leyendo los anteriores sin ese campo.
+No se implementa todavía adopción ni persistencia v2. La limitación sobre el ciclo
+de vida descrita en fase 2 queda resuelta para nuevas correcciones; no se rellena
+información que falte en checkpoints ya existentes.
