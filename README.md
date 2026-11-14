@@ -252,6 +252,8 @@ están documentados en `tests/browser/README.md`.
 El [ROADMAP](ROADMAP.md) distingue avances comprobados de trabajo pendiente.
 La fase 1 de BUG-05 formaliza el [contrato histórico](docs/HISTORY_V2_CONTRACT.md)
 y el [diseño de migración y recuperación](docs/HISTORY_V2_MIGRATION.md).
-Los tipos y validadores de `contracts/` son herramientas offline de desarrollo:
+La fase 2 añade un [motor histórico aislado](docs/HISTORY_V2_ENGINE.md) con codec,
+capturas y correcciones probadas sobre documentos sintéticos. Los módulos de
+`history/` y `contracts/` siguen fuera de la aplicación pública:
 la aplicación continúa usando `version: 1` y `fullhouse-v01`, sin migración activada.
 Véanse [comandos y límites de las pruebas](tests/README.md).

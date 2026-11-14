@@ -33,6 +33,7 @@ test('contrato offline: editar/eliminar plantilla conserva revisión y ejecució
 });
 test('contrato offline: continuar otro día conserva identidad y fecha original', () => {
   const before = documentV2(), after = clone(before);
+  after.logs[key].history.state.lastRecordedAt = '2030-01-08T12:00:00Z';
   after.logs[key].history.continuations.push({ recordedAt: '2030-01-08T12:00:00Z', localDate: '2030-01-08', timezoneOffsetMinutes: 60 });
   assert.deepEqual(validateTransition(before, after, 'continue', legacy), []);
 });

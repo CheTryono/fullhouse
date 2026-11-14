@@ -1,3 +1,24 @@
+# BUG-05 · fase 2: motor y codec históricos aislados
+
+- Base `origin/main` `5e1f683`, rama independiente. Motor reutilizable en `history/`
+  con revisiones compartidas inmutables, capturas, resolución prevista, acciones de
+  progreso, continuidad, correcciones auditadas y reapertura sin perder evidencias.
+- Operaciones puras: candidato congelado, IDs/instantes explícitos, comparación al
+  confirmar y reintentos mediante la misma operación. Fallos no modifican el original.
+- Codec v1/v2 endurecido: entradas JSON arbitrarias, profundidad acotada, referencias,
+  duplicados, topología, auditorías y transiciones. Se inyecta el validador v1 real.
+- Seis TODO de motor convertidos en cobertura real; persisten ocho TODO de integración
+  y activación. Guardado rechazado simulado sin afirmar persistencia v2 de navegador.
+- Verificación: check y check:history-contract correctos; regresión 164 aprobadas;
+  contrato/motor 66 aprobadas y 8 TODO. npm test: 230 aprobadas, 8 TODO y un fallo
+  esperado BUG-05 (salida 1), cuya reproducción original sigue intacta.
+- Sin cambios en app.tsx/app.js, interfaces, formatos/claves públicos ni despliegue.
+  No se escriben fullhouse-v01/fullhouse-v02, no se migra ni se adopta legado.
+- Documentados límites: adopción explícita de legado, detalle de checkpoints de
+  reapertura, contexto resuelto de dependencias, confirmación real y concurrencia.
+
+---
+
 # BUG-05 · fase 1: contrato histórico (sin activación)
 
 - Contrato híbrido propuesto `version: 2`: revisiones inmutables, capturas por ejecución,

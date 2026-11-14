@@ -350,3 +350,44 @@ Resultados de fase 1, base `7a05350`:
 
 Los TODO no incrementan las aprobadas. BUG-05 sigue mostrando que la definición
 actual reemplaza los pasos/minutos originales de una ejecución ya completada.
+
+## Motor histórico v2 · fase 2 (aislado)
+
+La API y sus límites están en [HISTORY_V2_ENGINE.md](../docs/HISTORY_V2_ENGINE.md).
+Se ejecuta con los mismos comandos `check:history-contract` y `test:history-contract`;
+no requiere nuevas dependencias ni modifica el JavaScript público.
+
+- `history-contract.engine.test.cjs` ejecuta operaciones reales del motor: captura
+  por primera marca, nota, foto, elección y completado; versiones compartidas,
+  alternativas automáticas/manuales y anidadas, asignación fija/flexible, parciales,
+  continuidad, reapertura, corrección, evidencias y modificaciones posteriores de
+  plantillas. Comprueba pureza ante errores y operaciones obsoletas.
+- El reintento usa una operación retenida y un escritor sintético que lanza error
+  antes de confirmar. No afirma probar persistencia v2 en el navegador: esa ruta
+  todavía no existe. Sus IDs y el documento confirmado no cambian tras el fallo.
+- `history-contract.codec.test.cjs` cubre modelo completo, datos arbitrarios,
+  getters/ciclos/profundidad, referencias/IDs inválidos, checkpoints anidados,
+  transiciones incorrectas, JSON duplicado/malformado y roundtrip v1/v2. Los nueve
+  respaldos históricos de origen real sintético conservan exactamente sus hechos.
+- Las declaraciones de `history/engine.d.cts` y las aserciones negativas adicionales
+  verifican la API de TypeScript y candidatos inmutables. El código CJS se ejecuta
+  directamente en estas pruebas; no se ha convertido la aplicación a módulos.
+- Los seis TODO P2 de fase 1 ya tienen cobertura de motor. La confirmación mediante
+  el escritor público sigue como TODO P4; los TODO P3/P4 continúan explícitos.
+- Se corrigió el fixture de continuación de fase 1 para actualizar `lastRecordedAt`
+  al instante de continuación: ahora el codec también verifica esa cronología.
+  No se alteró ninguna aserción de la reproducción original de BUG-05.
+
+Resultados de fase 2 (base `5e1f683`):
+
+| Comando | Resultado |
+| --- | --- |
+| `npm run check` | Correcto; TypeScript y app.js público idénticos |
+| `npm run check:history-contract` | Correcto; contrato y API tipada |
+| `npm run test:regression` | 164 aprobadas |
+| `npm run test:history-contract` | 66 aprobadas, 8 TODO, 0 fallidas |
+| `npm test` | 230 aprobadas, 8 TODO, 1 fallida (BUG-05); salida 1 |
+
+No hay pruebas omitidas mediante `skip`. Los TODO no cuentan como aprobados.
+BUG-05 continúa fallando porque Planner todavía usa plantillas actuales al leer
+historial. No se realizó verificación visual nueva: no cambia ninguna pantalla.
