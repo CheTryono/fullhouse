@@ -138,19 +138,22 @@ function strengthen(doc, isLegacyData) {
     unique((g.milestones || []).map(m=>m.id));
     if (g.review) fields(g.review,['date','time','repeat']);
   }
-  function recipe(r) {
+  function recipe(r, historical) {
     fields(r,['id','title','desc','steps'],['color','icon','durationMode','durationMin','requestEvidence']);
     function steps(list) { for (const s of list) {
       fields(s,['id','title','min'],['desc','children','variants','mode','days','chooseWhen','flexible','flexWeight','goalId','requestEvidence']);
-      check(!(s.variants || []).some(v=>v.id==='__base'), 'reserved alternative id');
+      // El formato capturado existente usa '__base' para una decisión base
+      // explícita. Conservar su significado, sin prohibir ese ID en plantillas
+      // editables compatibles con v1. Capturarlas requerirá un contrato no ambiguo.
+      check(!historical || !(s.variants || []).some(v=>v.id==='__base'), 'reserved historical alternative id');
       unique(s.days || []);
       for (const v of s.variants || []) { fields(v,['id','title','desc','min','days'],['children','flexible','flexWeight','goalId','requestEvidence']); unique(v.days); steps(v.children || []); }
       steps(s.children || []);
     } }
     steps(r.steps);
   }
-  doc.routines.forEach(recipe);
-  for (const r of Object.values(doc.recipeRevisions)) { fields(r,['id','sourceRoutineId','createdAt','definition']); recipe(r.definition); check(ts(r.createdAt),'invalid revision timestamp'); }
+  doc.routines.forEach(r=>recipe(r,false));
+  for (const r of Object.values(doc.recipeRevisions)) { fields(r,['id','sourceRoutineId','createdAt','definition']); recipe(r.definition,true); check(ts(r.createdAt),'invalid revision timestamp'); }
   for (const e of doc.events) {
     fields(e,['id','title','date','time','minutes','goalId','routineId','repeat','note','overrides'],['endDate','applyFrom','repeatDays','everyDays','specificDates','kind','allDay','anchor','endTime','afterRoutineId','beforeRoutineId','overlapMode','requestEvidence','seriesId','recipeRevisionId']);
     for (const x of Object.values(e.overrides)) fields(x,[],['time','skip']);

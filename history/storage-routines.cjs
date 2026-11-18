@@ -31,14 +31,19 @@ function choices(r) {
     let result = [{}];
     const seen = new Set(), walk = steps => {
         for (const s of steps) {
-            if (seen.has(s.id))
+            if (typeof s.id !== 'string' || !s.id.trim() || seen.has(s.id))
                 fail('Identificadores de pasos ambiguos');
             seen.add(s.id);
+            const variants = s.variants || [];
+            if (variants.some(v => typeof v.id !== 'string' || !v.id.trim()) || new Set(variants.map(v => v.id)).size !== variants.length)
+                fail('Identificadores de variantes ambiguos');
             if ((s.mode || ((s.variants || []).length ? 'alternatives' : 'always')) === 'alternatives' && s.chooseWhen === 'execute') {
-                const options = ['__base', ...(s.variants || []).map(v => v.id)];
+                // Ausencia de clave = base de planificación. Ningún string queda
+                // reservado: '__base' puede ser un ID real en una plantilla v1.
+                const options = [null, ...variants.map(v => v.id)];
                 if (result.length * options.length > LIMITS.combinations)
                     fail('Demasiadas combinaciones de alternativas para demostrar seguridad');
-                result = result.flatMap(c => options.map(id => ({ ...c, [s.id]: id })));
+                result = result.flatMap(c => options.map(id => id === null ? { ...c } : ({ ...c, [s.id]: id })));
             }
             walk(s.children || []);
             for (const v of s.variants || [])

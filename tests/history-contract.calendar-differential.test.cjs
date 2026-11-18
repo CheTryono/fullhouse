@@ -86,10 +86,10 @@ test('alternativas: base sin ID centinela, hijos, días y ramas inactivas', asyn
     const result = await engine.prove(input([a, c, e], rs));
     assert.equal(result.status, 'invalid');
     assert.deepEqual(result.certificate.counterexample.choices.e, {});
-    // Reproducción B.2 experimental: su centinela colisiona con un ID legítimo y omite la base.
-    // Se deja visible, sin cambiar Planner ni sustituir B.2 automáticamente.
-    const old = require('../history/storage-routines.cjs').choices(r);
-    assert.ok(old.every(choices => schedule.routineBalance(r, '2000-01-01', 10, choices).error === ''));
+    // Regresión corregida B.3a.1: base ausente y variante real se enumeran separadas.
+    const current = require('../history/storage-routines.cjs').choices(r);
+    assert.deepEqual(current,[{}, {s:'__base'}]);
+    assert.ok(current.some(choices => schedule.routineBalance(r, '2000-01-01', 10, choices).error));
     assert.ok(schedule.routineBalance(r, '2000-01-01', 10, {}).error);
     const weekdays = routine('r', 1, { steps: [{ id: 's', title: 'S', min: 10, mode: 'alternatives', days: [1, 2, 3, 4, 5], variants: [{ id: 'sat', title: 'Weekend', desc: '', min: 61, days: [6], children: [] }] }] });
     const result2 = await engine.prove(input([event('e', { routineId: 'r', date: '2000-01-03' })], [weekdays], { from: '2000-01-03' }));
