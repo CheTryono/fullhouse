@@ -82,3 +82,25 @@ confirmación o recuperación. No se almacenan certificados en el documento de u
 El motor recibirá solo planificación, no logs, revisiones ni fotografías. Sus presupuestos
 y cancelación deberán acotar trabajo y memoria y permitir ejecución Worker. No se
 reemplaza el verificador B.2 en esta fase antes de demostrar paridad de casos admitidos.
+
+## Checkpoint 2 · motor implementado, validación de navegador pendiente
+
+`calendar-proof.cjs` implementa los tres resultados, snapshot antes del primer await,
+componentes ordenados, partición de excepciones, MCM BigInt, enumeración finita o
+periódica, alternativas cartesianas y evaluación memoizada de dependencias.
+La base manual se representa por ausencia de elección, sin reservar `__base`.
+El lector de planificación no accede a ejecuciones, revisiones ni imágenes.
+
+Verificado en Node: 35 pruebas matemáticas, diferenciales y del motor; una prueba
+adicional del puerto Worker inyectable y compilación de tipos aprobadas. Incluye
+exploración completa de grafos de tres nodos con cuatro tipos de límites, comparación
+de dos ciclos Gregorianos, MCD/fases pequeños y procesos UTC/New York/Madrid/Apia.
+No son equivalencia universal de zonas locales: estas requieren rango finito explícito.
+
+Hallazgo adicional B.2: `choices()` usa `__base` como centinela y puede omitir la
+base cuando una variante tiene ese ID legítimo. Una reproducción conserva el defecto
+visible; no se modifica ni sustituye el verificador B.2. Debe resolverse antes de
+confiar en esa ruta al integrar B.3. El nuevo motor no presenta esa colisión.
+
+Worker dedicado y puerto cancelable preparados; Chromium, rendimiento, regresiones
+generales y documentación final corresponden al checkpoint 3, todavía pendientes.
