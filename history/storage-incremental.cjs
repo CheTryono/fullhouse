@@ -201,7 +201,7 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
     }
     async function prepareRoutine(t,method,payload,context) {
         if(!protocol)fail('Las rutinas incrementales requieren autoridad persistente');
-        const started=clock(),b=base(t),library=require('./storage-routines.cjs'),scope=library.selectScope(b.plan,method,payload,context);
+        const started=clock(),b=base(t),library=require('./storage-routines.cjs'),calendarZone=library.calendarZone(),scope=library.selectScope(b.plan,method,payload,context);
         if(method==='saveRoutine'&&!scope.payload.id&&b.routineIndex.has(scope.id))fail('ID reservado ya aparece en definiciones o relaciones anteriores');
         const relationsAt=clock();await verifyRows(b,scope.rows);const relationsMs=clock()-relationsAt;
         const {partial,proof,validationMs}=await library.buildChange(scope,{legacy,schedule,plannerActions}),changed=[],tables={...b.plan.tables};
@@ -214,6 +214,8 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
         }
         const header={...b.plan.header,routineIds:b.plan.header.routineIds.filter(id=>!changed.some(c=>c.store==='routines'&&c.deleted&&c.row.key===id)).concat(partial.header.routineIds.filter(id=>!b.maps.routines.has(id))),eventIds:b.plan.header.eventIds.filter(id=>!changed.some(c=>c.store==='events'&&c.deleted&&c.row.key===id))},plan={...b.plan,tables,header};plan.rootHash=await model.rootHash(plan);
         const operation=await seal(b,plan,changed,[],scope.context.operationId,scope.rows,started,{kind:'routine',method,payload:scope.payload,context:scope.context});
+        if(proof.zone!==calendarZone||library.calendarZone()!==calendarZone)fail('Calendario indeterminado: la zona cambió durante la preparación');
+        operations.get(operation).calendarZone=calendarZone;
         operations.get(operation).metrics={relationsMs,validationMs,proof};
         return operation;
     }
@@ -328,15 +330,21 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
             done({ status: s.receipt.operationHash === op.operationHash ? 'persisted-receipt' : 'recovery', receipt: s.receipt, head: s.head });
         }, abort));
     }
+    function checkCalendarZone(op, afterWrite=false) {
+        if(op.calendarZone!==undefined&&require('./storage-routines.cjs').calendarZone()!==op.calendarZone)
+            fail(afterWrite?'La zona cambió tras escribir: el commit puede estar confirmado; conserva el candidato y examina el recibo':'Calendario indeterminado: cambió la zona desde la preparación; conserva y vuelve a validar el candidato');
+    }
     async function commitExecution(operation, { fault = null } = {}) {
         const op = operations.get(operation);
         if (!op)
             fail('Delta no preparado por esta conexión');
+        checkCalendarZone(op);
         const start = clock(), b = op.base;
         const context=protocol?await protocol.prepare({plan:op.plan,id:operation.id,expected:b.head,migrationId:null,operationHash:op.operationHash}):null;
         const transactionAt = clock(), lineagePrepareMs=transactionAt-start;
         const receipt = await transaction(['control', 'commits', ...TABLES, 'images', 'sources', 'candidates'], 'readwrite', (tx, done, abort) => fetch(tx, [['head', 'control', 'head'],['authority','control','authority'], ['conflict', 'control', 'source-conflict'], ['integrity', 'control', 'integrity-block'],['lineageConflict','control','lineage-conflict'], ['baseReceipt', 'commits', b.head.id], ['previous', 'commits', operation.id], ['sourceCount', 'sources', null, 'count'], ['candidateCount', 'candidates', null, 'count'], ...op.scopeRows.map((r, i) => ['row' + i, r.store, r.row.key]), ...op.changed.filter(c => !b.maps[c.store].has(c.row.key)).map((c, i) => ['newRef' + i, c.store, c.row.key])], s => {
             try {
+                checkCalendarZone(op);
                 if (s.conflict || s.integrity || s.lineageConflict)
                     fail('Fuentes divergentes: escrituras detenidas');
                 if (!protocol && (s.sourceCount || s.candidateCount))
@@ -391,7 +399,7 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
             fail('Recibo no verificable');
         }
         if (snapshot.head?.rootHash !== op.plan.rootHash || snapshot.head?.generation !== receipt.generation)
-            {const checkedAt=clock();if(protocol)await protocol.confirmed(context,snapshot);const lineageAfterMs=clock()-checkedAt;return { status: 'committed-but-superseded', receipt, token: null, writeMs, transactionMs, lineagePrepareMs, lineageAfterMs, confirmationMs: clock() - readAt };}
+            {const checkedAt=clock();if(protocol)await protocol.confirmed(context,snapshot);const lineageAfterMs=clock()-checkedAt;checkCalendarZone(op,true);return { status: 'committed-but-superseded', receipt, token: null, writeMs, transactionMs, lineagePrepareMs, lineageAfterMs, confirmationMs: clock() - readAt };}
         if (!same(snapshot.head.header, op.plan.header)) {
             await quarantine('Cabecera posterior corrupta');
             fail('Cabecera posterior corrupta');
@@ -411,6 +419,7 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
             }
         }
         const checkedAt=clock();if(protocol)await protocol.confirmed(context,snapshot);const lineageAfterMs=clock()-checkedAt;
+        checkCalendarZone(op,true);
         return { status: 'confirmed', receipt, token: token(op.plan, freeze(snapshot.head),['planning','routine'].includes(op.command?.kind)?b.historicalGoalIds:null,['planning','routine'].includes(op.command?.kind)?b.routineIndex:null), writeMs, transactionMs, lineagePrepareMs, lineageAfterMs, confirmationMs: clock() - readAt };
     }
     async function page(t, { after = null, limit = 50, date = null } = {}) {

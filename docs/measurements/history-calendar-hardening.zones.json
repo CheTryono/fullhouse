@@ -1,0 +1,127 @@
+{
+  "base": "beff908",
+  "browser": "156.0.8078.79",
+  "scope": "Synthetic contexts, responsive viewport only; no physical devices or other browser engines",
+  "results": [
+    {
+      "timezoneId": "America/Mexico_City",
+      "zone": "America/Mexico_City",
+      "invalid": "Distribución inválida para e el 2011-12-30: Faltan 1 min: los pasos fijos exceden el tiempo disponible.",
+      "representatives": 7,
+      "coverage": [
+        {
+          "from": "2011-12-29",
+          "through": "9999-12-31",
+          "coverage": "all-local-weekdays",
+          "weekdays": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "representatives": 7
+        }
+      ],
+      "finite": "valid",
+      "finiteStates": 10,
+      "unbounded": "indeterminate",
+      "workerHashEqual": true,
+      "normalized": "2011-12-30",
+      "captureBlocked": false,
+      "noJavaScriptErrors": true
+    },
+    {
+      "timezoneId": "America/New_York",
+      "zone": "America/New_York",
+      "invalid": "Distribución inválida para e el 2011-12-30: Faltan 1 min: los pasos fijos exceden el tiempo disponible.",
+      "representatives": 7,
+      "coverage": [
+        {
+          "from": "2011-12-29",
+          "through": "9999-12-31",
+          "coverage": "all-local-weekdays",
+          "weekdays": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "representatives": 7
+        }
+      ],
+      "finite": "valid",
+      "finiteStates": 10,
+      "unbounded": "indeterminate",
+      "workerHashEqual": true,
+      "normalized": "2011-12-30",
+      "captureBlocked": false,
+      "noJavaScriptErrors": true
+    },
+    {
+      "timezoneId": "Europe/Madrid",
+      "zone": "Europe/Madrid",
+      "invalid": "Distribución inválida para e el 2011-12-30: Faltan 1 min: los pasos fijos exceden el tiempo disponible.",
+      "representatives": 7,
+      "coverage": [
+        {
+          "from": "2011-12-29",
+          "through": "9999-12-31",
+          "coverage": "all-local-weekdays",
+          "weekdays": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "representatives": 7
+        }
+      ],
+      "finite": "valid",
+      "finiteStates": 10,
+      "unbounded": "indeterminate",
+      "workerHashEqual": true,
+      "normalized": "2011-12-30",
+      "captureBlocked": false,
+      "noJavaScriptErrors": true
+    },
+    {
+      "timezoneId": "Pacific/Apia",
+      "zone": "Pacific/Apia",
+      "invalid": "Distribución inválida para e el 2012-01-06: Faltan 1 min: los pasos fijos exceden el tiempo disponible.",
+      "representatives": 9,
+      "coverage": [
+        {
+          "from": "2011-12-29",
+          "through": "9999-12-31",
+          "coverage": "all-local-weekdays",
+          "weekdays": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "representatives": 9
+        }
+      ],
+      "finite": "valid",
+      "finiteStates": 10,
+      "unbounded": "indeterminate",
+      "workerHashEqual": true,
+      "normalized": "2011-12-31",
+      "captureBlocked": true,
+      "noJavaScriptErrors": true
+    }
+  ]
+}

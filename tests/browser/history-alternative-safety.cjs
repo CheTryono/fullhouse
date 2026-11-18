@@ -5,7 +5,8 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),{sta
  try{
   browser=await chromium.launch({executablePath:process.env.FULLHOUSE_CHROMIUM||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});
   for(const width of [1280,390]){
-   const context=await browser.newContext({viewport:{width,height:900},timezoneId:'UTC'}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+   const context=await browser.newContext({viewport:{width,height:900}}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+   const cdp=await context.newCDPSession(page);await cdp.send('Emulation.setTimezoneOverride',{timezoneId:'UTC'});
    await context.addInitScript(()=>{for(const k of ['getItem','setItem','removeItem','clear'])Storage.prototype[k]=()=>{throw Error('Public storage forbidden');};});
    await page.goto(url+'/storage');
    const result=await page.evaluate(async()=>{
@@ -37,7 +38,11 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),{sta
    await other.evaluate(async()=>{const H=FullhouseHistory;window.db=H.createLineageDatabase({factory:indexedDB,name:'fullhouse-lab-alternative-safety',legacy:H.schedule.validData,schedule:H.schedule,plannerActions:H.plannerActions,readSources:()=>({main:null,alias:null})});window.session=H.createRoutinesSession(db.incremental);await session.open();window.op=await db.incremental.prepareRoutine(session.state().confirmed,'saveRoutine',{id:'r',title:'Stale',desc:'',steps:[{id:'s',title:'S',min:10,mode:'alternatives',chooseWhen:'execute',variants:[{id:'__base',title:'V',desc:'',min:10,days:[]}]}]},{operationId:'stale',today:'2030-01-07',at:'2030-01-07T12:00:00Z',ids:[]});});
    await page.evaluate(async()=>{const H=FullhouseHistory,s=H.createRoutinesSession(db.incremental);await s.open();const r=await s.save('saveRoutine',{...payload,title:'Winner'},ctx('winner'));if(r.pending)throw Error(r.pending.error);});
    assert.equal(await other.evaluate(async()=>{try{await db.incremental.commitRoutine(op);return false;}catch{return (await db.open()).head.id==='winner';}}),true);
-   await other.evaluate(()=>db.close());await page.evaluate(()=>db.close());assert.deepEqual(errors,[]);results.push({width,...result,twoTabsStaleRejected:true,noJavaScriptErrors:true});await context.close();
+   await page.evaluate(async()=>{window.beforeZone=JSON.stringify([(await db.open()).head,(await db.open()).authority]);window.zoneOp=await db.incremental.prepareRoutine((await db.incremental.openWindow()).token,'saveRoutine',{...payload,title:'Fresh-zone'},ctx('zone-change'));});
+   await cdp.send('Emulation.setTimezoneOverride',{timezoneId:'America/Mexico_City'});
+   assert.equal(await page.evaluate(async()=>{try{await db.incremental.commitRoutine(zoneOp);return false;}catch(e){const s=await db.open();return /zona/.test(e.message)&&JSON.stringify([s.head,s.authority])===beforeZone;}}),true);
+   const zoneRecovery=await page.evaluate(async()=>{const H=FullhouseHistory,packet=await H.recoveryBinary.inspectRecovery(await db.incremental.exportPending(zoneOp,{routine:payload}),H.schedule.validData),fresh=H.createRoutinesSession(db.incremental);await fresh.open();await fresh.resume(packet);const s=await fresh.retry();if(s.pending)throw Error(s.pending.error);const final=await db.open();return final.head.id==='zone-change'&&final.authority.tip.generation===4;});assert.equal(zoneRecovery,true);
+   await other.evaluate(()=>db.close());await page.evaluate(()=>db.close());assert.deepEqual(errors,[]);results.push({width,...result,twoTabsStaleRejected:true,changedZoneBlocked:true,freshLocalProofBeforeRecovery:true,noJavaScriptErrors:true});await context.close();
   }
   console.log(JSON.stringify({base:'beff908',browser:browser.version(),results},null,2));
  }finally{if(browser)await browser.close();await new Promise(r=>server.close(r));}

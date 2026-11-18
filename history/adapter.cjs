@@ -3,6 +3,12 @@ const {copy,freeze}=require('./json.cjs');
 // Inyectar las funciones puras reales de Fullhouse; nunca acceder a Planner/storage.
 function createAdapter(schedule){
   function context(doc,eventId,date,ids){
+    // El lector/resolver histórico conserva su calendario civil ya publicado.
+    // No congelar una nueva ejecución si Date local normaliza esa etiqueta a
+    // otro día (ni reinterpretar capturas existentes para intentar arreglarlo).
+    const local=schedule.parseDay(date),parts=date.split('-').map(Number);
+    if(!Number.isFinite(local.getTime())||local.getFullYear()!==parts[0]||local.getMonth()+1!==parts[1]||local.getDate()!==parts[2])
+      throw new Error('Fecha local inexistente o normalizada: captura indeterminada; conserva el borrador');
     const event=doc.events.find(e=>e.id===eventId);if(!event || !schedule.occurs(event,date))throw new Error('No existe una ocurrencia aplicable');
     const frame=schedule.eventFrame(event,date,doc);if(!frame)throw new Error('Intervalo o dependencias imposibles');
     if(event.seriesId && event.seriesId!==ids.seriesId)throw new Error('Serie incompatible');

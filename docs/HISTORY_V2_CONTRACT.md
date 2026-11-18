@@ -177,3 +177,18 @@ motor/planificación de forma conjunta, con reintento estable y lector sobre est
 confirmado. No amplían Data v2 ni adoptan legado. Los metadatos de persistencia van
 fuera del respaldo, en manifiesto/intento de las claves simuladas. La compatibilidad
 funcional del legado y el presupuesto de espacio son condiciones previas a 4B.
+
+
+## Aclaración B.3a.1 · ámbitos de identidad y fechas locales
+
+El catálogo de planificación representa la base mediante ausencia de elección. Una
+plantilla actual admite un ID de variante __base compatible con v1; ello no permite
+crear una revisión capturada con ese ID. El formato de elecciones históricas existente
+reserva ese string para base explícita, por lo que la captura/adopción permanece
+bloqueada hasta aprobar una representación inequívoca. No se reescriben decisiones,
+revisiones ni legado. Las guardas se prueban en CALENDAR_HARDENING.
+
+Una nueva captura Fullhouse debe pasar por el adaptador de semántica real. Una fecha
+normalizada a otro año/mes/día local se bloquea sin reinterpretar capturas anteriores.
+La prueba de calendario sobre etiquetas no autoriza por sí sola su captura ni garantiza
+paridad de toda la interfaz. El esquema público sigue version:1.

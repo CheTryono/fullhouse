@@ -1,0 +1,114 @@
+{
+  "base": "beff90843ea46e7ca97b28309502167c6d0403ce",
+  "commands": [
+    {
+      "suite": "check",
+      "command": "npm run check",
+      "code": 0
+    },
+    {
+      "suite": "types",
+      "command": "npm run check:history-contract",
+      "code": 0
+    },
+    {
+      "suite": "regression",
+      "command": "npm run test:regression",
+      "code": 0
+    },
+    {
+      "suite": "contracts",
+      "command": "npm run test:history-contract",
+      "code": 0
+    },
+    {
+      "suite": "all",
+      "command": "npm test",
+      "code": 1
+    },
+    {
+      "suite": "history-scoped-routines",
+      "command": "node tests/browser/history-scoped-routines.cjs",
+      "code": 0
+    },
+    {
+      "suite": "history-scoped-routines-faults",
+      "command": "node tests/browser/history-scoped-routines-faults.cjs",
+      "code": 0
+    },
+    {
+      "suite": "history-calendar-proof",
+      "command": "node tests/browser/history-calendar-proof.cjs",
+      "code": 0
+    },
+    {
+      "suite": "history-storage",
+      "command": "node tests/browser/history-storage.cjs",
+      "code": 0
+    },
+    {
+      "suite": "history-lineage",
+      "command": "node tests/browser/history-lineage.cjs",
+      "code": 0
+    },
+    {
+      "suite": "history-integration",
+      "command": "node tests/browser/history-integration.cjs",
+      "code": 0
+    },
+    {
+      "suite": "history-legacy",
+      "command": "node tests/browser/history-legacy.cjs",
+      "code": 0
+    },
+    {
+      "suite": "pending-save",
+      "command": "node tests/browser/pending-save.cjs",
+      "code": 0
+    },
+    {
+      "suite": "day-shifts",
+      "command": "node tests/browser/day-shifts.cjs",
+      "code": 0,
+      "note": "Repeated final suite after environment lost its process handle; both viewports passed and process exited 0."
+    },
+    {
+      "suite": "history-alternative-safety",
+      "command": "node tests/browser/history-alternative-safety.cjs",
+      "code": 0,
+      "note": "New synthetic suites; results stored separately."
+    },
+    {
+      "suite": "history-calendar-local",
+      "command": "node tests/browser/history-calendar-local.cjs",
+      "code": 0,
+      "note": "New synthetic suites; results stored separately."
+    }
+  ],
+  "node": {
+    "regression": {
+      "pass": 164
+    },
+    "contracts": {
+      "pass": 231,
+      "todo": 6
+    },
+    "all": {
+      "pass": 395,
+      "todo": 6,
+      "fail": 1,
+      "knownFailure": "BUG-05: editing a routine must preserve the interpretation of completed historical steps"
+    },
+    "newTests": 16
+  },
+  "targetedLocalHistoricalAssertions": {
+    "command": "node --test tests/history-contract.calendar-local.test.cjs",
+    "pass": 8
+  },
+  "unavailable": [
+    "Firefox",
+    "WebKit",
+    "physical phones"
+  ],
+  "productionChanged": false
+}
