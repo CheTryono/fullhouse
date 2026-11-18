@@ -12,7 +12,7 @@ function freezeShared(value) {
     return Object.freeze(value);
 }
 const clock = () => globalThis.performance?.now() ?? Date.now();
-function createIncrementalAccess({ open, transaction, legacy, schedule }) {
+function createIncrementalAccess({ open, transaction, legacy, schedule, protocol=null }) {
     let integrityBlocked = false;
     const tokens = new WeakMap(), operations = new WeakMap(), engine = createEngine(legacy), adapter = createAdapter(schedule), compat = createLegacyCompat({ legacy, engine, adapter });
     const fail = s => { throw Error(s); };
@@ -34,7 +34,7 @@ function createIncrementalAccess({ open, transaction, legacy, schedule }) {
                 integrityBlocked = true;
             fail('Recuperación necesaria: ' + (s.error || s.status));
         }
-        if (s.plan.sourceBackups?.length)
+        if (s.plan.sourceBackups?.length && !protocol)
             fail('Origen migrado: falta autoridad persistente y vigilancia de ambas fuentes para la ruta incremental');
         const plan = freeze(s.plan);
         return { token: token(plan, freeze(s.head)), verifiedMs: clock() - start, executions: plan.tables.executions.length, photoBytesHydrated: 0 };
@@ -59,9 +59,9 @@ function createIncrementalAccess({ open, transaction, legacy, schedule }) {
         }
     }
     async function checkHead(b) {
-        return transaction(['control', 'commits'], 'readonly', (tx, done, abort) => fetch(tx, [['head', 'control', 'head'], ['conflict', 'control', 'source-conflict'], ['integrity', 'control', 'integrity-block'], ['receipt', 'commits', b.head.id]], s => {
+        return transaction(['control', 'commits'], 'readonly', (tx, done, abort) => fetch(tx, [['head', 'control', 'head'],['authority','control','authority'], ['conflict', 'control', 'source-conflict'], ['integrity', 'control', 'integrity-block'],['lineageConflict','control','lineage-conflict'], ['receipt', 'commits', b.head.id]], s => {
             try {
-                guard(s.head, s.conflict || s.integrity, s.receipt, b);
+                guard(s.head, s.conflict || s.integrity || s.lineageConflict, s.receipt, b);
                 done();
             }
             catch (e) {
@@ -233,8 +233,8 @@ function createIncrementalAccess({ open, transaction, legacy, schedule }) {
         const op = operations.get(operation);
         if (!op)
             fail('Delta ajeno');
-        return transaction(['control', 'commits'], 'readonly', (tx, done, abort) => fetch(tx, [['head', 'control', 'head'], ['receipt', 'commits', operation.id], ['conflict', 'control', 'source-conflict'], ['integrity', 'control', 'integrity-block']], s => {
-            if (s.conflict || s.integrity) {
+        return transaction(['control', 'commits'], 'readonly', (tx, done, abort) => fetch(tx, [['head', 'control', 'head'], ['receipt', 'commits', operation.id], ['conflict', 'control', 'source-conflict'], ['integrity', 'control', 'integrity-block'],['lineageConflict','control','lineage-conflict']], s => {
+            if (s.conflict || s.integrity || s.lineageConflict) {
                 done({ status: 'recovery' });
                 return;
             }
@@ -250,19 +250,22 @@ function createIncrementalAccess({ open, transaction, legacy, schedule }) {
         if (!op)
             fail('Delta no preparado por esta conexión');
         const start = clock(), b = op.base;
-        const receipt = await transaction(['control', 'commits', ...TABLES, 'images', 'sources', 'candidates'], 'readwrite', (tx, done, abort) => fetch(tx, [['head', 'control', 'head'], ['conflict', 'control', 'source-conflict'], ['integrity', 'control', 'integrity-block'], ['baseReceipt', 'commits', b.head.id], ['previous', 'commits', operation.id], ['sourceCount', 'sources', null, 'count'], ['candidateCount', 'candidates', null, 'count'], ...op.scopeRows.map((r, i) => ['row' + i, r.store, r.row.key]), ...op.changed.filter(c => !b.maps[c.store].has(c.row.key)).map((c, i) => ['newRef' + i, c.store, c.row.key])], s => {
+        const context=protocol?await protocol.prepare({plan:op.plan,id:operation.id,expected:b.head,migrationId:null,operationHash:op.operationHash}):null;
+        const transactionAt = clock(), lineagePrepareMs=transactionAt-start;
+        const receipt = await transaction(['control', 'commits', ...TABLES, 'images', 'sources', 'candidates'], 'readwrite', (tx, done, abort) => fetch(tx, [['head', 'control', 'head'],['authority','control','authority'], ['conflict', 'control', 'source-conflict'], ['integrity', 'control', 'integrity-block'],['lineageConflict','control','lineage-conflict'], ['baseReceipt', 'commits', b.head.id], ['previous', 'commits', operation.id], ['sourceCount', 'sources', null, 'count'], ['candidateCount', 'candidates', null, 'count'], ...op.scopeRows.map((r, i) => ['row' + i, r.store, r.row.key]), ...op.changed.filter(c => !b.maps[c.store].has(c.row.key)).map((c, i) => ['newRef' + i, c.store, c.row.key])], s => {
             try {
-                if (s.conflict || s.integrity)
+                if (s.conflict || s.integrity || s.lineageConflict)
                     fail('Fuentes divergentes: escrituras detenidas');
-                if (s.sourceCount || s.candidateCount)
+                if (!protocol && (s.sourceCount || s.candidateCount))
                     fail('Fuentes o candidatos aparecieron: falta autoridad persistente; recuperación necesaria');
+                if(protocol)protocol.apply(context,{control:[s.head,s.authority,s.conflict,s.integrity,s.lineageConflict].filter(Boolean)},tx);
                 if (s.previous) {
                     if (s.previous.operationHash !== op.operationHash)
                         fail('ID reutilizado');
                     done({ ...s.previous, repeated: true });
                     return;
                 }
-                guard(s.head, s.conflict || s.integrity, s.baseReceipt, b);
+                guard(s.head, s.conflict || s.integrity || s.lineageConflict, s.baseReceipt, b);
                 for (let i = 0; i < op.scopeRows.length; i++)
                     if (!same(s['row' + i], op.scopeRows[i].row))
                         fail('Registro cambiado/corrupto fuera del protocolo');
@@ -277,9 +280,9 @@ function createIncrementalAccess({ open, transaction, legacy, schedule }) {
                     tx.objectStore('images').put(image);
                 if (fault === 'after-records')
                     fail('Fallo dentro de la transacción');
-                const head = { ...b.head, generation: b.head.generation + 1, id: operation.id, rootHash: op.plan.rootHash, header: op.plan.header };
+                const head = { ...b.head, generation: b.head.generation + 1, id: operation.id, rootHash: op.plan.rootHash, header: op.plan.header,...(context?.headFields || {}) };
                 tx.objectStore('control').put(head);
-                const r = { id: operation.id, generation: head.generation, rootHash: head.rootHash, operationHash: op.operationHash, changedRows: op.changed.length, newImages: op.images.length };
+                const r = { id: operation.id, generation: head.generation, rootHash: head.rootHash, operationHash: op.operationHash, changedRows: op.changed.length, newImages: op.images.length,...(context?.receiptFields || {}) };
                 tx.objectStore('commits').add(r);
                 if (typeof fault === 'function')
                     fault(tx);
@@ -293,11 +296,11 @@ function createIncrementalAccess({ open, transaction, legacy, schedule }) {
                 await quarantine(error.message);
             throw error;
         });
-        const writeMs = clock() - start, readAt = clock();
+        const transactionMs=clock()-transactionAt, writeMs = clock() - start, readAt = clock();
         if (fault === 'lost-ack')
             fail('Commit realizado; acuse perdido: conserva el mismo delta para reintentar');
-        const snapshot = await transaction(['control', 'commits', ...TABLES, 'images'], 'readonly', (tx, done, abort) => fetch(tx, [['head', 'control', 'head'], ['conflict', 'control', 'source-conflict'], ['integrity', 'control', 'integrity-block'], ['receipt', 'commits', receipt.id], ...op.changed.map((c, i) => ['change' + i, c.store, c.row.key]), ...op.images.map((r, i) => ['image' + i, 'images', r.hash])], done, abort));
-        if (snapshot.conflict || snapshot.integrity)
+        const snapshot = await transaction(['control', 'commits', ...TABLES, 'images'], 'readonly', (tx, done, abort) => fetch(tx, [['head', 'control', 'head'],['authority','control','authority'], ['conflict', 'control', 'source-conflict'], ['integrity', 'control', 'integrity-block'],['lineageConflict','control','lineage-conflict'], ['receipt', 'commits', receipt.id], ...op.changed.map((c, i) => ['change' + i, c.store, c.row.key]), ...op.images.map((r, i) => ['image' + i, 'images', r.hash])], done, abort));
+        if (snapshot.conflict || snapshot.integrity || snapshot.lineageConflict)
             fail('Conflicto tras escribir: recuperación necesaria');
         const { repeated, ...expectedReceipt } = receipt;
         if (!same(expectedReceipt, snapshot.receipt)) {
@@ -305,7 +308,7 @@ function createIncrementalAccess({ open, transaction, legacy, schedule }) {
             fail('Recibo no verificable');
         }
         if (snapshot.head?.rootHash !== op.plan.rootHash || snapshot.head?.generation !== receipt.generation)
-            return { status: 'committed-but-superseded', receipt, token: null, writeMs, confirmationMs: clock() - readAt };
+            {const checkedAt=clock();if(protocol)await protocol.confirmed(context,snapshot);const lineageAfterMs=clock()-checkedAt;return { status: 'committed-but-superseded', receipt, token: null, writeMs, transactionMs, lineagePrepareMs, lineageAfterMs, confirmationMs: clock() - readAt };}
         if (!same(snapshot.head.header, op.plan.header)) {
             await quarantine('Cabecera posterior corrupta');
             fail('Cabecera posterior corrupta');
@@ -324,16 +327,17 @@ function createIncrementalAccess({ open, transaction, legacy, schedule }) {
                 fail('Foto no confirmada');
             }
         }
-        return { status: 'confirmed', receipt, token: token(op.plan, freeze(snapshot.head)), writeMs, confirmationMs: clock() - readAt };
+        const checkedAt=clock();if(protocol)await protocol.confirmed(context,snapshot);const lineageAfterMs=clock()-checkedAt;
+        return { status: 'confirmed', receipt, token: token(op.plan, freeze(snapshot.head)), writeMs, transactionMs, lineagePrepareMs, lineageAfterMs, confirmationMs: clock() - readAt };
     }
     async function page(t, { after = null, limit = 50, date = null } = {}) {
         const b = base(t);
         if (!Number.isSafeInteger(limit) || limit < 1 || limit > 1000)
             fail('Página fuera de presupuesto');
         const start = clock();
-        const rows = await transaction(['control', 'commits', 'executions'], 'readonly', (tx, done, abort) => fetch(tx, [['head', 'control', 'head'], ['conflict', 'control', 'source-conflict'], ['integrity', 'control', 'integrity-block'], ['receipt', 'commits', b.head.id]], s => {
+        const rows = await transaction(['control', 'commits', 'executions'], 'readonly', (tx, done, abort) => fetch(tx, [['head', 'control', 'head'],['authority','control','authority'], ['conflict', 'control', 'source-conflict'], ['integrity', 'control', 'integrity-block'],['lineageConflict','control','lineage-conflict'], ['receipt', 'commits', b.head.id]], s => {
             try {
-                guard(s.head, s.conflict || s.integrity, s.receipt, b);
+                guard(s.head, s.conflict || s.integrity || s.lineageConflict, s.receipt, b);
                 const results = [], store = tx.objectStore('executions'), index = date ? store.index('byDay') : store;
                 const range = date ? IDBKeyRange.only(date) : after ? IDBKeyRange.lowerBound(after, true) : null, r = index.openCursor(range);
                 r.onerror = () => abort(r.error);
@@ -360,9 +364,9 @@ function createIncrementalAccess({ open, transaction, legacy, schedule }) {
         return { rows, next: rows.length === limit ? rows.at(-1).key : null, readMs: clock() - start, photoBytesHydrated: 0 };
     }
     async function readExecution(t, key) {
-        const b = base(t), s = scope(b, key), expected = scopeRecords(s), actual = await transaction(['control', 'commits', 'executions', 'revisions', 'evidence'], 'readonly', (tx, done, abort) => fetch(tx, [['head', 'control', 'head'], ['conflict', 'control', 'source-conflict'], ['integrity', 'control', 'integrity-block'], ['receipt', 'commits', b.head.id], ...expected.map((r, i) => ['scope' + i, r.store, r.row.key])], v => {
+        const b = base(t), s = scope(b, key), expected = scopeRecords(s), actual = await transaction(['control', 'commits', 'executions', 'revisions', 'evidence'], 'readonly', (tx, done, abort) => fetch(tx, [['head', 'control', 'head'],['authority','control','authority'], ['conflict', 'control', 'source-conflict'], ['integrity', 'control', 'integrity-block'],['lineageConflict','control','lineage-conflict'], ['receipt', 'commits', b.head.id], ...expected.map((r, i) => ['scope' + i, r.store, r.row.key])], v => {
             try {
-                guard(v.head, v.conflict || v.integrity, v.receipt, b);
+                guard(v.head, v.conflict || v.integrity || v.lineageConflict, v.receipt, b);
                 done(v);
             }
             catch (e) {
@@ -383,9 +387,9 @@ function createIncrementalAccess({ open, transaction, legacy, schedule }) {
         const b = base(t), key = canonical([owner, id]), expected = b.maps.evidence.get(key), execution = b.plan.tables.executions.find(r => r.value.owner === owner);
         if (!expected)
             fail('Referencia inexistente');
-        const value = await transaction(['control', 'commits', ...TABLES, 'images'], 'readonly', (tx, done, abort) => fetch(tx, [['head', 'control', 'head'], ['conflict', 'control', 'source-conflict'], ['integrity', 'control', 'integrity-block'], ['receipt', 'commits', b.head.id], ['execution', 'executions', execution?.key || ''], ['evidence', 'evidence', key], ['image', 'images', expected.value.hash]], v => {
+        const value = await transaction(['control', 'commits', ...TABLES, 'images'], 'readonly', (tx, done, abort) => fetch(tx, [['head', 'control', 'head'],['authority','control','authority'], ['conflict', 'control', 'source-conflict'], ['integrity', 'control', 'integrity-block'],['lineageConflict','control','lineage-conflict'], ['receipt', 'commits', b.head.id], ['execution', 'executions', execution?.key || ''], ['evidence', 'evidence', key], ['image', 'images', expected.value.hash]], v => {
             try {
-                guard(v.head, v.conflict || v.integrity, v.receipt, b);
+                guard(v.head, v.conflict || v.integrity || v.lineageConflict, v.receipt, b);
                 done(v);
             }
             catch (e) {

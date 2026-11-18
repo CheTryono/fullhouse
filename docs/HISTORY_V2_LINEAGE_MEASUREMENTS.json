@@ -1,0 +1,97 @@
+{
+  "browser": "156.0.8078.79",
+  "base": "d1dae11",
+  "comparison": "previous native incremental versus migrated lineage incremental; same fact roots and blobs; one sample per operation; desktop viewport",
+  "result": {
+    "executions": 5000,
+    "legacy": 1,
+    "revisions": 501,
+    "images": 65,
+    "assetBytes": 42175847,
+    "sourceBytes": 280,
+    "beforeOpenMs": 1469.7999999998137,
+    "afterOpenMs": 1214.5,
+    "operations": [
+      {
+        "kind": "step",
+        "before": {
+          "prepareMs": 23.59999999962747,
+          "transactionMs": 6.100000000093132,
+          "lineagePrepareMs": 0,
+          "lineageAfterMs": 0,
+          "confirmationMs": 3.6999999997206032,
+          "readMs": 5.800000000279397,
+          "root": "a803c71722597586892edf01f379e2fdc0f2a7e295fa10dc5ea98a9080ef2826"
+        },
+        "after": {
+          "prepareMs": 19.600000000093132,
+          "transactionMs": 6.399999999906868,
+          "lineagePrepareMs": 4.100000000093132,
+          "lineageAfterMs": 0.3000000002793968,
+          "confirmationMs": 4.600000000093132,
+          "readMs": 4.899999999906868,
+          "root": "a803c71722597586892edf01f379e2fdc0f2a7e295fa10dc5ea98a9080ef2826"
+        }
+      },
+      {
+        "kind": "note",
+        "before": {
+          "prepareMs": 13.100000000093132,
+          "transactionMs": 4.699999999720603,
+          "lineagePrepareMs": 0,
+          "lineageAfterMs": 0,
+          "confirmationMs": 4.600000000093132,
+          "readMs": 3.2000000001862645,
+          "root": "c82a7f9ec746b7fd7f92821cf50f686cc6775540496c331f111b57bd6b4e5e92"
+        },
+        "after": {
+          "prepareMs": 13.399999999906868,
+          "transactionMs": 5.800000000279397,
+          "lineagePrepareMs": 2.8999999999068677,
+          "lineageAfterMs": 0.20000000018626451,
+          "confirmationMs": 2.7999999998137355,
+          "readMs": 3,
+          "root": "c82a7f9ec746b7fd7f92821cf50f686cc6775540496c331f111b57bd6b4e5e92"
+        }
+      },
+      {
+        "kind": "photo",
+        "before": {
+          "prepareMs": 140.70000000018626,
+          "transactionMs": 6.300000000279397,
+          "lineagePrepareMs": 0,
+          "lineageAfterMs": 0,
+          "confirmationMs": 5.2999999998137355,
+          "readMs": 3.3999999999068677,
+          "root": "bf4a00daebeed209a0939bb774dba1788602f604cb0e98e5eee5ff4e5e73845f"
+        },
+        "after": {
+          "prepareMs": 113.40000000037253,
+          "transactionMs": 6.899999999906868,
+          "lineagePrepareMs": 3.3999999999068677,
+          "lineageAfterMs": 0.40000000037252903,
+          "confirmationMs": 6,
+          "readMs": 3,
+          "root": "bf4a00daebeed209a0939bb774dba1788602f604cb0e98e5eee5ff4e5e73845f"
+        }
+      }
+    ],
+    "lineageAuditMs": 1.7000000001862645,
+    "statisticsMs": 6.300000000279397,
+    "statistics": {
+      "recorded": {
+        "done": 4999,
+        "total": 10000,
+        "completed": 0,
+        "executions": 5000
+      },
+      "adopted": 0,
+      "legacy": 0
+    },
+    "heap": {
+      "usedJSHeapSize": 148949599,
+      "totalJSHeapSize": 204197099
+    },
+    "photoHashesEqual": true
+  }
+}
