@@ -5,6 +5,10 @@ declare const verifiedWindow:unique symbol,preparedDelta:unique symbol;
 export interface VerifiedWindow {readonly [verifiedWindow]:true;readonly format:'verified-history-window';readonly generation:number;readonly rootHash:string}
 export interface PreparedDelta {readonly [preparedDelta]:true;readonly format:'prepared-history-delta';readonly id:string;readonly prepareMs:number;readonly changedRows:number;readonly newImages:number}
 export interface IncrementalAccess {
+ prepareRoutine<M extends import('./storage-routines.cjs').RoutineMethod>(token:VerifiedWindow,method:M,payload:import('./storage-routines.cjs').RoutinePayloads[M],context:import('./storage-routines.cjs').RoutineContext):Promise<PreparedDelta>;
+ commitRoutine:IncrementalAccess['commitExecution'];
+ routineMetrics(operation:PreparedDelta):unknown;
+ readRoutine(token:VerifiedWindow,id:string,options?:{after?:string;revisionAfter?:string;limit?:number}):Promise<{readonly routine:Readonly<Routine>|null;readonly related:readonly unknown[];readonly captures:readonly unknown[];readonly captureCount:number;readonly revisionCount:number;readonly next:string|null;readonly readMs:number;readonly photoBytesHydrated:0}>;
  preparePlanning<M extends import('./storage-goals.cjs').PlanningMethod>(token:VerifiedWindow,method:M,payload:import('./storage-goals.cjs').PlanningPayloads[M],context:import('./storage-goals.cjs').PlanningContext):Promise<PreparedDelta>;
  commitPlanning:IncrementalAccess['commitExecution'];
  readGoal(token:VerifiedWindow,id:string):Promise<{readonly goal:Readonly<Goal>|null;readonly related:readonly unknown[];readonly photoBytesHydrated:0;readonly readMs:number}>;
@@ -15,7 +19,7 @@ export interface IncrementalAccess {
  openWindow():Promise<{token:VerifiedWindow;verifiedMs:number;executions:number;photoBytesHydrated:0}>;
  prepareExecution(token:VerifiedWindow,key:string,command:EditCommand|NativeRequest):Promise<PreparedDelta>;
  commitExecution(operation:PreparedDelta,options?:{fault?:'before-writes'|'after-records'|'lost-ack'|((tx:IDBTransaction)=>void)}):Promise<{status:'confirmed'|'committed-but-superseded';receipt:Receipt;token:VerifiedWindow|null;writeMs:number;transactionMs:number;lineagePrepareMs:number;lineageAfterMs:number;confirmationMs:number}>;
- page(token:VerifiedWindow,options?:{after?:string;limit?:number;date?:string}):Promise<{rows:Row[];next:string|null;readMs:number;photoBytesHydrated:0}>;
+ page(token:VerifiedWindow,options?:{after?:string;revisionAfter?:string;limit?:number;date?:string}):Promise<{rows:Row[];next:string|null;readMs:number;photoBytesHydrated:0}>;
  readExecution(token:VerifiedWindow,key:string):Promise<unknown>;
  readPhoto(token:VerifiedWindow,owner:string,id:string):Promise<{metadata:unknown;blob:Blob}>;
  statistics(token:VerifiedWindow,options?:{from?:string;to?:string}):Promise<unknown>;

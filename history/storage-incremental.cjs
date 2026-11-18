@@ -16,7 +16,7 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
     let integrityBlocked = false;
     const tokens = new WeakMap(), operations = new WeakMap(), engine = createEngine(legacy), adapter = createAdapter(schedule), compat = createLegacyCompat({ legacy, engine, adapter });
     const fail = s => { throw Error(s); };
-    function token(plan, head, previousGoalIds=null) { const t = Object.freeze({ format: 'verified-history-window', generation: head.generation, rootHash: head.rootHash }); tokens.set(t, { plan, head, historicalGoalIds:previousGoalIds||new Set(plan.tables.executions.flatMap(r=>(r.value.log.history?.capture.plan.goals||[]).map(g=>g.id))), maps: Object.fromEntries(TABLES.map(n => [n, new Map(plan.tables[n].map(r => [r.key, r]))])), assets: new Map(plan.images.map(i => [i.hash, i])) }); return t; }
+    function token(plan, head, previousGoalIds=null,previousRoutineIndex=null) { const t = Object.freeze({ format: 'verified-history-window', generation: head.generation, rootHash: head.rootHash }); tokens.set(t, { plan, head, routineIndex:previousRoutineIndex||require('./storage-routines.cjs').index(plan), historicalGoalIds:previousGoalIds||new Set(plan.tables.executions.flatMap(r=>(r.value.log.history?.capture.plan.goals||[]).map(g=>g.id))), maps: Object.fromEntries(TABLES.map(n => [n, new Map(plan.tables[n].map(r => [r.key, r]))])), assets: new Map(plan.images.map(i => [i.hash, i])) }); return t; }
     const base = t => integrityBlocked ? fail('Verificación completa falló: recuperación explícita necesaria') : tokens.get(t) || fail('Ventana no verificada o de otra conexión');
     async function quarantine(reason) {
         integrityBlocked = true;
@@ -193,6 +193,29 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
         await verifyRows(b, row ? [{ store: 'reviews', row }] : []);
         return freeze({ date, review: copy(row?.value || null), photoBytesHydrated: 0, readMs: clock() - started });
     }
+    async function readRoutine(t,id,{after=null,revisionAfter=null,limit=50}={}) {
+        if(!Number.isSafeInteger(limit)||limit<1||limit>1000)fail('Página fuera del presupuesto');const started=clock(),b=base(t),library=require('./storage-routines.cjs'),refs=b.routineIndex.get(id)||{revisions:[],executions:[]},records=library.relatedRows(b.plan,id),captures=refs.executions.filter(r=>!after||r.key>after).slice(0,limit);for(const c of captures)records.push({store:'executions',row:b.maps.executions.get(c.key)});
+        for(const key of refs.revisions.filter(key=>!revisionAfter||key>revisionAfter).slice(0,limit))records.push({store:'revisions',row:b.maps.revisions.get(key)});
+        await verifyRows(b,records);
+        return freeze({routine:copy(b.maps.routines.get(id)?.value||null),related:records.filter(r=>r.store!=='executions').map(r=>({store:r.store,key:r.row.key,value:copy(r.row.value)})),revisionCount:refs.revisions.length,revisionCatalog:refs.revisions.map(key=>({key,hash:b.maps.revisions.get(key).hash})),captureCount:refs.executions.length,captures:copy(captures),next:captures.length===limit?captures.at(-1).key:null,photoBytesHydrated:0,readMs:clock()-started});
+    }
+    async function prepareRoutine(t,method,payload,context) {
+        if(!protocol)fail('Las rutinas incrementales requieren autoridad persistente');
+        const started=clock(),b=base(t),library=require('./storage-routines.cjs'),scope=library.selectScope(b.plan,method,payload,context);
+        if(method==='saveRoutine'&&!scope.payload.id&&b.routineIndex.has(scope.id))fail('ID reservado ya aparece en definiciones o relaciones anteriores');
+        const relationsAt=clock();await verifyRows(b,scope.rows);const relationsMs=clock()-relationsAt;
+        const {partial,proof,validationMs}=await library.buildChange(scope,{legacy,schedule,plannerActions}),changed=[],tables={...b.plan.tables};
+        for(const store of ['routines','events']){
+            const next=new Map(partial.tables[store].map(r=>[r.key,r]));
+            for(const row of partial.tables[store])if(!same(row,b.maps[store].get(row.key)))changed.push({store,row});
+            for(const row of b.plan.tables[store])if(!next.has(row.key))changed.push({store,row,deleted:true});
+            tables[store]=partial.tables[store].map(r=>b.maps[store].get(r.key)?.hash===r.hash?b.maps[store].get(r.key):r);
+        }
+        const header={...b.plan.header,routineIds:partial.header.routineIds,eventIds:partial.header.eventIds},plan={...b.plan,tables,header};plan.rootHash=await model.rootHash(plan);
+        const operation=await seal(b,plan,changed,[],scope.context.operationId,scope.rows,started,{kind:'routine',method,payload:scope.payload,context:scope.context});
+        operations.get(operation).metrics={relationsMs,validationMs,proof};
+        return operation;
+    }
     async function preparePlanning(t, method, payload, context) {
         if (!protocol)
             fail('Las operaciones B.1 requieren wrapper con linaje');
@@ -240,6 +263,10 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
         }
         if (!same(metadata.base, b.head))
             fail('Pendiente obsoleto: preservar para reconciliar o restaurar aparte');
+        if (metadata.operation?.kind==='routine') {
+            const command=copy(metadata.operation),rebuilt=await prepareRoutine(t,command.method,command.payload,command.context),value=operations.get(rebuilt);
+            if(rebuilt.id!==metadata.id||value.plan.rootHash!==candidate.rootHash||!same(value.plan.sourceBackups,candidate.sourceBackups))fail('El comando no reproduce el candidato íntegro');return rebuilt;
+        }
         if (metadata.operation?.kind==='planning') {
             const command=copy(metadata.operation),rebuilt=await preparePlanning(t,command.method,command.payload,command.context),value=operations.get(rebuilt);
             if(rebuilt.id!==metadata.id||value.plan.rootHash!==candidate.rootHash||!same(value.plan.sourceBackups,candidate.sourceBackups))fail('El comando no reproduce el candidato íntegro');
@@ -383,7 +410,7 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
             }
         }
         const checkedAt=clock();if(protocol)await protocol.confirmed(context,snapshot);const lineageAfterMs=clock()-checkedAt;
-        return { status: 'confirmed', receipt, token: token(op.plan, freeze(snapshot.head),op.command?.kind==='planning'?b.historicalGoalIds:null), writeMs, transactionMs, lineagePrepareMs, lineageAfterMs, confirmationMs: clock() - readAt };
+        return { status: 'confirmed', receipt, token: token(op.plan, freeze(snapshot.head),['planning','routine'].includes(op.command?.kind)?b.historicalGoalIds:null,['planning','routine'].includes(op.command?.kind)?b.routineIndex:null), writeMs, transactionMs, lineagePrepareMs, lineageAfterMs, confirmationMs: clock() - readAt };
     }
     async function page(t, { after = null, limit = 50, date = null } = {}) {
         const b = base(t);
@@ -492,13 +519,13 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
         if (!op)
             fail('Delta ajeno');
         let command = op.command ? copy(op.command) : null;
-        if (command && command.kind!=='planning') {
+        if (command && !['planning','routine'].includes(command.kind)) {
             const action = command.command.action?.type === 'annotate' ? command.command.action.action : command.command.action;
             if (action?.type === 'evidence')
                 delete action.evidence.src;
         }
         return require('./recovery-binary.cjs').exportRecovery({ id: operation.id, base: op.base.head, candidate: op.plan, drafts: copy(drafts), operation: command }, legacy);
     }
-    return Object.freeze({ readGoal,readDayReview,preparePlanning,commitPlanning:commitExecution,resumePending, inspectOperation, exportPending, openWindow, prepareExecution, commitExecution, page, readExecution, readPhoto, statistics });
+    return Object.freeze({ readRoutine,prepareRoutine,commitRoutine:commitExecution,routineMetrics:operation=>copy(operations.get(operation)?.metrics||null),readGoal,readDayReview,preparePlanning,commitPlanning:commitExecution,resumePending, inspectOperation, exportPending, openWindow, prepareExecution, commitExecution, page, readExecution, readPhoto, statistics });
 }
 module.exports = { createIncrementalAccess };
