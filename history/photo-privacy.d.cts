@@ -1,0 +1,2 @@
+import type {StoragePlan} from './storage-model.cjs';
+export function photoRemovalReport(plan:StoragePlan,selection:{owner:string;id:string}[],legacy:(value:unknown)=>boolean):Promise<Readonly<{meaning:'proposal-only';physicalDeletionImplemented:false;images:readonly {hash:string;bytes:number;selectedReferences:number;remainingReferences:number;mayRemoveActiveBlob:boolean}[];originalSourcesNeedExplicitReview:number;stagedCandidates:string;downloadedBackups:string}>>;

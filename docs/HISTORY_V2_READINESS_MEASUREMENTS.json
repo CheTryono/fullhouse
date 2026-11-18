@@ -1,0 +1,1625 @@
+{
+  "environment": {
+    "base": "35ca45c",
+    "os": "Linux 6.18.57",
+    "arch": "x64",
+    "cpu": "AMD EPYC 9V74 80-Core Processor",
+    "reportedHostMemoryBytes": 35743748096,
+    "note": "Memoria/CPU informadas por el entorno virtual, no recursos garantizados ni teléfono físico."
+  },
+  "comparison": {
+    "base": "35ca45c",
+    "node": "v24.22.1",
+    "cases": 78,
+    "results": [
+      {
+        "browser": "chromium",
+        "version": "156.0.8078.79",
+        "width": 1280,
+        "available": true,
+        "small": {
+          "acknowledged": "already-confirmed",
+          "corruptionBlocked": true,
+          "quarantine": "recovery",
+          "migratedFastBlocked": true,
+          "migratedStillReady": "ready",
+          "upgradeBlocked": true,
+          "incompatible": "recovery",
+          "aborts": 2,
+          "ackLost": true,
+          "receipt": "persisted-receipt",
+          "status": "confirmed",
+          "repeated": true,
+          "note": "Nota incremental",
+          "photoBytesHydrated": 0,
+          "stats": {
+            "recorded": {
+              "done": 1,
+              "total": 2,
+              "completed": 0,
+              "executions": 1
+            },
+            "adopted": 0,
+            "legacy": 0
+          },
+          "rows": 1,
+          "fakeDenied": true,
+          "staleDenied": true,
+          "superseded": "committed-but-superseded",
+          "resumedId": "pending",
+          "competition": [
+            "fulfilled",
+            "rejected"
+          ],
+          "workerRoot": true,
+          "privacy": {
+            "sharedRetained": true,
+            "lastDeleted": true
+          }
+        },
+        "large": {
+          "memorySamples": {
+            "input": {
+              "usedJSHeapSize": 315397572,
+              "totalJSHeapSize": 330026360
+            },
+            "afterBaselinePrepare": {
+              "usedJSHeapSize": 128044060,
+              "totalJSHeapSize": 186212244
+            },
+            "afterWorkerPrepare": {
+              "usedJSHeapSize": 113213083,
+              "totalJSHeapSize": 177234215
+            },
+            "beforeEdits": {
+              "usedJSHeapSize": 229271365,
+              "totalJSHeapSize": 293725277
+            }
+          },
+          "beforeMainThreadProbe": {
+            "ticks": 74,
+            "maxObservedGapMs": 767.8999999985099
+          },
+          "workerMainThreadProbe": {
+            "ticks": 312,
+            "maxObservedGapMs": 140.59999999776483
+          },
+          "comparableArchive": {
+            "bytes": 50299234,
+            "beforeOpenMs": 962.8000000007451,
+            "beforeExportMs": 901.0999999977648,
+            "beforeImportMs": 3722,
+            "beforeRestoreCommitMs": 2805.89999999851,
+            "afterExportMs": 933.5,
+            "afterImportMs": 4183.300000000745,
+            "afterRestoreCommitMs": 1980.8999999985099
+          },
+          "executions": 5000,
+          "revisions": 501,
+          "images": 65,
+          "assetBytes": 42175847,
+          "years": 13.689253935660506,
+          "initial": {
+            "beforePrepareMs": 4783.89999999851,
+            "beforeSeedMs": 2805.800000000745,
+            "beforeOpenMs": 1055.5,
+            "workerPrepareMs": 5147.29999999702,
+            "afterSeedMs": 1817.800000000745,
+            "afterOpenMs": 797.8000000007451
+          },
+          "operations": [
+            {
+              "kind": "step",
+              "beforePrepareMs": 4776.699999999255,
+              "beforeCommitMs": 2425.10000000149,
+              "afterPrepareMs": 10.899999998509884,
+              "writeMs": 3.600000001490116,
+              "confirmationMs": 2.300000000745058,
+              "changedRows": 1,
+              "newImages": 0
+            },
+            {
+              "kind": "note",
+              "beforePrepareMs": 4850.099999997765,
+              "beforeCommitMs": 2397.60000000149,
+              "afterPrepareMs": 10.800000000745058,
+              "writeMs": 3.599999997764826,
+              "confirmationMs": 2.300000000745058,
+              "changedRows": 1,
+              "newImages": 0
+            },
+            {
+              "kind": "photo",
+              "beforePrepareMs": 4707.900000002235,
+              "beforeCommitMs": 2372.900000002235,
+              "afterPrepareMs": 84.30000000074506,
+              "writeMs": 4.199999999254942,
+              "confirmationMs": 5.300000000745058,
+              "changedRows": 2,
+              "newImages": 1
+            },
+            {
+              "kind": "photo-deduplicated",
+              "beforePrepareMs": 4835.39999999851,
+              "beforeCommitMs": 2601.099999997765,
+              "afterPrepareMs": 443.30000000074506,
+              "writeMs": 36.100000001490116,
+              "confirmationMs": 2.7999999970197678,
+              "changedRows": 2,
+              "newImages": 0
+            },
+            {
+              "kind": "first-capture",
+              "beforePrepareMs": 5286.39999999851,
+              "beforeCommitMs": 2477.400000002235,
+              "afterPrepareMs": 13.699999999254942,
+              "writeMs": 3.800000000745058,
+              "confirmationMs": 2.300000000745058,
+              "changedRows": 1,
+              "newImages": 0
+            }
+          ],
+          "readExecutionMs": 3.900000002235174,
+          "statisticsMs": 5.800000000745058,
+          "statistics": {
+            "recorded": {
+              "done": 4999,
+              "total": 10002,
+              "completed": 0,
+              "executions": 5001
+            },
+            "adopted": 0,
+            "legacy": 0
+          },
+          "pageMs": 8.199999999254942,
+          "pageRows": 50,
+          "photoBytesHydrated": 0,
+          "edits": [
+            {
+              "prepareMs": 11.199999999254942,
+              "writeMs": 4,
+              "confirmationMs": 2.399999998509884
+            },
+            {
+              "prepareMs": 13.800000000745058,
+              "writeMs": 7.100000001490116,
+              "confirmationMs": 2.300000000745058
+            },
+            {
+              "prepareMs": 23.099999997764826,
+              "writeMs": 4.600000001490116,
+              "confirmationMs": 2.199999999254942
+            },
+            {
+              "prepareMs": 11.899999998509884,
+              "writeMs": 3.400000002235174,
+              "confirmationMs": 2.099999997764826
+            },
+            {
+              "prepareMs": 13.600000001490116,
+              "writeMs": 3.399999998509884,
+              "confirmationMs": 2.100000001490116
+            },
+            {
+              "prepareMs": 12.300000000745058,
+              "writeMs": 3.300000000745058,
+              "confirmationMs": 2.199999999254942
+            },
+            {
+              "prepareMs": 12.699999999254942,
+              "writeMs": 3.600000001490116,
+              "confirmationMs": 2.2999999970197678
+            },
+            {
+              "prepareMs": 12.5,
+              "writeMs": 5.200000002980232,
+              "confirmationMs": 2.699999999254942
+            },
+            {
+              "prepareMs": 13.5,
+              "writeMs": 3.300000000745058,
+              "confirmationMs": 2.199999999254942
+            },
+            {
+              "prepareMs": 13.300000000745058,
+              "writeMs": 3.5,
+              "confirmationMs": 2.199999999254942
+            },
+            {
+              "prepareMs": 13.800000000745058,
+              "writeMs": 3.399999998509884,
+              "confirmationMs": 2.199999999254942
+            },
+            {
+              "prepareMs": 12.800000000745058,
+              "writeMs": 3.399999998509884,
+              "confirmationMs": 2.100000001490116
+            },
+            {
+              "prepareMs": 13.799999997019768,
+              "writeMs": 5,
+              "confirmationMs": 2.2000000029802322
+            },
+            {
+              "prepareMs": 14.199999999254942,
+              "writeMs": 3.599999997764826,
+              "confirmationMs": 2.300000000745058
+            },
+            {
+              "prepareMs": 14.800000000745058,
+              "writeMs": 5.199999999254942,
+              "confirmationMs": 2.699999999254942
+            },
+            {
+              "prepareMs": 16.100000001490116,
+              "writeMs": 4.099999997764826,
+              "confirmationMs": 2.900000002235174
+            },
+            {
+              "prepareMs": 16.599999997764826,
+              "writeMs": 5.400000002235174,
+              "confirmationMs": 3
+            },
+            {
+              "prepareMs": 23.299999997019768,
+              "writeMs": 8.800000000745058,
+              "confirmationMs": 2.600000001490116
+            },
+            {
+              "prepareMs": 18.300000000745058,
+              "writeMs": 5.399999998509884,
+              "confirmationMs": 2.399999998509884
+            },
+            {
+              "prepareMs": 15.5,
+              "writeMs": 3.5,
+              "confirmationMs": 2.400000002235174
+            },
+            {
+              "prepareMs": 16.5,
+              "writeMs": 5.800000000745058,
+              "confirmationMs": 2.400000002235174
+            },
+            {
+              "prepareMs": 17,
+              "writeMs": 3.699999999254942,
+              "confirmationMs": 2.5
+            },
+            {
+              "prepareMs": 19,
+              "writeMs": 5.199999999254942,
+              "confirmationMs": 2.600000001490116
+            },
+            {
+              "prepareMs": 21.599999997764826,
+              "writeMs": 4.900000002235174,
+              "confirmationMs": 2.599999997764826
+            },
+            {
+              "prepareMs": 20.699999999254942,
+              "writeMs": 5.100000001490116,
+              "confirmationMs": 2.399999998509884
+            },
+            {
+              "prepareMs": 21.400000002235174,
+              "writeMs": 4.099999997764826,
+              "confirmationMs": 2.400000002235174
+            },
+            {
+              "prepareMs": 25.300000000745058,
+              "writeMs": 4.399999998509884,
+              "confirmationMs": 2.5
+            },
+            {
+              "prepareMs": 21.399999998509884,
+              "writeMs": 4.600000001490116,
+              "confirmationMs": 2.800000000745058
+            },
+            {
+              "prepareMs": 28.199999999254942,
+              "writeMs": 4.600000001490116,
+              "confirmationMs": 2.899999998509884
+            },
+            {
+              "prepareMs": 25.699999999254942,
+              "writeMs": 4.699999999254942,
+              "confirmationMs": 3.100000001490116
+            },
+            {
+              "prepareMs": 25.5,
+              "writeMs": 4.899999998509884,
+              "confirmationMs": 3.100000001490116
+            },
+            {
+              "prepareMs": 20.800000000745058,
+              "writeMs": 9.399999998509884,
+              "confirmationMs": 4.900000002235174
+            },
+            {
+              "prepareMs": 24.799999997019768,
+              "writeMs": 4.700000002980232,
+              "confirmationMs": 2.5
+            },
+            {
+              "prepareMs": 25.899999998509884,
+              "writeMs": 4.899999998509884,
+              "confirmationMs": 2.400000002235174
+            },
+            {
+              "prepareMs": 23.099999997764826,
+              "writeMs": 4.600000001490116,
+              "confirmationMs": 2.600000001490116
+            },
+            {
+              "prepareMs": 25.799999997019768,
+              "writeMs": 3.7000000029802322,
+              "confirmationMs": 2.5
+            },
+            {
+              "prepareMs": 28.5,
+              "writeMs": 3.899999998509884,
+              "confirmationMs": 2.5
+            },
+            {
+              "prepareMs": 26.199999999254942,
+              "writeMs": 5.300000000745058,
+              "confirmationMs": 2.699999999254942
+            },
+            {
+              "prepareMs": 25,
+              "writeMs": 4.600000001490116,
+              "confirmationMs": 3
+            },
+            {
+              "prepareMs": 24.699999999254942,
+              "writeMs": 4,
+              "confirmationMs": 2.600000001490116
+            },
+            {
+              "prepareMs": 21.099999997764826,
+              "writeMs": 6.699999999254942,
+              "confirmationMs": 2.600000001490116
+            },
+            {
+              "prepareMs": 21.899999998509884,
+              "writeMs": 4.100000001490116,
+              "confirmationMs": 2.600000001490116
+            },
+            {
+              "prepareMs": 23.099999997764826,
+              "writeMs": 4.100000001490116,
+              "confirmationMs": 2.699999999254942
+            },
+            {
+              "prepareMs": 22.5,
+              "writeMs": 4.899999998509884,
+              "confirmationMs": 2.800000000745058
+            },
+            {
+              "prepareMs": 22.800000000745058,
+              "writeMs": 4,
+              "confirmationMs": 2.800000000745058
+            },
+            {
+              "prepareMs": 24.399999998509884,
+              "writeMs": 4.100000001490116,
+              "confirmationMs": 2.899999998509884
+            },
+            {
+              "prepareMs": 23.400000002235174,
+              "writeMs": 5.099999997764826,
+              "confirmationMs": 3
+            },
+            {
+              "prepareMs": 29.300000000745058,
+              "writeMs": 4.399999998509884,
+              "confirmationMs": 3.300000000745058
+            },
+            {
+              "prepareMs": 27.199999999254942,
+              "writeMs": 4.399999998509884,
+              "confirmationMs": 2.7000000029802322
+            },
+            {
+              "prepareMs": 27.199999999254942,
+              "writeMs": 4.899999998509884,
+              "confirmationMs": 3.600000001490116
+            },
+            {
+              "prepareMs": 30.699999999254942,
+              "writeMs": 4.600000001490116,
+              "confirmationMs": 3
+            },
+            {
+              "prepareMs": 24.899999998509884,
+              "writeMs": 4.300000000745058,
+              "confirmationMs": 3
+            },
+            {
+              "prepareMs": 27.399999998509884,
+              "writeMs": 4.400000002235174,
+              "confirmationMs": 3
+            },
+            {
+              "prepareMs": 27.399999998509884,
+              "writeMs": 4.899999998509884,
+              "confirmationMs": 2.900000002235174
+            },
+            {
+              "prepareMs": 25.300000000745058,
+              "writeMs": 5.899999998509884,
+              "confirmationMs": 2.800000000745058
+            },
+            {
+              "prepareMs": 26.300000000745058,
+              "writeMs": 4.5,
+              "confirmationMs": 3.900000002235174
+            },
+            {
+              "prepareMs": 27.099999997764826,
+              "writeMs": 4.699999999254942,
+              "confirmationMs": 2.900000002235174
+            },
+            {
+              "prepareMs": 29.199999999254942,
+              "writeMs": 4.600000001490116,
+              "confirmationMs": 3.099999997764826
+            },
+            {
+              "prepareMs": 27.800000000745058,
+              "writeMs": 4.699999999254942,
+              "confirmationMs": 3
+            },
+            {
+              "prepareMs": 27.699999999254942,
+              "writeMs": 5.300000000745058,
+              "confirmationMs": 3.100000001490116
+            },
+            {
+              "prepareMs": 28.099999997764826,
+              "writeMs": 5.400000002235174,
+              "confirmationMs": 3.300000000745058
+            },
+            {
+              "prepareMs": 28.800000000745058,
+              "writeMs": 4.800000000745058,
+              "confirmationMs": 3.099999997764826
+            },
+            {
+              "prepareMs": 28.699999999254942,
+              "writeMs": 4.100000001490116,
+              "confirmationMs": 2.699999999254942
+            },
+            {
+              "prepareMs": 29.300000000745058,
+              "writeMs": 6.199999999254942,
+              "confirmationMs": 3
+            },
+            {
+              "prepareMs": 29.699999999254942,
+              "writeMs": 4.199999999254942,
+              "confirmationMs": 3.2000000029802322
+            },
+            {
+              "prepareMs": 31.699999999254942,
+              "writeMs": 4.5,
+              "confirmationMs": 5.199999999254942
+            },
+            {
+              "prepareMs": 36,
+              "writeMs": 6.800000000745058,
+              "confirmationMs": 3.300000000745058
+            },
+            {
+              "prepareMs": 29.399999998509884,
+              "writeMs": 4.600000001490116,
+              "confirmationMs": 3.199999999254942
+            },
+            {
+              "prepareMs": 31.599999997764826,
+              "writeMs": 4.300000000745058,
+              "confirmationMs": 2.900000002235174
+            },
+            {
+              "prepareMs": 30.699999999254942,
+              "writeMs": 4.300000000745058,
+              "confirmationMs": 3
+            },
+            {
+              "prepareMs": 31.5,
+              "writeMs": 4.299999997019768,
+              "confirmationMs": 3.2000000029802322
+            },
+            {
+              "prepareMs": 30.899999998509884,
+              "writeMs": 19.100000001490116,
+              "confirmationMs": 5.799999997019768
+            },
+            {
+              "prepareMs": 69.40000000223517,
+              "writeMs": 18.699999999254942,
+              "confirmationMs": 3.399999998509884
+            },
+            {
+              "prepareMs": 34.80000000074506,
+              "writeMs": 4.699999999254942,
+              "confirmationMs": 3.100000001490116
+            },
+            {
+              "prepareMs": 34.600000001490116,
+              "writeMs": 4.599999997764826,
+              "confirmationMs": 3
+            },
+            {
+              "prepareMs": 32.600000001490116,
+              "writeMs": 4.699999999254942,
+              "confirmationMs": 3.199999999254942
+            },
+            {
+              "prepareMs": 32.900000002235174,
+              "writeMs": 4.799999997019768,
+              "confirmationMs": 3.100000001490116
+            },
+            {
+              "prepareMs": 32.399999998509884,
+              "writeMs": 4.300000000745058,
+              "confirmationMs": 3.100000001490116
+            },
+            {
+              "prepareMs": 31.699999999254942,
+              "writeMs": 4.399999998509884,
+              "confirmationMs": 3.100000001490116
+            },
+            {
+              "prepareMs": 33.30000000074506,
+              "writeMs": 4.399999998509884,
+              "confirmationMs": 3.400000002235174
+            },
+            {
+              "prepareMs": 34.29999999701977,
+              "writeMs": 4.400000002235174,
+              "confirmationMs": 3
+            },
+            {
+              "prepareMs": 34.899999998509884,
+              "writeMs": 4.800000000745058,
+              "confirmationMs": 3
+            },
+            {
+              "prepareMs": 35.30000000074506,
+              "writeMs": 4.5,
+              "confirmationMs": 3.100000001490116
+            },
+            {
+              "prepareMs": 34.600000001490116,
+              "writeMs": 4.599999997764826,
+              "confirmationMs": 3.300000000745058
+            },
+            {
+              "prepareMs": 34.30000000074506,
+              "writeMs": 4.399999998509884,
+              "confirmationMs": 3.199999999254942
+            },
+            {
+              "prepareMs": 34.400000002235174,
+              "writeMs": 4.899999998509884,
+              "confirmationMs": 3.300000000745058
+            },
+            {
+              "prepareMs": 36.399999998509884,
+              "writeMs": 5.200000002980232,
+              "confirmationMs": 3.399999998509884
+            },
+            {
+              "prepareMs": 35.600000001490116,
+              "writeMs": 4.299999997019768,
+              "confirmationMs": 3.2000000029802322
+            },
+            {
+              "prepareMs": 37.29999999701977,
+              "writeMs": 4.400000002235174,
+              "confirmationMs": 3.099999997764826
+            },
+            {
+              "prepareMs": 35.5,
+              "writeMs": 4.600000001490116,
+              "confirmationMs": 3.199999999254942
+            },
+            {
+              "prepareMs": 34.600000001490116,
+              "writeMs": 4.699999999254942,
+              "confirmationMs": 3.199999999254942
+            },
+            {
+              "prepareMs": 35.30000000074506,
+              "writeMs": 4.600000001490116,
+              "confirmationMs": 3.199999999254942
+            },
+            {
+              "prepareMs": 35,
+              "writeMs": 4.399999998509884,
+              "confirmationMs": 3.300000000745058
+            },
+            {
+              "prepareMs": 36.30000000074506,
+              "writeMs": 4.399999998509884,
+              "confirmationMs": 3.400000002235174
+            },
+            {
+              "prepareMs": 37.099999997764826,
+              "writeMs": 4.900000002235174,
+              "confirmationMs": 3.5
+            },
+            {
+              "prepareMs": 37.599999997764826,
+              "writeMs": 4.400000002235174,
+              "confirmationMs": 3.199999999254942
+            },
+            {
+              "prepareMs": 40.30000000074506,
+              "writeMs": 5,
+              "confirmationMs": 3.5
+            },
+            {
+              "prepareMs": 40.19999999925494,
+              "writeMs": 4.899999998509884,
+              "confirmationMs": 3.300000000745058
+            },
+            {
+              "prepareMs": 41.100000001490116,
+              "writeMs": 4.699999999254942,
+              "confirmationMs": 3.399999998509884
+            },
+            {
+              "prepareMs": 39.19999999925494,
+              "writeMs": 5.300000000745058,
+              "confirmationMs": 3.600000001490116
+            }
+          ],
+          "diaryEntries": 104,
+          "fullVerificationMs": 967.8999999985099,
+          "archiveBytes": 50337504,
+          "exportMs": 977,
+          "importMs": 3801.7000000029802,
+          "restoreCommitMs": 2019.7999999970198,
+          "recoveryBytes": 50421204,
+          "recoveryExportMs": 924.6999999992549,
+          "recoveryReadMs": 3657.5,
+          "heap": {
+            "usedJSHeapSize": 222848401,
+            "totalJSHeapSize": 322841673,
+            "jsHeapSizeLimit": 4395630592
+          },
+          "sinkAborted": true,
+          "retainedHeapProbe": {
+            "full-session": {
+              "root": "1ecb437d3bf4feb3569421ff2ec3bbbe0c66d181be97bffe4504d7a07f1a2f04",
+              "gcRequested": true,
+              "memory": {
+                "usedJSHeapSize": 65489533,
+                "totalJSHeapSize": 66384253
+              }
+            },
+            "incremental-window": {
+              "root": "1ecb437d3bf4feb3569421ff2ec3bbbe0c66d181be97bffe4504d7a07f1a2f04",
+              "gcRequested": true,
+              "memory": {
+                "usedJSHeapSize": 9763657,
+                "totalJSHeapSize": 11446157
+              }
+            }
+          }
+        },
+        "capabilities": {
+          "indexedDB": true,
+          "webLocks": true,
+          "broadcastChannel": true,
+          "persisted": false,
+          "persistGranted": false,
+          "estimate": {
+            "quota": 10997366784,
+            "usage": 259948544,
+            "usageDetails": {
+              "indexedDB": 259948544
+            }
+          }
+        }
+      },
+      {
+        "browser": "chromium",
+        "version": "156.0.8078.79",
+        "width": 390,
+        "available": true,
+        "small": {
+          "acknowledged": "already-confirmed",
+          "corruptionBlocked": true,
+          "quarantine": "recovery",
+          "migratedFastBlocked": true,
+          "migratedStillReady": "ready",
+          "upgradeBlocked": true,
+          "incompatible": "recovery",
+          "aborts": 2,
+          "ackLost": true,
+          "receipt": "persisted-receipt",
+          "status": "confirmed",
+          "repeated": true,
+          "note": "Nota incremental",
+          "photoBytesHydrated": 0,
+          "stats": {
+            "recorded": {
+              "done": 1,
+              "total": 2,
+              "completed": 0,
+              "executions": 1
+            },
+            "adopted": 0,
+            "legacy": 0
+          },
+          "rows": 1,
+          "fakeDenied": true,
+          "staleDenied": true,
+          "superseded": "committed-but-superseded",
+          "resumedId": "pending",
+          "competition": [
+            "fulfilled",
+            "rejected"
+          ],
+          "workerRoot": true,
+          "privacy": {
+            "sharedRetained": true,
+            "lastDeleted": true
+          }
+        },
+        "large": {
+          "memorySamples": {
+            "input": {
+              "usedJSHeapSize": 315397424,
+              "totalJSHeapSize": 330550648
+            },
+            "afterBaselinePrepare": {
+              "usedJSHeapSize": 126599040,
+              "totalJSHeapSize": 167255156
+            },
+            "afterWorkerPrepare": {
+              "usedJSHeapSize": 99649514,
+              "totalJSHeapSize": 165828438
+            },
+            "beforeEdits": {
+              "usedJSHeapSize": 260734446,
+              "totalJSHeapSize": 316446058
+            }
+          },
+          "beforeMainThreadProbe": {
+            "ticks": 67,
+            "maxObservedGapMs": 834
+          },
+          "workerMainThreadProbe": {
+            "ticks": 326,
+            "maxObservedGapMs": 92.79999999701977
+          },
+          "comparableArchive": {
+            "bytes": 50299234,
+            "beforeOpenMs": 966.3000000007451,
+            "beforeExportMs": 796.6999999992549,
+            "beforeImportMs": 3905.89999999851,
+            "beforeRestoreCommitMs": 2729.900000002235,
+            "afterExportMs": 1184.1000000014901,
+            "afterImportMs": 3576.89999999851,
+            "afterRestoreCommitMs": 1887.9000000022352
+          },
+          "executions": 5000,
+          "revisions": 501,
+          "images": 65,
+          "assetBytes": 42175847,
+          "years": 13.689253935660506,
+          "initial": {
+            "beforePrepareMs": 4850.10000000149,
+            "beforeSeedMs": 2518.599999997765,
+            "beforeOpenMs": 885.9000000022352,
+            "workerPrepareMs": 5326.099999997765,
+            "afterSeedMs": 1868.6000000014901,
+            "afterOpenMs": 844.3999999985099
+          },
+          "operations": [
+            {
+              "kind": "step",
+              "beforePrepareMs": 4668.699999999255,
+              "beforeCommitMs": 2323.800000000745,
+              "afterPrepareMs": 10.599999997764826,
+              "writeMs": 3.600000001490116,
+              "confirmationMs": 2.199999999254942,
+              "changedRows": 1,
+              "newImages": 0
+            },
+            {
+              "kind": "note",
+              "beforePrepareMs": 4617.70000000298,
+              "beforeCommitMs": 2335.89999999851,
+              "afterPrepareMs": 10.5,
+              "writeMs": 3.899999998509884,
+              "confirmationMs": 2.400000002235174,
+              "changedRows": 1,
+              "newImages": 0
+            },
+            {
+              "kind": "photo",
+              "beforePrepareMs": 4903.10000000149,
+              "beforeCommitMs": 2653.199999999255,
+              "afterPrepareMs": 84.19999999925494,
+              "writeMs": 4.300000000745058,
+              "confirmationMs": 3.800000000745058,
+              "changedRows": 2,
+              "newImages": 1
+            },
+            {
+              "kind": "photo-deduplicated",
+              "beforePrepareMs": 5371.099999997765,
+              "beforeCommitMs": 2603.2000000029802,
+              "afterPrepareMs": 393.8999999985099,
+              "writeMs": 5.100000001490116,
+              "confirmationMs": 2.199999999254942,
+              "changedRows": 2,
+              "newImages": 0
+            },
+            {
+              "kind": "first-capture",
+              "beforePrepareMs": 5054.39999999851,
+              "beforeCommitMs": 2510.5,
+              "afterPrepareMs": 16,
+              "writeMs": 4.300000000745058,
+              "confirmationMs": 2.199999999254942,
+              "changedRows": 1,
+              "newImages": 0
+            }
+          ],
+          "readExecutionMs": 2.900000002235174,
+          "statisticsMs": 4.800000000745058,
+          "statistics": {
+            "recorded": {
+              "done": 4999,
+              "total": 10002,
+              "completed": 0,
+              "executions": 5001
+            },
+            "adopted": 0,
+            "legacy": 0
+          },
+          "pageMs": 10,
+          "pageRows": 50,
+          "photoBytesHydrated": 0,
+          "edits": [
+            {
+              "prepareMs": 10.699999999254942,
+              "writeMs": 3.599999997764826,
+              "confirmationMs": 2.400000002235174
+            },
+            {
+              "prepareMs": 10.399999998509884,
+              "writeMs": 3.5,
+              "confirmationMs": 2.199999999254942
+            },
+            {
+              "prepareMs": 11,
+              "writeMs": 5.5,
+              "confirmationMs": 2.300000000745058
+            },
+            {
+              "prepareMs": 11.199999999254942,
+              "writeMs": 3.300000000745058,
+              "confirmationMs": 2.399999998509884
+            },
+            {
+              "prepareMs": 11.900000002235174,
+              "writeMs": 3.5,
+              "confirmationMs": 2.099999997764826
+            },
+            {
+              "prepareMs": 12.699999999254942,
+              "writeMs": 3.600000001490116,
+              "confirmationMs": 2.300000000745058
+            },
+            {
+              "prepareMs": 11.699999999254942,
+              "writeMs": 3.300000000745058,
+              "confirmationMs": 2.300000000745058
+            },
+            {
+              "prepareMs": 12.299999997019768,
+              "writeMs": 4.700000002980232,
+              "confirmationMs": 2.199999999254942
+            },
+            {
+              "prepareMs": 12.399999998509884,
+              "writeMs": 3.5,
+              "confirmationMs": 2.300000000745058
+            },
+            {
+              "prepareMs": 12.300000000745058,
+              "writeMs": 3.599999997764826,
+              "confirmationMs": 2.2000000029802322
+            },
+            {
+              "prepareMs": 13.799999997019768,
+              "writeMs": 3.600000001490116,
+              "confirmationMs": 2.5
+            },
+            {
+              "prepareMs": 13.300000000745058,
+              "writeMs": 3.5,
+              "confirmationMs": 2.399999998509884
+            },
+            {
+              "prepareMs": 13.699999999254942,
+              "writeMs": 4.5,
+              "confirmationMs": 2.400000002235174
+            },
+            {
+              "prepareMs": 13.300000000745058,
+              "writeMs": 3.599999997764826,
+              "confirmationMs": 2.300000000745058
+            },
+            {
+              "prepareMs": 13.5,
+              "writeMs": 4.5,
+              "confirmationMs": 2.300000000745058
+            },
+            {
+              "prepareMs": 14,
+              "writeMs": 3.5,
+              "confirmationMs": 2.399999998509884
+            },
+            {
+              "prepareMs": 14,
+              "writeMs": 4.699999999254942,
+              "confirmationMs": 2.2000000029802322
+            },
+            {
+              "prepareMs": 14.399999998509884,
+              "writeMs": 3.800000000745058,
+              "confirmationMs": 2.199999999254942
+            },
+            {
+              "prepareMs": 17.399999998509884,
+              "writeMs": 10.400000002235174,
+              "confirmationMs": 2.800000000745058
+            },
+            {
+              "prepareMs": 15.5,
+              "writeMs": 3.7999999970197678,
+              "confirmationMs": 2.300000000745058
+            },
+            {
+              "prepareMs": 15.5,
+              "writeMs": 5.600000001490116,
+              "confirmationMs": 2.399999998509884
+            },
+            {
+              "prepareMs": 18.900000002235174,
+              "writeMs": 3.699999999254942,
+              "confirmationMs": 2.300000000745058
+            },
+            {
+              "prepareMs": 19.799999997019768,
+              "writeMs": 4.800000000745058,
+              "confirmationMs": 2.400000002235174
+            },
+            {
+              "prepareMs": 19.899999998509884,
+              "writeMs": 4,
+              "confirmationMs": 2.399999998509884
+            },
+            {
+              "prepareMs": 22,
+              "writeMs": 3.800000000745058,
+              "confirmationMs": 2.400000002235174
+            },
+            {
+              "prepareMs": 20.599999997764826,
+              "writeMs": 3.800000000745058,
+              "confirmationMs": 2.300000000745058
+            },
+            {
+              "prepareMs": 22,
+              "writeMs": 4.5,
+              "confirmationMs": 2.399999998509884
+            },
+            {
+              "prepareMs": 24.300000000745058,
+              "writeMs": 4.600000001490116,
+              "confirmationMs": 2.699999999254942
+            },
+            {
+              "prepareMs": 22.699999999254942,
+              "writeMs": 4.100000001490116,
+              "confirmationMs": 2.5
+            },
+            {
+              "prepareMs": 18.599999997764826,
+              "writeMs": 4.300000000745058,
+              "confirmationMs": 2.5
+            },
+            {
+              "prepareMs": 22.5,
+              "writeMs": 4.199999999254942,
+              "confirmationMs": 2.800000000745058
+            },
+            {
+              "prepareMs": 22.699999999254942,
+              "writeMs": 8.100000001490116,
+              "confirmationMs": 2.800000000745058
+            },
+            {
+              "prepareMs": 23.099999997764826,
+              "writeMs": 4.600000001490116,
+              "confirmationMs": 2.699999999254942
+            },
+            {
+              "prepareMs": 24.199999999254942,
+              "writeMs": 4.300000000745058,
+              "confirmationMs": 2.699999999254942
+            },
+            {
+              "prepareMs": 23,
+              "writeMs": 6.899999998509884,
+              "confirmationMs": 2.800000000745058
+            },
+            {
+              "prepareMs": 23.800000000745058,
+              "writeMs": 4.300000000745058,
+              "confirmationMs": 2.699999999254942
+            },
+            {
+              "prepareMs": 26.600000001490116,
+              "writeMs": 4.5,
+              "confirmationMs": 2.899999998509884
+            },
+            {
+              "prepareMs": 23.800000000745058,
+              "writeMs": 6.699999999254942,
+              "confirmationMs": 2.899999998509884
+            },
+            {
+              "prepareMs": 24,
+              "writeMs": 4.5,
+              "confirmationMs": 2.800000000745058
+            },
+            {
+              "prepareMs": 26.600000001490116,
+              "writeMs": 4.699999999254942,
+              "confirmationMs": 2.899999998509884
+            },
+            {
+              "prepareMs": 24.5,
+              "writeMs": 7.200000002980232,
+              "confirmationMs": 2.899999998509884
+            },
+            {
+              "prepareMs": 25.600000001490116,
+              "writeMs": 4.599999997764826,
+              "confirmationMs": 2.800000000745058
+            },
+            {
+              "prepareMs": 27.399999998509884,
+              "writeMs": 4.600000001490116,
+              "confirmationMs": 2.800000000745058
+            },
+            {
+              "prepareMs": 26,
+              "writeMs": 6.599999997764826,
+              "confirmationMs": 2.900000002235174
+            },
+            {
+              "prepareMs": 25.800000000745058,
+              "writeMs": 4.699999999254942,
+              "confirmationMs": 2.800000000745058
+            },
+            {
+              "prepareMs": 28.299999997019768,
+              "writeMs": 4.700000002980232,
+              "confirmationMs": 2.7999999970197678
+            },
+            {
+              "prepareMs": 27,
+              "writeMs": 7.700000002980232,
+              "confirmationMs": 2.699999999254942
+            },
+            {
+              "prepareMs": 25.300000000745058,
+              "writeMs": 4.199999999254942,
+              "confirmationMs": 2.699999999254942
+            },
+            {
+              "prepareMs": 26.699999999254942,
+              "writeMs": 4.600000001490116,
+              "confirmationMs": 2.699999999254942
+            },
+            {
+              "prepareMs": 27.100000001490116,
+              "writeMs": 4,
+              "confirmationMs": 2.699999999254942
+            },
+            {
+              "prepareMs": 24.699999999254942,
+              "writeMs": 5.699999999254942,
+              "confirmationMs": 2.800000000745058
+            },
+            {
+              "prepareMs": 25.899999998509884,
+              "writeMs": 3.900000002235174,
+              "confirmationMs": 2.699999999254942
+            },
+            {
+              "prepareMs": 28.5,
+              "writeMs": 4.299999997019768,
+              "confirmationMs": 3.100000001490116
+            },
+            {
+              "prepareMs": 29,
+              "writeMs": 4.699999999254942,
+              "confirmationMs": 3
+            },
+            {
+              "prepareMs": 26.199999999254942,
+              "writeMs": 6.400000002235174,
+              "confirmationMs": 3.099999997764826
+            },
+            {
+              "prepareMs": 26.800000000745058,
+              "writeMs": 4.600000001490116,
+              "confirmationMs": 4.899999998509884
+            },
+            {
+              "prepareMs": 26.900000002235174,
+              "writeMs": 4.599999997764826,
+              "confirmationMs": 3.100000001490116
+            },
+            {
+              "prepareMs": 29.899999998509884,
+              "writeMs": 4.600000001490116,
+              "confirmationMs": 3.099999997764826
+            },
+            {
+              "prepareMs": 28.300000000745058,
+              "writeMs": 5,
+              "confirmationMs": 3
+            },
+            {
+              "prepareMs": 27.600000001490116,
+              "writeMs": 5.399999998509884,
+              "confirmationMs": 3.199999999254942
+            },
+            {
+              "prepareMs": 28.300000000745058,
+              "writeMs": 6,
+              "confirmationMs": 3.400000002235174
+            },
+            {
+              "prepareMs": 27.5,
+              "writeMs": 4.699999999254942,
+              "confirmationMs": 3
+            },
+            {
+              "prepareMs": 30,
+              "writeMs": 4.300000000745058,
+              "confirmationMs": 2.7999999970197678
+            },
+            {
+              "prepareMs": 33.400000002235174,
+              "writeMs": 4.800000000745058,
+              "confirmationMs": 2.900000002235174
+            },
+            {
+              "prepareMs": 34.899999998509884,
+              "writeMs": 4.100000001490116,
+              "confirmationMs": 3.099999997764826
+            },
+            {
+              "prepareMs": 35.30000000074506,
+              "writeMs": 4.800000000745058,
+              "confirmationMs": 3.699999999254942
+            },
+            {
+              "prepareMs": 34.69999999925494,
+              "writeMs": 4.300000000745058,
+              "confirmationMs": 3.800000000745058
+            },
+            {
+              "prepareMs": 37,
+              "writeMs": 4.5,
+              "confirmationMs": 2.899999998509884
+            },
+            {
+              "prepareMs": 34.69999999925494,
+              "writeMs": 8.800000000745058,
+              "confirmationMs": 5.600000001490116
+            },
+            {
+              "prepareMs": 60.400000002235174,
+              "writeMs": 20.5,
+              "confirmationMs": 3.300000000745058
+            },
+            {
+              "prepareMs": 31.599999997764826,
+              "writeMs": 4.300000000745058,
+              "confirmationMs": 2.800000000745058
+            },
+            {
+              "prepareMs": 30.800000000745058,
+              "writeMs": 4.899999998509884,
+              "confirmationMs": 3
+            },
+            {
+              "prepareMs": 31.5,
+              "writeMs": 4.5,
+              "confirmationMs": 3
+            },
+            {
+              "prepareMs": 32.30000000074506,
+              "writeMs": 4.800000000745058,
+              "confirmationMs": 3.5
+            },
+            {
+              "prepareMs": 32.599999997764826,
+              "writeMs": 4.400000002235174,
+              "confirmationMs": 2.7999999970197678
+            },
+            {
+              "prepareMs": 65.60000000149012,
+              "writeMs": 13.199999999254942,
+              "confirmationMs": 3.599999997764826
+            },
+            {
+              "prepareMs": 35.900000002235174,
+              "writeMs": 4.5,
+              "confirmationMs": 2.899999998509884
+            },
+            {
+              "prepareMs": 32.30000000074506,
+              "writeMs": 4.699999999254942,
+              "confirmationMs": 3.300000000745058
+            },
+            {
+              "prepareMs": 32.5,
+              "writeMs": 4.599999997764826,
+              "confirmationMs": 3.300000000745058
+            },
+            {
+              "prepareMs": 33.600000001490116,
+              "writeMs": 4.399999998509884,
+              "confirmationMs": 3.800000000745058
+            },
+            {
+              "prepareMs": 34.19999999925494,
+              "writeMs": 4.399999998509884,
+              "confirmationMs": 2.900000002235174
+            },
+            {
+              "prepareMs": 33.30000000074506,
+              "writeMs": 4.699999999254942,
+              "confirmationMs": 3.199999999254942
+            },
+            {
+              "prepareMs": 33.600000001490116,
+              "writeMs": 4.699999999254942,
+              "confirmationMs": 3.300000000745058
+            },
+            {
+              "prepareMs": 34.5,
+              "writeMs": 6,
+              "confirmationMs": 3.5
+            },
+            {
+              "prepareMs": 36.30000000074506,
+              "writeMs": 4.699999999254942,
+              "confirmationMs": 3.5
+            },
+            {
+              "prepareMs": 36.80000000074506,
+              "writeMs": 4.5,
+              "confirmationMs": 3.199999999254942
+            },
+            {
+              "prepareMs": 34.30000000074506,
+              "writeMs": 4.800000000745058,
+              "confirmationMs": 3.199999999254942
+            },
+            {
+              "prepareMs": 35.80000000074506,
+              "writeMs": 4.599999997764826,
+              "confirmationMs": 3
+            },
+            {
+              "prepareMs": 35.30000000074506,
+              "writeMs": 4.199999999254942,
+              "confirmationMs": 3.100000001490116
+            },
+            {
+              "prepareMs": 37.69999999925494,
+              "writeMs": 5.800000000745058,
+              "confirmationMs": 3.199999999254942
+            },
+            {
+              "prepareMs": 36.599999997764826,
+              "writeMs": 5,
+              "confirmationMs": 3.100000001490116
+            },
+            {
+              "prepareMs": 36.399999998509884,
+              "writeMs": 4.600000001490116,
+              "confirmationMs": 3.100000001490116
+            },
+            {
+              "prepareMs": 37,
+              "writeMs": 4.5,
+              "confirmationMs": 3.199999999254942
+            },
+            {
+              "prepareMs": 38.19999999925494,
+              "writeMs": 4.899999998509884,
+              "confirmationMs": 3.5
+            },
+            {
+              "prepareMs": 42.70000000298023,
+              "writeMs": 4.599999997764826,
+              "confirmationMs": 3.199999999254942
+            },
+            {
+              "prepareMs": 40.20000000298023,
+              "writeMs": 4.899999998509884,
+              "confirmationMs": 3.199999999254942
+            },
+            {
+              "prepareMs": 40.5,
+              "writeMs": 4.900000002235174,
+              "confirmationMs": 3.399999998509884
+            },
+            {
+              "prepareMs": 37.399999998509884,
+              "writeMs": 4.700000002980232,
+              "confirmationMs": 3.199999999254942
+            },
+            {
+              "prepareMs": 37.70000000298023,
+              "writeMs": 4.599999997764826,
+              "confirmationMs": 3.300000000745058
+            },
+            {
+              "prepareMs": 38.600000001490116,
+              "writeMs": 5.399999998509884,
+              "confirmationMs": 3.300000000745058
+            }
+          ],
+          "diaryEntries": 104,
+          "fullVerificationMs": 1031.7999999970198,
+          "archiveBytes": 50337504,
+          "exportMs": 927.9000000022352,
+          "importMs": 3851.5,
+          "restoreCommitMs": 1983.7000000029802,
+          "recoveryBytes": 50421204,
+          "recoveryExportMs": 812.1999999992549,
+          "recoveryReadMs": 3795.199999999255,
+          "heap": {
+            "usedJSHeapSize": 226377923,
+            "totalJSHeapSize": 321201695,
+            "jsHeapSizeLimit": 4395630592
+          },
+          "sinkAborted": true,
+          "retainedHeapProbe": {
+            "full-session": {
+              "root": "1ecb437d3bf4feb3569421ff2ec3bbbe0c66d181be97bffe4504d7a07f1a2f04",
+              "gcRequested": true,
+              "memory": {
+                "usedJSHeapSize": 65489569,
+                "totalJSHeapSize": 67137917
+              }
+            },
+            "incremental-window": {
+              "root": "1ecb437d3bf4feb3569421ff2ec3bbbe0c66d181be97bffe4504d7a07f1a2f04",
+              "gcRequested": true,
+              "memory": {
+                "usedJSHeapSize": 9763753,
+                "totalJSHeapSize": 10897293
+              }
+            }
+          }
+        },
+        "capabilities": {
+          "indexedDB": true,
+          "webLocks": true,
+          "broadcastChannel": true,
+          "persisted": false,
+          "persistGranted": false,
+          "estimate": {
+            "quota": 10997366784,
+            "usage": 259948544,
+            "usageDetails": {
+              "indexedDB": 259948544
+            }
+          }
+        }
+      },
+      {
+        "browser": "firefox",
+        "available": false,
+        "error": "browserType.launch: Executable doesn't exist at /tmp/fullhouse-readiness-browsers/firefox-1495/firefox/firefox\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝"
+      },
+      {
+        "browser": "webkit",
+        "available": false,
+        "error": "browserType.launch: Executable doesn't exist at /tmp/fullhouse-readiness-browsers/webkit-2215/pw_run.sh\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝"
+      }
+    ]
+  },
+  "additionalCapabilityProbe": {
+    "base": "35ca45c",
+    "node": "v24.22.1",
+    "cases": 56,
+    "results": [
+      {
+        "browser": "chromium",
+        "version": "156.0.8078.79",
+        "width": 1280,
+        "available": true,
+        "small": {
+          "acknowledged": "already-confirmed",
+          "corruptionBlocked": true,
+          "quarantine": "recovery",
+          "migratedFastBlocked": true,
+          "migratedStillReady": "ready",
+          "upgradeBlocked": true,
+          "incompatible": "recovery",
+          "aborts": 2,
+          "ackLost": true,
+          "receipt": "persisted-receipt",
+          "status": "confirmed",
+          "repeated": true,
+          "note": "Nota incremental",
+          "photoBytesHydrated": 0,
+          "stats": {
+            "recorded": {
+              "done": 1,
+              "total": 2,
+              "completed": 0,
+              "executions": 1
+            },
+            "adopted": 0,
+            "legacy": 0
+          },
+          "rows": 1,
+          "fakeDenied": true,
+          "staleDenied": true,
+          "superseded": "committed-but-superseded",
+          "resumedId": "pending",
+          "competition": [
+            "fulfilled",
+            "rejected"
+          ],
+          "workerRoot": true,
+          "privacy": {
+            "sharedRetained": true,
+            "lastDeleted": true
+          }
+        },
+        "capabilities": {
+          "indexedDB": true,
+          "webLocks": true,
+          "broadcastChannel": true,
+          "persisted": false,
+          "persistGranted": false,
+          "estimate": {
+            "quota": 10737889280,
+            "usage": 471040,
+            "usageDetails": {
+              "indexedDB": 471040
+            }
+          }
+        }
+      },
+      {
+        "browser": "chromium",
+        "version": "156.0.8078.79",
+        "width": 390,
+        "available": true,
+        "small": {
+          "acknowledged": "already-confirmed",
+          "corruptionBlocked": true,
+          "quarantine": "recovery",
+          "migratedFastBlocked": true,
+          "migratedStillReady": "ready",
+          "upgradeBlocked": true,
+          "incompatible": "recovery",
+          "aborts": 2,
+          "ackLost": true,
+          "receipt": "persisted-receipt",
+          "status": "confirmed",
+          "repeated": true,
+          "note": "Nota incremental",
+          "photoBytesHydrated": 0,
+          "stats": {
+            "recorded": {
+              "done": 1,
+              "total": 2,
+              "completed": 0,
+              "executions": 1
+            },
+            "adopted": 0,
+            "legacy": 0
+          },
+          "rows": 1,
+          "fakeDenied": true,
+          "staleDenied": true,
+          "superseded": "committed-but-superseded",
+          "resumedId": "pending",
+          "competition": [
+            "fulfilled",
+            "rejected"
+          ],
+          "workerRoot": true,
+          "privacy": {
+            "sharedRetained": true,
+            "lastDeleted": true
+          }
+        },
+        "capabilities": {
+          "indexedDB": true,
+          "webLocks": true,
+          "broadcastChannel": true,
+          "persisted": false,
+          "persistGranted": false,
+          "estimate": {
+            "quota": 10737889280,
+            "usage": 471040,
+            "usageDetails": {
+              "indexedDB": 471040
+            }
+          }
+        }
+      },
+      {
+        "browser": "firefox",
+        "available": false,
+        "error": "browserType.launch: Executable doesn't exist at /tmp/fullhouse-readiness-browsers/firefox-1495/firefox/firefox\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝"
+      },
+      {
+        "browser": "webkit",
+        "available": false,
+        "error": "browserType.launch: Executable doesn't exist at /tmp/fullhouse-readiness-browsers/webkit-2215/pw_run.sh\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝"
+      }
+    ]
+  },
+  "photoCapacity": {
+    "base": "35ca45c",
+    "browser": "156.0.8078.79",
+    "viewport": 1280,
+    "cases": 4,
+    "result": {
+      "executions": 1095,
+      "revisions": 501,
+      "dailyPhotos": 365,
+      "monthlyPhotos": 13,
+      "photos": 379,
+      "bytes": 27239457,
+      "sizes": {
+        "320": 18307234,
+        "640": 1157635,
+        "1100": 7774588
+      },
+      "archiveBytes": 29213469,
+      "prepareMs": 3891.300000000745,
+      "commitMs": 892.5,
+      "exportMs": 713.3000000007451,
+      "importMs": 1539,
+      "statistics": {
+        "recorded": {
+          "done": 1095,
+          "total": 2190,
+          "completed": 0,
+          "executions": 1095
+        },
+        "adopted": 0,
+        "legacy": 0
+      },
+      "allPhotoHashesVerified": true
+    }
+  }
+}

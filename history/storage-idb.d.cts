@@ -9,6 +9,8 @@ export type OpenState={status:'ready';head:Head;plan:StoragePlan;storedImages:nu
 export interface CommitResult {readonly status:'confirmed'|'committed-but-superseded'|'recovery';readonly receipt:Receipt;readonly head:Head;readonly repeated?:boolean;readonly error?:string}
 type Fault='before-writes'|'after-records'|((tx:IDBTransaction)=>void);
 export interface LabDatabase {
+ exportDiagnostic():Promise<Blob>;
+ readonly incremental:import('./storage-incremental.cjs').IncrementalAccess|null;
  open():Promise<OpenState>;
  commit(plan:StoragePlan,options:{expected?:Head|null;id:string;replace?:boolean;fault?:Fault}):Promise<CommitResult>;
  stageMigration(proposal:MigrationProposal,options:{id:string;expected?:Head|null;fault?:'abort'}):Promise<unknown>;
@@ -18,4 +20,4 @@ export interface LabDatabase {
  readEvidence(owner:string,id:string):Promise<unknown>;
  close():void;
 }
-export function createLabDatabase(options:{factory:IDBFactory|null|undefined;name:`fullhouse-lab-${string}`;legacy:(value:unknown)=>boolean}):LabDatabase;
+export function createLabDatabase(options:{factory:IDBFactory|null|undefined;name:`fullhouse-lab-${string}`;legacy:(value:unknown)=>boolean;schedule?:unknown}):LabDatabase;

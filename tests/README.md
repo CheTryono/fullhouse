@@ -492,3 +492,28 @@ DOM, pendientes/recarga, destino asíncrono, conflictos, exportación/restauraci
 adopción sin transferir marcas antiguas. No equivalen a probar cada control React
 público, un teléfono físico o toda la accesibilidad.
 [Contrato, inventario y decisiones abiertas](../docs/HISTORY_V2_LEGACY_COMPAT.md).
+
+
+## Preparación técnica histórica · 4B.3
+
+`node scripts/serve-history-lab.cjs`: abrir `/readiness` en su origen loopback.
+Exclusivamente datos sintéticos/bases `fullhouse-lab-*`; no publicar ni abrir en
+el origen de usuarios. El laboratorio distingue confirmado, pendiente, respaldo
+completo, recuperación y diagnóstico sin validar. No modifica Planner.
+
+```sh
+PLAYWRIGHT_BROWSERS_PATH=/tmp/fullhouse-readiness-browsers NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-readiness.cjs
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-readiness-ui.cjs
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-photo-capacity.cjs
+```
+
+Requieren Playwright externo/Chromium, sin dependencias nuevas. El benchmark necesita
+el objeto Git `35ca45c` para comparar implementación anterior y actual sobre iguales
+hechos/bytes; no modifica el checkout ni escribe fixtures grandes. Chromium es
+obligatorio; Firefox/WebKit opcionales se reportan ausentes si no pueden arrancar.
+En este entorno su instalación en /tmp fue rechazada con 403 Domain forbidden.
+No interpretar un viewport móvil como Android/iPhone.
+
+`FULLHOUSE_READINESS_SMALL=1` omite solo el corpus grande para depurar protocolo;
+la medición entregada usa el comando completo. Las suites anteriores siguen siendo
+obligatorias para esta etapa. [Informe, resultados y bloqueos de 4C](../docs/HISTORY_V2_READINESS.md).

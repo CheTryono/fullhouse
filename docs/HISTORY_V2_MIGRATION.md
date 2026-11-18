@@ -1,5 +1,10 @@
 # BUG-05 · compatibilidad, activación y recuperación propuestas
 
+> Preparación 4B.3: [rendimiento, recuperación y matriz de salida](HISTORY_V2_READINESS.md).
+> El acceso incremental y los artefactos nuevos siguen aislados. No cambian Data2
+> público ni activan migración. Las limitaciones de fases anteriores se actualizan
+> en ese informe; 4C permanece bloqueado.
+
 > Avance 4B.2 (experimental): diario opcional, adopción explícita y sesión con
 > IndexedDB aislado descritos en [compatibilidad del legado](HISTORY_V2_LEGACY_COMPAT.md).
 > Las afirmaciones anteriores sobre ausencia de adopción/edición corresponden a
