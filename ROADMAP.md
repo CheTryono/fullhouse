@@ -17,8 +17,8 @@ No es un compromiso de fechas ni autorización de despliegue.
 | ✅ | BUG-05 fase 2: motor y codec aislados | PR #6 fusionada; main 31f2ae3; sin activación pública |
 | ✅ | BUG-05 fase 3: lectura y progreso históricos | PR #7 fusionada; main 4324abc. Laboratorio aislado; Planner sigue en v1 |
 | ✅ | BUG-05 fase 4A: integración y persistencia simuladas | PR #8 fusionada; main 470212c; sin activación pública |
-| 🔄 | BUG-05 fase 4B.1: arquitectura y migración sintética | IndexedDB, archivo portable y laboratorio; 65 casos Chromium; pendiente de revisión |
-| ⬜ | BUG-05 fase 4B.2: compatibilidad funcional | Adopción de legado, edición/evidencias, borradores y todas las rutas actuales |
+| ✅ | BUG-05 fase 4B.1: arquitectura y migración sintética | PR #9 fusionada; main 52dbe4d; IndexedDB aislado, sin activación |
+| 🔄 | BUG-05 fase 4B.2: compatibilidad funcional | Diario y adopción explícita experimentales; laboratorio /compat, revisión pendiente. Borrado físico y paridad React completa siguen abiertos |
 | ⬜ | BUG-05 fase 4B.3: preparación de activación | Rendimiento/móvil real, recuperación, concurrencia antigua, capacidad y rollback; autorización separada |
 | ⬜ | Automatizar pruebas en GitHub Actions | Separar pruebas que deben pasar y error conocido explícito; no ocultarlo |
 | ⬜ | Entorno de previsualización por PR | Aislado de datos y publicación de producción |

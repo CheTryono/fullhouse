@@ -1,5 +1,11 @@
 # BUG-05 · fase 4B.1: decisión experimental de almacenamiento
 
+> Avance 4B.2 (experimental): diario opcional, adopción explícita y sesión con
+> IndexedDB aislado descritos en [compatibilidad del legado](HISTORY_V2_LEGACY_COMPAT.md).
+> Las afirmaciones anteriores sobre ausencia de adopción/edición corresponden a
+> fases previas. No hay activación pública; borrado físico y paridad React completa
+> siguen bloqueando producción.
+
 **Recomendación: B, IndexedDB para metadatos y fotografías. No está activado en Planner.**
 Base comprobada: main `470212c`, PR #8. Esta entrega no cambia claves públicas,
 Data v1, importación, exportación, pantallas ni guardado pendiente de producción.

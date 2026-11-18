@@ -287,3 +287,23 @@ Playwright externo y Chromium son requisitos de desarrollo; sin dependencias nue
 `npm run test:history-contract`; cinco TODO de integración pública permanecen.
 La reproducción pública BUG-05 debe seguir fallando hasta integrar las pantallas.
 [Decisión, medidas e inventario pendiente](docs/HISTORY_V2_STORAGE_DECISION.md).
+
+
+## Compatibilidad experimental del legado · 4B.2
+
+`node scripts/serve-history-lab.cjs`: abrir `/compat` en el origen loopback indicado.
+Crear una base sintética; permite notas, marcas, adopción explícita, fotografías,
+formularios y fallos/reintentos. No cargar datos personales ni usar origen público.
+La retirada de fotos es reversible y conserva bytes; el borrado físico NO está aprobado.
+
+```sh
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-legacy.cjs
+```
+
+Pruebas Node incluidas en `npm run test:history-contract`, con contratos de tipos.
+Pruebas Chromium adicionales requieren Playwright externo y Chromium; usan IndexedDB
+real, cinco paletas, 1280/390 px, entradas de archivo y diálogos. Verifican acciones
+DOM, pendientes/recarga, destino asíncrono, conflictos, exportación/restauración y
+adopción sin transferir marcas antiguas. No equivalen a probar cada control React
+público, un teléfono físico o toda la accesibilidad.
+[Contrato, inventario y decisiones abiertas](docs/HISTORY_V2_LEGACY_COMPAT.md).

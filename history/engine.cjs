@@ -57,7 +57,7 @@ function createEngine(validateLegacy) {
   function collectGoalIds(steps) {return steps.flatMap(s=>[s.goalId,...collectGoalIds(s.children || []),...(s.variants || []).flatMap(v=>[v.goalId,...collectGoalIds(v.children || [])])]);}
   function catalog(r) {const map=new Map();function walk(steps){for(const s of steps){map.set(s.id,s);walk(s.children || []);for(const v of s.variants || [])walk(v.children || []);}}if(r)walk(r.steps);return map;}
   function prepare(document,command) {
-    assert(document); const before=copy(document), doc=copy(document), cmd=copy(command), a=cmd.action;
+    assert(document); const before=copy(document), doc=copy(document), cmd=copy(command);let a=cmd.action;const annotation=a?.type==='annotate';if(annotation){a=a.action;if(!a || !['note','evidence'].includes(a.type))fail('Anotación inválida');}
     if(!a || !['view','step','complete','choice','note','evidence','close-partial','continue','reopen'].includes(a.type))fail('Acción desconocida');
     if(a.type==='view')return operation(before,doc);
     let log=find(doc,cmd.executionId)?.[1];
@@ -85,7 +85,7 @@ function createEngine(validateLegacy) {
       if(h.state.status==='active')fail('La ejecución ya está activa'); correction('reopen');
       Object.assign(h.state,{status:'active',completionSource:null,completedRecordedAt:null});log.completed=false;transition='reopen';
     } else {
-      active();
+      if(annotation)transition='annotate';else active();
       switch(a.type) {
         case 'step': {
           if(typeof a.checked!=='boolean' || !index.has(a.stepId) || !h.resolution.unitStepIds.includes(a.stepId))fail('Solo se marcan unidades aplicables');
@@ -125,6 +125,8 @@ function createEngine(validateLegacy) {
       }
     }
     h.state.lastRecordedAt=at;
+    const old=find(before,cmd.executionId)?.[1];
+    if(old && (cmd.editId || old.recordEdits))require('./record-journal.cjs').append(old,log,{id:cmd.editId,at,reason:cmd.reason || a.reason,type:'native'});
     assert(doc);
     const errors=codec.validateTransition(before,doc,transition,validateLegacy,cmd.executionId);if(errors.length)fail(errors.join('; '));
     return operation(before,doc);

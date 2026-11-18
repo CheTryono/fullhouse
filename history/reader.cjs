@@ -1,6 +1,7 @@
 'use strict';
 const {copy,freeze}=require('./json.cjs');
 const {validateV2}=require('./codec.cjs');
+const {hidden}=require('./record-journal.cjs');
 const {resolve}=require('./resolution.cjs');
 function dateOf(key){const m=/@(\d{4}-\d{2}-\d{2})$/.exec(key);return m?m[1]:null;}
 function catalog(r){const map=new Map();function walk(steps){for(const s of steps){map.set(s.id,s);walk(s.children || []);for(const v of s.variants || [])walk(v.children || []);}}if(r)walk(r.steps);return map;}
@@ -18,7 +19,9 @@ function createReader(legacy,schedule){
       fallbackFacts=facts;
       if(doc.version===1 || log.history===undefined){
         if(!legacy({version:1,goals:[],routines:[],events:[],logs:{record:log}}))throw new Error('Registro heredado inválido');
-        const base={kind:'legacy',key,date:dateOf(key),label:'Registro heredado · contexto desconocido',facts,tree:[]};
+        const base={recordEdits:log.recordEdits || null,hiddenEvidenceIds:hidden(log),kind:'legacy',key,date:dateOf(key),label:'Registro heredado · contexto desconocido',facts,tree:[]};
+        if(log.recordEdits && require('./record-journal.cjs').validate(log,legacy).length)throw Error('Diario heredado inválido');
+        if(log.recordEdits?.adoption){const link=log.recordEdits.adoption,target=doc.logs[link.logKey]?.history?.capture;if(target?.executionId!==link.executionId || target.adoption?.legacyKey!==key)throw Error('Enlace de adopción incompleto');}
         if(!estimate)return freeze(base);
         const event=doc.events.find(e=>key===e.id+'@'+base.date),r=event && doc.routines.find(r=>r.id===event.routineId);
         if(!r)return freeze({...base,estimateUnavailable:true});
@@ -29,13 +32,13 @@ function createReader(legacy,schedule){
         } catch { return freeze({...base,estimateUnavailable:true}); }
       }
       const h=log.history,c=h.capture,revision=c.recipeRevisionId===null?null:doc.recipeRevisions?.[c.recipeRevisionId];
-      const minimal={version:2,goals:[],routines:[],events:[],logs:{record:log},recipeRevisions:revision?{[revision.id]:revision}:{}};
+      const minimal={version:2,goals:[],routines:[],events:[],logs:{[key]:log,...(c.adoption?{[c.adoption.legacyKey]:doc.logs[c.adoption.legacyKey]}:{})},recipeRevisions:revision?{[revision.id]:revision}:{}};
       const errors=validateV2(minimal,legacy);
       const collisions=Object.values(doc.logs).filter(l=>l.history && (l.history.capture?.executionId===c.executionId || l.history.capture?.seriesId===c.seriesId && l.history.capture?.scheduledDate===c.scheduledDate));
       if(errors.length || collisions.length!==1)return freeze({kind:'incomplete',key,label:'Información histórica incompleta · necesita recuperación',date:c.scheduledDate,eventId:c.sourceEventId,seriesId:c.seriesId,facts,errors:errors.length?errors:['Identidad duplicada']});
       const r=revision?.definition || null,index=catalog(r),units=h.resolution.unitStepIds,active=new Set(units);
       return freeze({kind:'historical',key,label:c.provenance==='recorded'?'Historial verificado':'Captura posterior a adopción · pasado no verificado',provenance:c.provenance,
-        executionId:c.executionId,seriesId:c.seriesId,eventId:c.sourceEventId,date:c.scheduledDate,capturedAt:c.capturedAt,
+        recordEdits:log.recordEdits || null,hiddenEvidenceIds:hidden(log),adoption:c.adoption || null,executionId:c.executionId,seriesId:c.seriesId,eventId:c.sourceEventId,date:c.scheduledDate,capturedAt:c.capturedAt,
         title:c.plan.title,description:c.plan.description,routineDescription:r?.desc || '',plan:c.plan,
         tree:tree(r,h.resolution,log),plannedMinutes:h.resolution.totalPlannedMinutes,facts,status:h.state,actualTiming:h.actualTiming,continuations:h.continuations,
         progress:{done:units.filter(id=>log.checkedSteps.includes(id)).length,total:h.resolution.unitsKnown?units.length:null,knownUnits:units.length},

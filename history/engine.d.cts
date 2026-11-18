@@ -1,6 +1,7 @@
 import type { DocumentV2, Frozen } from '../contracts/history-v2';
 export type Action =
   | { type: 'view' }
+  | { type:'annotate';action:{type:'note';text:string;stepId?:string}|{type:'evidence';evidence:Evidence} }
   | { type: 'step'; stepId: string; checked: boolean }
   | { type: 'note'; text: string; stepId?: string }
   | { type: 'evidence'; evidence: Evidence }
@@ -19,6 +20,7 @@ export interface CaptureContext {
 }
 export interface Command {
   executionId: string;
+  editId?:string; reason?:string;
   at: string;
   context?: CaptureContext;
   action: Action;

@@ -1,5 +1,11 @@
 # Motor histórico v2 · fase 2
 
+> Avance 4B.2 (experimental): diario opcional, adopción explícita y sesión con
+> IndexedDB aislado descritos en [compatibilidad del legado](HISTORY_V2_LEGACY_COMPAT.md).
+> Las afirmaciones anteriores sobre ausencia de adopción/edición corresponden a
+> fases previas. No hay activación pública; borrado físico y paridad React completa
+> siguen bloqueando producción.
+
 Implementado **fuera de Planner**. Base: `origin/main` `5e1f683` (PR #5).
 No hay acceso a DOM, reloj, aleatoriedad, red, `localStorage` ni migración.
 `app.tsx`, `app.js`, flujo de carga, importación y exportación públicos siguen iguales.

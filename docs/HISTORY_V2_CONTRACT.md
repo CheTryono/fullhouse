@@ -1,5 +1,11 @@
 # BUG-05 · contrato histórico v2
 
+> Avance 4B.2 (experimental): diario opcional, adopción explícita y sesión con
+> IndexedDB aislado descritos en [compatibilidad del legado](HISTORY_V2_LEGACY_COMPAT.md).
+> Las afirmaciones anteriores sobre ausencia de adopción/edición corresponden a
+> fases previas. No hay activación pública; borrado físico y paridad React completa
+> siguen bloqueando producción.
+
 Estado: contrato aprobado, motor y lectura aislada de fase 3; **no activado en producción**.
 Base actual: `origin/main` / `31f2ae3` (BUG-01 a BUG-04 conservados).
 La aplicación sigue escribiendo `version: 1` en `fullhouse-v01`. BUG-05 permanece
