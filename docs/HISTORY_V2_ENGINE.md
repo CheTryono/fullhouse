@@ -142,3 +142,11 @@ mostrar completado/reapertura; se siguen leyendo los anteriores sin ese campo.
 No se implementa todavía adopción ni persistencia v2. La limitación sobre el ciclo
 de vida descrita en fase 2 queda resuelta para nuevas correcciones; no se rellena
 información que falte en checkpoints ya existentes.
+
+## Puente experimental de fase 4A
+
+[Persistencia e integración](HISTORY_V2_PERSISTENCE.md) añaden preparado/confirmado,
+puertos inyectables y un controlador descartable con operaciones reales de Planner.
+La última marca y su completado se agrupan en un candidato. Confirmación/reintento,
+respaldos completos y recuperación se prueban en Map, no en almacenamiento público.
+No hay adopción implícita ni eliminación automática de fotografías/revisiones.

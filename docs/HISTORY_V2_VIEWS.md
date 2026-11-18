@@ -123,3 +123,10 @@ Confirmación atómica de captura/progreso con BUG-01, importación/exportación
 v1/v2, espacio/cuotas y fotos, claves v01/v02, concurrencia/pestañas antiguas, lectura
 fallida y recuperación/reversión. Validar el protocolo antes de activar cualquier
 escritor v2. BUG-05 público sigue explícitamente fallido mientras use plantillas v1.
+
+## Laboratorio de integración 4A
+
+La ruta loopback `/integration` del mismo servidor añade formularios/acciones
+experimentales y fallos de un Map inyectado. Usa el lector exclusivamente sobre
+confirmado; muestra pendiente/recuperación aparte. Véase el [protocolo y límites](HISTORY_V2_PERSISTENCE.md).
+El laboratorio de lectura y sus 120 combinaciones siguen cubiertos por separado.

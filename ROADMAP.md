@@ -15,8 +15,9 @@ No es un compromiso de fechas ni autorización de despliegue.
 | ✅ | Publicación actual del prototipo en GitHub Pages | Confirmada por el propietario; no es alojamiento comercial |
 | ✅ | BUG-05 fase 1: contrato histórico, compatibilidad y pruebas | PR #5 fusionada; main 5e1f683; reproducción pública todavía fallida |
 | ✅ | BUG-05 fase 2: motor y codec aislados | PR #6 fusionada; main 31f2ae3; sin activación pública |
-| 🔄 | BUG-05 fase 3: lectura y progreso históricos | Lector central, adaptador y seis vistas en laboratorio aislado; pruebas sintéticas/Chromium. Pendiente de revisión; Planner sigue en v1 |
-| ⬜ | BUG-05 fase 4: migración y activación revisadas | Recuperación, respaldos v2, concurrencia y rollback |
+| ✅ | BUG-05 fase 3: lectura y progreso históricos | PR #7 fusionada; main 4324abc. Laboratorio aislado; Planner sigue en v1 |
+| 🔄 | BUG-05 fase 4A: integración y persistencia simuladas | Puente a operaciones reales, confirmado/pendiente, dos ranuras/manifiesto y recuperación probados en Map. Pendiente de revisión; sin activación |
+| ⬜ | BUG-05 fase 4B: cerrar compatibilidad e integración nativa | Resolver legado/fotos/cuotas, puertos reales en previsualización, todas las rutas, concurrencia y rollback; autorización separada antes de activar |
 | ⬜ | Automatizar pruebas en GitHub Actions | Separar pruebas que deben pasar y error conocido explícito; no ocultarlo |
 | ⬜ | Entorno de previsualización por PR | Aislado de datos y publicación de producción |
 | ⬜ | Organizar tareas y solicitudes de funcionalidades | Issues, prioridades, criterios de aceptación y relación con PR |

@@ -37,4 +37,10 @@ function canonical(v) {
 }
 const same = (a, b) => canonical(a) === canonical(b);
 function freeze(v) { if (v && typeof v === 'object') { Object.values(v).forEach(freeze); Object.freeze(v); } return v; }
-module.exports = { copy, canonical, same, freeze };
+function parse(raw,maxCharacters=32000000) {
+  if(typeof raw!=='string' || raw.length>maxCharacters)throw new Error('Invalid JSON size');
+  const parsed=JSON.parse(raw),stack=[],tokens=raw.match(/"(?:[^"\\]|\\.)*"|[{}\[\]:]|[^\s{}\[\]:,]+/g)||[];
+  for(let i=0;i<tokens.length;i++) {const t=tokens[i];if(t==='{' || t==='[')stack.push(t==='{'?new Set():null);else if(t==='}' || t===']')stack.pop();else if(t.startsWith('"') && tokens[i+1]===':'){const key=JSON.parse(t),set=stack.at(-1);if(set?.has(key))throw new Error('Duplicate JSON key');set?.add(key);}}
+  return parsed;
+}
+module.exports = { copy, canonical, same, freeze, parse };

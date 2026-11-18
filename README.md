@@ -262,3 +262,8 @@ La fase 3 incorpora un [lector histórico y laboratorio visual](docs/HISTORY_V2_
 Para revisar únicamente los escenarios sintéticos: `node scripts/serve-history-lab.cjs`.
 El laboratorio no accede al almacenamiento del navegador y no se incluye en Pages.
 Las pantallas públicas siguen en v1; BUG-05 todavía no se considera corregido allí.
+
+La [fase 4A](docs/HISTORY_V2_PERSISTENCE.md) permite ensayar guardado confirmado,
+fallos y recuperación con almacenamiento simulado. Ejecuta el mismo servidor y abre
+`/integration`. La aplicación pública no importa estos módulos ni usa `fullhouse-v02`.
+Para medir crecimiento sintético: `node scripts/measure-history-storage.cjs`.

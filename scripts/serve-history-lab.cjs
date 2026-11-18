@@ -3,7 +3,7 @@ const http=require('node:http'),fs=require('node:fs'),path=require('node:path');
 const {bundle}=require('./history-browser.cjs');
 async function start(){
   const root=path.resolve(__dirname,'..'),resources=new Map([
-    ['/', ['tests/history-lab/index.html','text/html']],['/view.js',['tests/history-lab/view.js','text/javascript']],
+    ['/integration', ['tests/history-lab/integration.html','text/html']],['/integration-view.js',['tests/history-lab/integration-view.js','text/javascript']],['/', ['tests/history-lab/index.html','text/html']],['/view.js',['tests/history-lab/view.js','text/javascript']],
     ['/lab.css',['tests/history-lab/lab.css','text/css']],['/styles.css',['styles.css','text/css']]]);
   const code=bundle();const server=http.createServer((req,res)=>{
     res.setHeader('Cache-Control','no-store');res.setHeader('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'self'; img-src data:; base-uri 'none'; form-action 'none'");

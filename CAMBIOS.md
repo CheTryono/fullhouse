@@ -1,3 +1,29 @@
+# BUG-05 · fase 4A: integración y persistencia simuladas
+
+- Base main 4324abc, rama independiente. Puente con métodos reales de Planner
+  extraídos por AST en un controlador descartable, sin constructor/load/save público.
+- Candidato coherente para captura y ejecución, último paso/completado juntos,
+  confirmado inmutable, pendientes reintentables con los mismos IDs y borradores.
+- Protocolo aislado de dos ranuras v2, intento y manifiesto con hashes/checksum,
+  versión, generación y fuente v1. Exclusión inyectada obligatoria, stale tokens,
+  verificación posterior y recuperación explícita; no selección por fecha.
+- Respaldos v1/v2 completos, paquete de recuperación y propuesta explícita v1 en
+  memoria. Pruebas con exportaciones sintéticas reales 0.1–0.9. Exportar no produce
+  archivos mayores al límite que el codec puede volver a leer.
+- Medidas sintéticas hasta 2.000 ejecuciones/500 revisiones y JPEG comprimido;
+  cuota durante doble ranura aborta sin borrar copias anteriores. Capacidad/IndexedDB
+  y compatibilidad del legado son bloqueos explícitos de activación.
+- Laboratorio /integration en loopback con Map, fallos, dos clientes, pestaña v1,
+  interrupciones, fotos, planificación y recuperación. No se incluye en Pages.
+- Check/contrato de tipos correctos; regresión 164 aprobadas; contrato 113 aprobadas
+  y 5 TODO públicos de 4B. npm test: 277 aprobadas, 5 TODO y único fallo conocido
+  BUG-05 (salida 1). Chromium: 28 casos de integración en escritorio/móvil y
+  120 combinaciones del lector. Sin errores JS ni llamadas a Storage público.
+- app.tsx/app.js, interfaz/estilos públicos, dependencias y workflow intactos.
+  No se migra v01, no se activa v2 ni se escribe v02 desde la aplicación pública.
+
+---
+
 # BUG-05 · fase 3: lectura y vistas históricas en laboratorio aislado
 
 - Base main 31f2ae3; lector central y adaptador de identidades/ocurrencias/intervalos.

@@ -1,7 +1,7 @@
 'use strict';
 // Validador OFFLINE del contrato, no un lector/escritor de producción.
 // No I/O, migraciones, acceso a storage ni dependencia de React.
-const { copy, freeze, same } = require('./json.cjs');
+const { copy, freeze, same, parse } = require('./json.cjs');
 const object = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const text = v => typeof v === 'string';
 const id = v => text(v) && v.trim().length > 0;
@@ -318,15 +318,7 @@ function transitionSafe(before, after, action, legacy, targetId) {
 }
 function decode(raw,legacy) {
   try {
-    if(typeof raw!=='string' || raw.length>32000000) throw new Error('Invalid JSON size');
-    const parsed=JSON.parse(raw);
-    // JSON.parse silently accepts duplicate object keys; the codec must not.
-    const stack=[]; const tokens=raw.match(/"(?:[^"\\]|\\.)*"|[{}\[\]:]|[^\s{}\[\]:,]+/g)||[];
-    for(let i=0;i<tokens.length;i++) { const t=tokens[i];
-      if(t==='{' || t==='[')stack.push(t==='{'?new Set():null);
-      else if(t==='}' || t===']')stack.pop();
-      else if(t.startsWith('"') && tokens[i+1]===':') {const key=JSON.parse(t),set=stack.at(-1); if(set?.has(key))throw new Error('Duplicate JSON key');set?.add(key);}
-    }
+    const parsed=parse(raw);
     const classification=classifySafe(parsed,legacy);
     if(classification.kind==='invalid') return {ok:false,errors:classification.errors};
     return {ok:true,kind:classification.kind,document:freeze(copy(parsed))};
@@ -334,6 +326,6 @@ function decode(raw,legacy) {
 }
 function encode(doc,legacy) {
   const result=classifySafe(doc,legacy); if(result.kind==='invalid')throw new Error(result.errors.join('; '));
-  return JSON.stringify(copy(doc));
+  const raw=JSON.stringify(copy(doc));if(raw.length>32000000)throw new Error('El respaldo supera el límite de lectura del codec');return raw;
 }
 module.exports={validateV2:validateSafe,validateTransition:transitionSafe,classifyBackup:classifySafe,checkpoint:log=>copy(checkpoint(log)),decode,encode};

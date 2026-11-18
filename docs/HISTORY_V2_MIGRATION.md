@@ -121,3 +121,12 @@ el lector actualizado acepta v2 anteriores sin ese campo y muestra fechas
 extensión: coordinar capacidades de lectores/pestañas antes de la activación.
 La adopción explícita de legado sigue siendo una propuesta; no se han añadido
 archivos de hechos ni referencias de fotos nuevos al esquema operativo.
+
+## Protocolo de fase 4A implementado en simulación
+
+La propuesta de copia segura se concreta en [dos ranuras, intento y manifiesto](HISTORY_V2_PERSISTENCE.md).
+Se conserva la activa al escribir la inactiva y se confirma solo tras readback y
+verificación. El laboratorio prepara v1 en memoria explícitamente; no conecta ningún
+puerto al Storage público. Las pruebas de inicialización rechazan pérdida de hechos
+v1. La migración nativa, resolución manual de conflictos, capacidad objetivo y
+reversión real siguen siendo trabajo de 4B, con autorización previa a activación.
