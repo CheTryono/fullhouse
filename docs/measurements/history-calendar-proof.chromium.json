@@ -1,0 +1,142 @@
+{
+  "base": "33bd80a",
+  "browser": "156.0.8078.79",
+  "machine": {
+    "node": "v24.22.1",
+    "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+    "logicalCPUs": 5,
+    "platform": "linux",
+    "arch": "x64"
+  },
+  "implementationHashes": {
+    "history/calendar-proof.cjs": "cc68e8084d342d7382b1c6d42e6025e7c6831d358fd98586f990cae1722968b5",
+    "history/calendar-math.cjs": "c7f28a14ea35d4950f3d6659b44174fb49c05831ae1da6716ee0fd0711dd3688",
+    "history/calendar-proof-port.cjs": "8d5b9425c1b15ed7d969a4feef0d5328958b3937cb26df0d07da078ca7cdc1f1",
+    "tests/history-lab/calendar-proof-worker.js": "7514ba25559d9fbfa870988a66bac1784bb9e57f8f95329815b326118638ce3e"
+  },
+  "scope": "One synthetic sample per viewport, UTC desktop engine and responsive viewport; no physical phones, Firefox or WebKit",
+  "results": [
+    {
+      "viewport": 1280,
+      "warmupMs": 117.40000000223517,
+      "small": {
+        "status": "valid",
+        "reason": null,
+        "wallMs": 9.699999999254942,
+        "snapshotMs": 0.8000000007450581,
+        "engineMs": 9.5,
+        "states": 8,
+        "checks": 8,
+        "work": 24,
+        "segments": 2,
+        "periodDays": "7"
+      },
+      "monthly": {
+        "status": "valid",
+        "reason": null,
+        "wallMs": 2035,
+        "snapshotMs": 0.5,
+        "engineMs": 2034.800000000745,
+        "states": 146098,
+        "checks": 146098,
+        "work": 438294,
+        "segments": 2,
+        "periodDays": "146097"
+      },
+      "extreme": {
+        "status": "indeterminate",
+        "reason": "state-budget",
+        "wallMs": 494.29999999701977,
+        "snapshotMs": 0.8999999985098839,
+        "engineMs": 493.8999999985099,
+        "states": 10000,
+        "checks": 20000,
+        "work": 320000,
+        "segments": 2,
+        "periodDays": "53325405"
+      },
+      "workerSmallMs": 4.399999998509884,
+      "workerMediumMs": 1671.2000000029802,
+      "workerMediumEngineMs": 1670.6000000014901,
+      "mainThreadTicks": 420,
+      "cancelledStates": 384,
+      "heap": {
+        "before": 1214948,
+        "after": 1488275,
+        "note": "Retained window JS heap only; excludes Worker/native/peak; one sample"
+      },
+      "metadataOnlyProjection": true
+    },
+    {
+      "viewport": 390,
+      "warmupMs": 65.89999999850988,
+      "small": {
+        "status": "valid",
+        "reason": null,
+        "wallMs": 3.900000002235174,
+        "snapshotMs": 0.7000000029802322,
+        "engineMs": 3.699999999254942,
+        "states": 8,
+        "checks": 8,
+        "work": 24,
+        "segments": 2,
+        "periodDays": "7"
+      },
+      "monthly": {
+        "status": "valid",
+        "reason": null,
+        "wallMs": 1631.7000000029802,
+        "snapshotMs": 0.30000000074505806,
+        "engineMs": 1631.7000000029802,
+        "states": 146098,
+        "checks": 146098,
+        "work": 438294,
+        "segments": 2,
+        "periodDays": "146097"
+      },
+      "extreme": {
+        "status": "indeterminate",
+        "reason": "state-budget",
+        "wallMs": 428.70000000298023,
+        "snapshotMs": 0.4000000022351742,
+        "engineMs": 428.5,
+        "states": 10000,
+        "checks": 20000,
+        "work": 320000,
+        "segments": 2,
+        "periodDays": "53325405"
+      },
+      "workerSmallMs": 4.300000000745058,
+      "workerMediumMs": 1670,
+      "workerMediumEngineMs": 1669.6000000014901,
+      "mainThreadTicks": 419,
+      "cancelledStates": 640,
+      "heap": {
+        "before": 1214856,
+        "after": 1488287,
+        "note": "Retained window JS heap only; excludes Worker/native/peak; one sample"
+      },
+      "metadataOnlyProjection": true
+    }
+  ],
+  "zones": [
+    {
+      "timezoneId": "America/New_York",
+      "finite": "valid",
+      "unbounded": "indeterminate",
+      "occurs": true
+    },
+    {
+      "timezoneId": "Europe/Madrid",
+      "finite": "valid",
+      "unbounded": "indeterminate",
+      "occurs": true
+    },
+    {
+      "timezoneId": "Pacific/Apia",
+      "finite": "valid",
+      "unbounded": "indeterminate",
+      "occurs": false
+    }
+  ]
+}

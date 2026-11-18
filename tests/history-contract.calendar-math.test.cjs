@@ -1,0 +1,8 @@
+'use strict';
+// Cada archivo de node:test tiene su propio proceso; los casos no UTC usan subprocesos.
+process.env.TZ='UTC';
+const test=require('node:test'),assert=require('node:assert/strict'),M=require('../history/calendar-math.cjs'),{schedule}=require('./helpers/history-integration.cjs');
+test('calendario: 400 años gregorianos son 146097 días y semanas enteras',()=>{assert.equal(M.ordinal('2400-01-01')-M.ordinal('2000-01-01'),Number(M.GREGORIAN));assert.equal(M.GREGORIAN%7n,0n);assert.throws(()=>M.ordinal('2100-02-29'));assert.equal(M.date(M.ordinal('2000-02-29')+1),'2000-03-01');});
+test('calendario: períodos combinados usan MCM exacto, no solo 400 años',()=>{assert.equal(M.gcd(146097n,365n),1n);assert.equal(M.period([{repeat:'monthly'},{repeat:'every',everyDays:365}]),53325405n);assert.equal(M.period([{repeat:'every',everyDays:14}]),14n);assert.equal(M.period([{repeat:'every',everyDays:1.5}]),null);assert.equal(M.period([{repeat:'every',everyDays:0}]),7n);});
+test('reproducción compartida: constructor local remapea años 00–99; no se corrige producción',()=>{assert.equal(schedule.parseDay('0099-01-01').getFullYear(),1999);assert.throws(()=>M.ordinal('0099-01-01'));});
+test('reproducción compartida: repeatCollision no demuestra ausencia tras 1462 días',()=>{const event=(id,date,n)=>({id,date,routineId:'r',repeat:'every',everyDays:n,overrides:{}}),a=event('a','2000-01-01',365),b=event('b','2000-01-11',366);assert.equal(schedule.repeatCollision(a,b),false);let witness=null;for(let n=1463;n<134000;n++){const d=M.date(M.ordinal(a.date)+n);if(schedule.occurs(a,d)&&schedule.occurs(b,d)){witness=d;break;}}assert.ok(witness);});

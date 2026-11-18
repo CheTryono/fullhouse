@@ -449,3 +449,27 @@ rutinas, fallos, capacidad, linaje, IDB, B.1, legado, integración, guardado y h
 completas. Se reutilizaron registros válidos posteriores al código actual, sin
 reconstruir ni volver a medir. La matriz de SCOPED_ROUTINES mantiene bloqueadas
 recurrencias indefinidas no demostradas, integración pública y 4C.
+
+
+## Avance B.3a sobre 33bd80a (experimental)
+
+Motor puro de demostración de calendario, **sin reemplazar B.2 ni conectar escrituras**.
+[Contrato, demostraciones, resultados y diseño siguiente](HISTORY_V2_CALENDAR_PROOF.md).
+Se mantienen autoridad persistente, CAS, confirmación y formato público v1 intactos.
+
+| Condición | Estado actual |
+| --- | --- |
+| Recurrencias UTC y dependencias dentro de dominio/presupuesto | Implementado y verificado Node/Chromium; válido solo con cobertura completa |
+| Meses, años, every de período combinado enorme | Demostración si cabe período/rango; indeterminado si no, sin aceptar prefijos |
+| Zonas locales indefinidas | No implementado; preservar Date real exige bloquear sin un argumento adicional |
+| B.2 catálogo de alternativas | Hallazgo __base reproducido; pendiente corregir o reemplazar optativamente con paridad |
+| Certificados/Worker | Verificados; no son autoridad de almacenamiento ni sustituyen CAS/replay |
+| saveEvent/shiftEvent/deleteEvent por alcance | No implementado; diseño B.3b/c documentado, sin comenzar |
+| Corte con capturas presentes/futuras | Requiere política explícita y pruebas; no trasladar claves de logs como v1 |
+| Otros motores/dispositivos, privacidad, React, B.4 | Pendientes, sin cambios de política |
+| 4C | NO preparado / no autorizado |
+
+40 pruebas Node nuevas; contratos 215 + 6 TODO; npm test 379 + 6 TODO y único fallo
+conocido BUG-05 público. Las mediciones de B.2 y de almacenamiento siguen siendo
+históricas; el motor nuevo mide solo planificación, no vuelve a medir fotos ni corpus
+completo. Su lectura no accede a tablas de ejecuciones, revisiones o blobs.

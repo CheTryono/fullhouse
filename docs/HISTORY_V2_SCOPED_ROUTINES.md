@@ -268,3 +268,15 @@ No se modifican app.tsx, app.js, la carga/guardado públicos, el workflow de Pag
 ni tests/known-bugs.test.cjs. No se publicaron laboratorios ni se activó almacenamiento
 nuevo. El checkpoint de recuperación conserva también las pruebas de eliminación
 antes de terminar este cierre documental.
+
+
+## Investigación posterior B.3a (base 33bd80a)
+
+El [motor puro de calendario](HISTORY_V2_CALENDAR_PROOF.md) demuestra nuevos casos
+mensuales/anuales/every en UTC o agota rangos locales finitos. **No está integrado**
+en esta ruta B.2. Se conserva su rechazo conservador de calendarios no demostrables.
+Nueva reproducción: choices() reserva __base aunque una variante puede tener ese ID,
+omitiendo así el estado sin elección en el catálogo. El nuevo motor enumera ausencia
+de clave y no tiene ese defecto. La ruta B.2 requiere seguimiento antes de ser usada
+como autorización general; no se afirma paridad exacta para ese caso. No se cambió
+Planner ni la persistencia como parte de esta investigación.

@@ -591,3 +591,32 @@ preserva hashes históricos por clave y verifica fotos al restaurar. No presenta
 rechazo por complejidad de la sesión anterior como latencia de una escritura válida.
 No se probaron Firefox/WebKit ni dispositivos físicos; viewport estrecho es Chromium.
 [Contrato, resultados y limitaciones](../docs/HISTORY_V2_SCOPED_ROUTINES.md).
+
+
+## B.3a · demostración experimental del calendario
+
+```sh
+node --test tests/history-contract.calendar*.test.cjs
+npm run check:history-contract
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-calendar-proof.cjs
+```
+
+40 pruebas nuevas reales, incluidas en test:history-contract y npm test. Los archivos
+fijan UTC en su proceso node:test; las zonas locales se ensayan en subprocesos y
+contextos Chromium separados. Prueban helpers reales extraídos por AST, períodos
+Gregorianos/MCM, grafos y calendarios finitos, alternativas, certificados y presupuestos.
+No sustituyen la reproducción pública BUG-05 ni sus seis TODO de fases posteriores.
+
+Resultado de cierre: check/tipos aprobados; regresión 164; contratos 215 aprobadas
++ 6 TODO; npm test 379 aprobadas + 6 TODO y único fallo conocido BUG-05. Las limitaciones
+compartidas reproducidas (años 00–99, búsqueda limitada de repeatCollision y centinela
+__base de B.2) no se presentan como correcciones públicas. El motor nuevo no se integra
+en las operaciones de persistencia B.2 ni en Planner.
+
+Chromium: certificados directos/Worker iguales, cancelación y reuso del Worker,
+almacenamiento prohibido, proyección sin fotos/logs/revisiones, presupuestos y overflow.
+Prueba UTC en 1280/390 px y rangos finitos New York/Madrid/Apia; no es Android/iPhone.
+Firefox/WebKit no probados. También se reverificaron Chromium rutinas B.2, fallos,
+guardado público pendiente y límites/dependencias de horarios, sin errores JavaScript.
+
+[Fundamentos, restricciones, mediciones y diseño siguiente](../docs/HISTORY_V2_CALENDAR_PROOF.md).

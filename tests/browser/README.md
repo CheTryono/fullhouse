@@ -252,3 +252,27 @@ preserva hashes históricos por clave y verifica fotos al restaurar. No presenta
 rechazo por complejidad de la sesión anterior como latencia de una escritura válida.
 No se probaron Firefox/WebKit ni dispositivos físicos; viewport estrecho es Chromium.
 [Contrato, resultados y limitaciones](../../docs/HISTORY_V2_SCOPED_ROUTINES.md).
+
+
+## Motor puro de calendario · B.3a
+
+```sh
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-calendar-proof.cjs
+```
+
+Servidor efímero loopback, perfiles desechables y planificación sintética. No cambia
+ninguna base de datos. La prueba principal prohíbe Storage e IndexedDB desde la ventana.
+Compara certificados directos/Worker para diario y mensual; comprueba respuesta del
+hilo principal, cancelación, reuso, replay, overflow e indeterminado por presupuesto.
+Ensaya 1280/390 px UTC y rangos finitos de tres zonas locales, incluido el salto de fecha
+de Samoa. No se usó un teléfono físico ni Firefox/WebKit.
+
+Una muestra por viewport, motor/Worker calentados antes de medir; exporta máquina,
+versión del navegador y hashes de implementación. La memoria es heap retenido de ventana,
+no pico/Worker/memoria total. No es una comparación de capacidad ni de fotografías.
+El mensual puede tardar segundos: usar Worker/cancelación, no autorizar un prefijo.
+El puerto rechaza antes de enviar entradas que no sean snapshots JSON acotados.
+No se modifican controles React ni se publica el laboratorio en Pages.
+
+[Resultados medidos](../../docs/measurements/history-calendar-proof.chromium.json) ·
+[Demostraciones, límites y compatibilidad B.2](../../docs/HISTORY_V2_CALENDAR_PROOF.md).
