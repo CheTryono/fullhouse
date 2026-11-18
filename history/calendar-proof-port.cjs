@@ -7,7 +7,7 @@ function createCalendarProofPort(factory){
  const stop=error=>{closed=true;for(const p of pending.values()){p.cleanup();p.reject(error);}pending.clear();worker.terminate();};
  worker.onerror=()=>stop(Error('Calendar worker interrupted; no persistence was requested'));
  worker.onmessage=({data})=>{const p=pending.get(data?.id);if(!p)return;pending.delete(data.id);p.cleanup();data.ok?p.resolve(data.value):p.reject(Error(data.error||'Calendar worker failed'));};
- function cancel(id){if(!pending.has(id)||closed)return false;worker.postMessage({id,type:'cancel'});return true;}
+ function cancel(id){if(!pending.has(id)||closed)return false;try{worker.postMessage({id,type:'cancel'});return true;}catch{stop(Error('Calendar worker interrupted during cancellation'));return false;}}
  return Object.freeze({prove(id,input,{signal}={}){
   if(closed||typeof id!=='string'||!id.trim()||id.length>100||pending.has(id)||pending.size>=4)return Promise.reject(Error('Worker closed, busy or invalid ID'));
   let value;try{value=snapshotInput(input);}catch(e){return Promise.reject(e);}

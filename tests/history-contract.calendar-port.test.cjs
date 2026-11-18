@@ -9,4 +9,5 @@ test('puerto Worker: identidad, cancelación, fallo, cierre y frontera JSON',asy
  await assert.rejects(port.prove('getter',{get events(){throw Error('executed');}}),/input-getter/);
  const interrupted=port.prove('another',{});worker.onerror();await assert.rejects(interrupted,/interrupted/);assert.equal(worker.closed,true);await assert.rejects(port.prove('closed',{}),/closed/);
  const w={postMessage(){throw Error('clone failed');},terminate(){}},p=createCalendarProofPort(()=>w);await assert.rejects(p.prove('id',{}),/clone failed/);p.close();
+ const broken={postMessage(){},terminate(){}},bp=createCalendarProofPort(()=>broken),job=bp.prove('id',{});broken.postMessage=()=>{throw Error('closed worker');};assert.equal(bp.cancel('id'),false);await assert.rejects(job,/cancellation/);
 });

@@ -1,3 +1,34 @@
+# BUG-05 · 4B.3b B.3a: motor puro de demostración del calendario
+
+- Base 33bd80a (PR #14), rama feature/history-calendar-proof-v2. Checkpoints
+  e8b0659/87786aa (investigación/arnés), 38341be (motor). No activa B.3b/c ni 4C.
+- Aritmética de fechas canónicas, MCM BigInt por componente y partición exhaustiva
+  de inicios, cierres, specificDates y overrides. Recurrencias mensuales/anuales y
+  every enteros se demuestran en UTC cuando cabe el período o rango completo.
+- Dominio explícito 0100–9999: sin fechas normalizadas ni horizonte arbitrario.
+  Zonas no UTC requieren rango finito; every fraccionario indefinido se bloquea.
+  Samoa reproduce por qué no puede sustituirse el cálculo local por una resta UTC.
+- Resultados valid/invalid/indeterminate, certificados deterministas con datos,
+  semántica, dominio, estados, presupuestos y contraejemplos; replay obligatorio.
+- Dependencias memoizadas con selección real por orden, ciclos, límites y alternativas
+  cartesianas. Sin acceso a ejecuciones/revisiones/fotos ni importaciones desde Planner.
+- Puerto Worker cancelable y pruebas Chromium con almacenamiento prohibido; un resultado
+  parcial nunca autoriza guardar. WebCrypto/entorno confiable son prerrequisitos.
+- Hallazgos reproducidos sin cambiar producción: años 00–99, repeatCollision de 1462
+  días y colisión del centinela __base de B.2. Verificador B.2 conserva su ruta; no se
+  declara corregido ese caso ni se reemplaza automáticamente por el nuevo motor.
+- Verificado: check/tipos; regresión 164; contratos 215 aprobadas + 6 TODO;
+  npm test 379 aprobadas + 6 TODO y único fallo público conocido BUG-05.
+  40 pruebas Node nuevas reales. Chromium: motor/Worker/zonas y suites B.2/fallos,
+  guardado pendiente y horarios. No Firefox/WebKit ni teléfonos físicos.
+- Muestra Chromium 156: mensual de 146098 estados en ~1,6–2,1 s, interfaz responsive
+  con Worker, cancelación y presupuesto extremo indeterminado. No son SLO móviles
+  ni mejora de almacenamiento; memoria de ventana no incluye Worker/native/pico.
+- Informe, fundamentos, datos crudos, límites y diseño B.3b/c:
+  docs/HISTORY_V2_CALENDAR_PROOF.md y docs/measurements/history-calendar-proof.chromium.json.
+- app.tsx/app.js/workflow, carga/guardado públicos v1, linaje y persistencia intactos.
+  Capturas no se modifican. 4C sigue NO preparada y sin autorización.
+
 # BUG-05 · 4B.3b B.2: rutinas incrementales aisladas
 
 - Base 0e9e25c (PR #13), rama feature/history-scoped-routines-v2; checkpoint e935aa8.

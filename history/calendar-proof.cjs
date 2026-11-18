@@ -1,43 +1,47 @@
 'use strict';
 const { copy, canonical, freeze, same } = require('./json.cjs'), { sha256 } = require('./persistence.cjs'), M = require('./calendar-math.cjs');
 const ALGORITHM = 'gregorian-component-proof-v1';
-const APPROVED = '1fa5e1fc4c3230c62d5c6b69c5d3d42c2f4c2d07c37aa119528718cb8cf042e2';
-const NAMES = ['parseDay', 'occurs', 'minutes', 'key', 'stepMinutes', 'activeStep', 'activeSteps', 'routineForDay', 'baseLength', 'eventFrame', 'routineMinutesOn', 'fixedStepMinutes', 'leafSteps', 'durationText', 'routineBalance'];
+const APPROVED = '3c5f55beb0ef70b818d9724820e979661a88bb6d2112002871518252011f523e';
+const NAMES = ['validData', 'parseDay', 'occurs', 'minutes', 'key', 'stepMinutes', 'activeStep', 'activeSteps', 'routineForDay', 'baseLength', 'eventFrame', 'routineMinutesOn', 'fixedStepMinutes', 'leafSteps', 'durationText', 'routineBalance'];
 const DEFAULTS = Object.freeze({ states: 300000, checks: 2000000, work: 20000000, profiles: 256, segments: 2048 });
 const HARD = Object.freeze({ states: 1000000, checks: 4000000, work: 50000000, profiles: 256, segments: 4096 });
 const later = () => new Promise(r => setTimeout(r, 0));
-function bounded(value, certificate = false) { let nodes = 0, chars = 0; const stack = [{ v: value, d: 0 }], seen = new Set(); while (stack.length) {
-    const { v, d, exit } = stack.pop();
-    if (exit) {
-        seen.delete(v);
-        continue;
-    }
-    if (++nodes > (certificate ? 120000 : 20000) || d > 40)
-        throw Error('input-budget');
-    if (typeof v === 'string' && (chars += v.length) > (certificate ? 4000000 : 2000000))
-        throw Error('input-budget');
-    if (v && typeof v === 'object') {
-        if (seen.has(v))
-            throw Error('input-cycle');
-        seen.add(v);
-        stack.push({ v, d, exit: true });
-        for (const [key, desc] of Object.entries(Object.getOwnPropertyDescriptors(v))) {
-            if (Array.isArray(v) && key === 'length')
-                continue;
-            if (!Object.hasOwn(desc, 'value'))
-                throw Error('input-getter');
-            chars += key.length;
-            stack.push({ v: desc.value, d: d + 1 });
+// Limita el snapshot antes de clonarlo o calcular hashes. Cuenta también las claves
+// y los nodos pendientes: un objeto ancho no puede construir una pila sin límite.
+function bounded(value, certificate = false) {
+    const maxNodes = certificate ? 120000 : 20000;
+    const maxChars = certificate ? 4000000 : 2000000;
+    let queued = 1, chars = 0;
+    const stack = [{v:value,d:0}], ancestors = new Set();
+    while (stack.length) {
+        const {v,d,exit} = stack.pop();
+        if (exit) { ancestors.delete(v); continue; }
+        if (d > 40) throw Error('input-budget');
+        if (typeof v === 'string' && (chars += v.length) > maxChars) throw Error('input-budget');
+        if (!v || typeof v !== 'object') continue;
+        if (ancestors.has(v)) throw Error('input-cycle');
+        ancestors.add(v); stack.push({v,d,exit:true});
+        const keys = Reflect.ownKeys(v);
+        if (keys.length > maxNodes) throw Error('input-budget');
+        for (const key of keys) {
+            if (Array.isArray(v) && key === 'length') continue;
+            if (typeof key !== 'string') throw Error('input-symbol');
+            if (++queued > maxNodes || (chars += key.length) > maxChars) throw Error('input-budget');
+            const descriptor = Object.getOwnPropertyDescriptor(v,key);
+            if (!Object.hasOwn(descriptor,'value')) throw Error('input-getter');
+            stack.push({v:descriptor.value,d:d+1});
         }
     }
-} return copy(value); }
+    return copy(value);
+}
 function normalize(input, s) {
     const v = bounded(input);
     if (!v || Object.keys(v).some(k => !['events', 'routines', 'from', 'through', 'budgets', 'disallowSameRoutineCooccurrence'].includes(k)))
         throw Error('input-fields');
     if (!Array.isArray(v.events) || !Array.isArray(v.routines) || v.events.length > 64 || v.routines.length > 64)
         throw Error('input-shape');
-    const from = M.ordinal(v.from), through = M.ordinal(v.through || M.MAX);
+    const throughDate=Object.hasOwn(v,'through')?v.through:M.MAX;
+    const from = M.ordinal(v.from), through = M.ordinal(throughDate);
     if (from > through)
         throw Error('date-order');
     if (!s.validData({ version: 1, goals: [], events: v.events, routines: v.routines, logs: {} }))
@@ -45,6 +49,7 @@ function normalize(input, s) {
     for (const e of v.events)
         for (const d of [e.date, e.endDate, e.applyFrom, ...(e.specificDates || []), ...Object.keys(e.overrides)].filter(Boolean))
             M.ordinal(d);
+    if(v.budgets!==undefined&&(!v.budgets||typeof v.budgets!=='object'||Array.isArray(v.budgets)))throw Error('budget-fields');
     const budgets = { ...DEFAULTS, ...v.budgets };
     if (v.budgets && Object.keys(v.budgets).some(k => !Object.hasOwn(HARD, k)))
         throw Error('budget-fields');
@@ -53,7 +58,7 @@ function normalize(input, s) {
             throw Error('budget-value');
     if (v.disallowSameRoutineCooccurrence !== undefined && typeof v.disallowSameRoutineCooccurrence !== 'boolean')
         throw Error('collision-policy');
-    return { ...v, through: v.through || M.MAX, budgets, disallowSameRoutineCooccurrence: v.disallowSameRoutineCooccurrence === true };
+    return { ...v, through: throughDate, budgets, disallowSameRoutineCooccurrence: v.disallowSameRoutineCooccurrence === true };
 }
 function profiles(r, limit) { let list = [{}], count = 0; const seen = new Set(); function walk(steps) { for (const step of steps) {
     if (++count > 512)
@@ -195,7 +200,7 @@ function createCalendarProof(schedule) {
                 throw Error('non-utc-requires-finite-range');
             if (env.utc && v.events.some(e => e.repeat === 'every' && !Number.isSafeInteger(Math.max(1, e.everyDays || 1))) && !Object.hasOwn(snapshot, 'through'))
                 throw Error('unsupported-interval-period');
-            cert.recurrences = v.events.map(e => ({ id: e.id, repeat: e.repeat, origin: e.date, end: e.endDate || null, every: e.repeat === 'every' ? Math.max(1, e.everyDays || 1) : null, specificDates: e.specificDates || [], overrides: e.overrides }));
+            cert.recurrences = v.events.map(e => ({ id: e.id, repeat: e.repeat, repeatDays:e.repeatDays||[], origin: e.date, end: e.endDate || null, every: e.repeat === 'every' ? Math.max(1, e.everyDays || 1) : null, specificDates: e.specificDates || [], overrides: e.overrides }));
             const routineMap = new Map(v.routines.map(r => [r.id, r])), groups = components(v.events), rprofiles = new Map();
             for (const r of v.routines)
                 rprofiles.set(r.id, profiles(r, v.budgets.profiles));
