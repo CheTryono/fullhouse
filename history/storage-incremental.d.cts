@@ -10,7 +10,7 @@ export interface IncrementalAccess {
  inspectOperation(operation:PreparedDelta):Promise<unknown>;
  openWindow():Promise<{token:VerifiedWindow;verifiedMs:number;executions:number;photoBytesHydrated:0}>;
  prepareExecution(token:VerifiedWindow,key:string,command:EditCommand|NativeRequest):Promise<PreparedDelta>;
- commitExecution(operation:PreparedDelta,options?:{fault?:'before-writes'|'after-records'|'lost-ack'|((tx:IDBTransaction)=>void)}):Promise<{status:'confirmed'|'committed-but-superseded';receipt:Receipt;token:VerifiedWindow|null;writeMs:number;confirmationMs:number}>;
+ commitExecution(operation:PreparedDelta,options?:{fault?:'before-writes'|'after-records'|'lost-ack'|((tx:IDBTransaction)=>void)}):Promise<{status:'confirmed'|'committed-but-superseded';receipt:Receipt;token:VerifiedWindow|null;writeMs:number;transactionMs:number;lineagePrepareMs:number;lineageAfterMs:number;confirmationMs:number}>;
  page(token:VerifiedWindow,options?:{after?:string;limit?:number;date?:string}):Promise<{rows:Row[];next:string|null;readMs:number;photoBytesHydrated:0}>;
  readExecution(token:VerifiedWindow,key:string):Promise<unknown>;
  readPhoto(token:VerifiedWindow,owner:string,id:string):Promise<{metadata:unknown;blob:Blob}>;

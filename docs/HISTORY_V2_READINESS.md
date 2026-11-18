@@ -394,3 +394,24 @@ horarios en 2 viewports: aprobados. La comparación completa de 78 grupos y el e
 fotográfico de 4 grupos son ejecuciones completas recuperadas, no nuevas mediciones
 de rendimiento bajo la carga paralela de la reverificación. Firefox/WebKit no
 disponibles y dispositivos físicos no probados se mantienen como limitaciones.
+
+
+## Actualización 4B.3b · hito A (base d1dae11)
+
+La [entrega de linaje](HISTORY_V2_LINEAGE_SCOPED.md) implementa el bloqueo de autoridad
+persistente señalado en este informe, **solo en laboratorio**: base física 2,
+manifiesto/cadena de recibos, vigilancia inyectada, cuarentena y confirmación atómica.
+Las bases migradas pueden utilizar la ruta incremental a través de ese wrapper.
+El factory anterior conserva su rechazo de migradas y Planner público sigue en v1.
+Las mediciones y conteos de 4B.3 anteriores son históricos; la nueva comparación está
+en HISTORY_V2_LINEAGE_MEASUREMENTS.json y no debe mezclarse como una misma muestra.
+
+**Seguimos NO preparados para 4C.** Pendientes: B (planificación/metas/adopción por
+alcance), pruebas de fuentes grandes/cadenas largas, paridad React, reconciliación
+pública, otros motores/dispositivos y decisión de privacidad. Una sonda no elimina
+las carreras con pestañas v1. La política de eliminación física no ha cambiado.
+
+Reverificación de 4B.3b: regresión 164; contratos 154 + 6 TODO; npm test 318
+aprobadas + 6 TODO y único fallo público BUG-05. Suite nueva de linaje 97 grupos;
+comparación con 5.000 ejecuciones/501 revisiones/42.175.847 bytes adjunta. Los seis
+TODO no se eliminan. Resultados y limitaciones detallados en LINEAGE_SCOPED.

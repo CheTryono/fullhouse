@@ -1,3 +1,22 @@
+# BUG-05 · fase 4B.3b, hito A: autoridad persistente aislada
+
+- Base d1dae11 (PR #11), rama feature/history-lineage-scoped-v2. Hito B pendiente
+  con plan por entidades y alcance temporal; no se inicia 4C.
+- Wrapper de laboratorio con readSources obligatorio, autoridad persistente y
+  cadena de recibos vinculada a fuentes, selección, génesis, versiones y capacidades.
+- Autoridad, recibo y datos participan en la misma TX; CAS de cabeza/manifiesto,
+  lectura posterior, IDs estables y reintentos sin duplicados. Conflicto persistente
+  conserva originales y observación; no se desbloquea restaurando bytes anteriores.
+- Base física 2 impide escribir a los factories anteriores que solicitan versión 1.
+  Upgrade bloqueado/versionchange, solo lectura y recuperación sin borrar la base.
+- La carrera v1/IndexedDB no desaparece: sondas antes/después detectan divergencias,
+  pero no impiden cambios posteriores ni ABA. Hash no equivale a autenticidad.
+- Laboratorio /lineage, pruebas Node/tipos/Chromium y benchmark con 5.000 ejecuciones,
+  501 revisiones y 42.175.847 bytes de fotos; fuentes pequeñas, límites documentados.
+- Producción, app.tsx/app.js, almacenamiento v1 y despliegue permanecen intactos.
+  BUG-05 público y seis TODO siguen explícitos. No hay borrado físico nuevo.
+- Resultados y condiciones de salida: docs/HISTORY_V2_LINEAGE_SCOPED.md.
+
 # BUG-05 · fase 4B.3: preparación técnica aislada
 
 - Base main 35ca45c (PR #10). Ruta incremental por capacidades verificadas para

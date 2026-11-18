@@ -517,3 +517,24 @@ No interpretar un viewport móvil como Android/iPhone.
 `FULLHOUSE_READINESS_SMALL=1` omite solo el corpus grande para depurar protocolo;
 la medición entregada usa el comando completo. Las suites anteriores siguen siendo
 obligatorias para esta etapa. [Informe, resultados y bloqueos de 4C](../docs/HISTORY_V2_READINESS.md).
+
+
+## Autoridad persistente experimental · 4B.3b, hito A
+
+```sh
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-lineage.cjs
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-lineage-performance.cjs
+```
+
+`node scripts/serve-history-lab.cjs`: `/lineage`, solo origen loopback y datos
+sintéticos. No se publica en Pages. Puerto readSources obligatorio; prueba entre
+pestañas con claves reservadas de laboratorio. IndexedDB física 2 distinta del
+factory anterior; una base vieja sin autoridad queda en recuperación, no se infiere
+linaje. El ensayo de cuota usa un perfil persistente desechable; un viewport de
+390 px no acredita Android/iPhone. Firefox/WebKit no están instalados.
+
+97 grupos Chromium: matriz de fuentes, cierre/reapertura, conflictos persistentes,
+dos pestañas, barreras físicas/capacidades, abortos/cuota real, acuse perdido,
+operaciones obsoletas, restauración/fotos y UI. Node añade cuatro contratos reales;
+los seis TODO y BUG-05 público permanecen. El benchmark no mide las operaciones B
+que siguen pendientes. [Contrato, límites y resultados](../docs/HISTORY_V2_LINEAGE_SCOPED.md).
