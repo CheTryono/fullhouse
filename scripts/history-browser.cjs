@@ -4,7 +4,7 @@
 const fs=require('node:fs'),path=require('node:path'),ts=require('typescript');
 const root=path.resolve(__dirname,'..');
 const {plannerSource}=require('./planner-actions.cjs');
-const functions=['validData','parseDay','minutes','key','occurs','stepMinutes','activeStep','activeSteps','routineForDay','baseLength','eventFrame','routineBalance','routineMinutesOn','fixedStepMinutes','leafSteps','durationText','repeatCollision','addDays','iso','dependentMovementIssue'];
+const functions=['validData','parseDay','minutes','key','occurs','stepMinutes','activeStep','activeSteps','routineForDay','baseLength','eventFrame','routineBalance','routineMinutesOn','fixedStepMinutes','leafSteps','durationText','repeatCollision','addDays','ymd','dependentMovementIssue'];
 function scheduleSource(){
   const source=ts.createSourceFile('app.tsx',fs.readFileSync(path.join(root,'app.tsx'),'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
   const found=new Map(source.statements.filter(ts.isFunctionDeclaration).filter(n=>n.name&&functions.includes(n.name.text)).map(n=>[n.name.text,n.getText(source)]));
