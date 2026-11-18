@@ -1,5 +1,10 @@
 # BUG-05 · compatibilidad, activación y recuperación propuestas
 
+> Actualización 4B.1: la recomendación vigente es IndexedDB completo, todavía
+> experimental. El protocolo localStorage de este documento corresponde al diseño
+> anterior de 4A; no debe interpretarse como decisión actual de activación. Véase
+> [decisión y límites medidos](HISTORY_V2_STORAGE_DECISION.md).
+
 **Diseño únicamente. No existe migración activada en esta entrega.**
 El formato nuevo es `version: 2`; no se disfraza como una extensión v1 que un
 lector anterior podría interpretar incompletamente.

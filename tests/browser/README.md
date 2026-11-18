@@ -113,3 +113,23 @@ Los botones de fallo/restablecimiento afectan únicamente al Map sintético. No 
 publican, no reemplazan guardado v1 ni prueban un adapter nativo aún no implementado.
 Los paquetes de recuperación contienen borradores y ramas separadas; no se presentan
 como un respaldo ordinario ni se restauran ciegamente sobre claves existentes.
+
+
+## Laboratorio de almacenamiento · fase 4B.1
+
+Prototipo IndexedDB aislado, no disponible en Planner. Iniciar con
+`node scripts/serve-history-lab.cjs` y abrir `/storage` en el puerto indicado.
+Solo fuentes sintéticas, selección/confirmación explícitas y bases `fullhouse-lab-*`.
+No abrir en el origen público ni cargar información personal.
+
+```sh
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-storage.cjs
+```
+
+65 casos Chromium con IndexedDB real, escritorio/móvil; cuota nativa, interrupción,
+crash de proceso descartable, concurrencia, archivo completo y nueve respaldos antiguos.
+Playwright externo y Chromium son requisitos de desarrollo; sin dependencias nuevas.
+9 pruebas Node nuevas en `tests/history-contract.storage.test.cjs`, incluidas por
+`npm run test:history-contract`; cinco TODO de integración pública permanecen.
+La reproducción pública BUG-05 debe seguir fallando hasta integrar las pantallas.
+[Decisión, medidas e inventario pendiente](../../docs/HISTORY_V2_STORAGE_DECISION.md).

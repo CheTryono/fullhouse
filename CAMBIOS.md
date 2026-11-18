@@ -1,3 +1,20 @@
+# BUG-05 · fase 4B.1: almacenamiento experimental
+
+- IndexedDB aislado: metadatos por registro, fotografías Blob deduplicadas, índices,
+  CAS transaccional, recibos estables y verificación posterior. No se activa en Planner.
+- Migración sintética con fuentes main/alias exactas, elección explícita, candidato
+  recuperable, nueve exportaciones 0.1–0.9 y bloqueo de divergencias. Sin escribir v01/v02.
+- Archivo binario completo con fotos y fuentes; importación validada y restauración
+  en otro origen. No modifica los codecs ni controles públicos existentes.
+- Laboratorio /storage separado de Pages; 65 casos Chromium escritorio/móvil,
+  incluidos cuota nativa, SecurityError, dos pestañas y crash/reapertura de proceso.
+- Medición: 5.000 ejecuciones, 501 revisiones, 42,2 MB de fotos; localStorage falla
+  incluso con metadatos sin fotos. Verificación completa aún lenta: bloqueo de activación.
+- Decisión, inventario de incompatibilidades y etapas 4B.2/4B.3 documentados.
+  BUG-05 público sigue pendiente; no se elimina su reproducción.
+
+---
+
 # BUG-05 · fase 4A: integración y persistencia simuladas
 
 - Base main 4324abc, rama independiente. Puente con métodos reales de Planner
@@ -321,3 +338,12 @@ Se conserva la clave `fullhouse-v01` y los datos anteriores con campos opcionale
 16. Una rutina no puede programarse dos veces el mismo día, incluso combinando repeticiones. Desde Rutinas se accede a la programación existente; puede modificarse solo desde una fecha futura manteniendo el historial anterior.
 
 La estructura de datos mantiene `version: 1`, utiliza la clave de almacenamiento `fullhouse-v01` y es compatible con los datos de 0.1 y 0.2. Las nuevas propiedades son opcionales y el respaldo/restauración JSON sigue disponible.
+## Verificación adicional de fase 4B.1
+
+`npm run check` y `npm run check:history-contract`: correctos.
+`npm run test:regression`: 164 aprobadas. `npm run test:history-contract`:
+122 aprobadas y 5 TODO. `npm test`: 286 aprobadas, 5 TODO y único fallo conocido
+BUG-05 (salida 1); no se presenta como suite completamente aprobada.
+
+Chromium adicional: integración anterior 28 casos y lector 120 combinaciones,
+sin errores JavaScript ni accesos a Storage público.

@@ -1,5 +1,10 @@
 # BUG-05 fase 4A · integración y persistencia simuladas
 
+> Actualización 4B.1: la recomendación vigente es IndexedDB completo, todavía
+> experimental. El protocolo localStorage de este documento corresponde al diseño
+> anterior de 4A; no debe interpretarse como decisión actual de activación. Véase
+> [decisión y límites medidos](HISTORY_V2_STORAGE_DECISION.md).
+
 Base `origin/main` **4324abc**, después de PR #7. Todo lo descrito como implementado
 funciona en módulos aislados y un Map inyectado. **No hay adaptador a Storage real,
 activación pública, migración de usuarios ni importación nueva en Planner.**
