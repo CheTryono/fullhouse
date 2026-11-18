@@ -1,0 +1,265 @@
+{
+  "base": "0e9e25c",
+  "parity": {
+    "base": "0e9e25c",
+    "browser": "156.0.8078.79",
+    "results": [
+      {
+        "width": 1280,
+        "operations": 9,
+        "rejected": true,
+        "stale": true,
+        "historyFive": true,
+        "legacyAdopted": true,
+        "deletion": true,
+        "recovery": true,
+        "restore": true
+      },
+      {
+        "width": 390,
+        "operations": 9,
+        "rejected": true,
+        "stale": true,
+        "historyFive": true,
+        "legacyAdopted": true,
+        "deletion": true,
+        "recovery": true,
+        "restore": true
+      }
+    ]
+  },
+  "faults": {
+    "base": "0e9e25c",
+    "browser": "156.0.8078.79",
+    "quota": {
+      "error": "No se confirmó el guardado (QuotaExceededError). Conserva el candidato y reintenta.",
+      "generation": 1
+    },
+    "retry": {
+      "generation": 2,
+      "id": "quota"
+    },
+    "readFailure": {
+      "pendingKept": true,
+      "generation": 3
+    },
+    "reopened": {
+      "generation": 1,
+      "duration": 30,
+      "events": 2
+    },
+    "source": {
+      "denied": true,
+      "status": "recovery"
+    },
+    "tabs": {
+      "denied": true,
+      "title": "One"
+    },
+    "dependencies": {
+      "nestedRejected": true,
+      "transitiveCancellation": true,
+      "historicalHashesEqual": true,
+      "corruptionBlocked": true
+    }
+  },
+  "performance": {
+    "base": "0e9e25c",
+    "browser": "156.0.8078.79",
+    "comparison": "previous session rejected; full validation comparator separate; same facts/bytes; single desktop sample",
+    "result": {
+      "executions": 5000,
+      "revisions": 501,
+      "photoBytes": 42175847,
+      "images": 65,
+      "previousOpenMs": 4569.799999998882,
+      "openMs": 1272.2000000011176,
+      "previousSessionError": "Documento demasiado complejo",
+      "previousAttemptMs": 104.5,
+      "operations": [
+        {
+          "method": "saveRoutine",
+          "id": "new",
+          "fullPrepareMs": 6833.39999999851,
+          "fullCommitMs": 2723.5,
+          "prepareMs": 18.399999998509884,
+          "relationsMs": 3.799999998882413,
+          "validationMs": 0.900000000372529,
+          "proof": {
+            "dates": 7,
+            "combinations": 1,
+            "checks": 0,
+            "proof": "weekly-segments-or-finite-exhaustion",
+            "from": "2030-01-07",
+            "eventIds": []
+          },
+          "transactionMs": 7.100000001490116,
+          "lineagePrepareMs": 5.699999999254942,
+          "lineageAfterMs": 0,
+          "confirmationMs": 3.5,
+          "readMs": 3,
+          "changedRows": 1
+        },
+        {
+          "method": "saveRoutine",
+          "id": "rename",
+          "fullPrepareMs": 6725.300000000745,
+          "fullCommitMs": 2957.39999999851,
+          "prepareMs": 16.5,
+          "relationsMs": 5.099999999627471,
+          "validationMs": 0.6999999992549419,
+          "proof": {
+            "dates": 8,
+            "combinations": 1,
+            "checks": 8,
+            "proof": "weekly-segments-or-finite-exhaustion",
+            "from": "2030-01-07",
+            "eventIds": [
+              "e"
+            ]
+          },
+          "transactionMs": 7,
+          "lineagePrepareMs": 3.299999998882413,
+          "lineageAfterMs": 0,
+          "confirmationMs": 4.400000000372529,
+          "readMs": 14.800000000745058,
+          "changedRows": 2
+        },
+        {
+          "method": "saveRoutine",
+          "id": "add",
+          "fullPrepareMs": 7099.4000000003725,
+          "fullCommitMs": 2767,
+          "prepareMs": 17,
+          "relationsMs": 4.099999999627471,
+          "validationMs": 0.599999999627471,
+          "proof": {
+            "dates": 8,
+            "combinations": 1,
+            "checks": 8,
+            "proof": "weekly-segments-or-finite-exhaustion",
+            "from": "2030-01-07",
+            "eventIds": [
+              "e"
+            ]
+          },
+          "transactionMs": 7.5,
+          "lineagePrepareMs": 5.100000001490116,
+          "lineageAfterMs": 0,
+          "confirmationMs": 3.899999998509884,
+          "readMs": 16,
+          "changedRows": 2
+        },
+        {
+          "method": "saveRoutine",
+          "id": "reorder",
+          "fullPrepareMs": 6643,
+          "fullCommitMs": 2593,
+          "prepareMs": 15.299999998882413,
+          "relationsMs": 3.5,
+          "validationMs": 0.6999999992549419,
+          "proof": {
+            "dates": 8,
+            "combinations": 1,
+            "checks": 8,
+            "proof": "weekly-segments-or-finite-exhaustion",
+            "from": "2030-01-07",
+            "eventIds": [
+              "e"
+            ]
+          },
+          "transactionMs": 7.299999998882413,
+          "lineagePrepareMs": 3.200000001117587,
+          "lineageAfterMs": 0.09999999962747097,
+          "confirmationMs": 3.300000000745058,
+          "readMs": 11.5,
+          "changedRows": 1
+        },
+        {
+          "method": "saveRoutine",
+          "id": "remove",
+          "fullPrepareMs": 6284,
+          "fullCommitMs": 2740.5999999996275,
+          "prepareMs": 16.59999999962747,
+          "relationsMs": 3.900000000372529,
+          "validationMs": 0.900000000372529,
+          "proof": {
+            "dates": 8,
+            "combinations": 1,
+            "checks": 8,
+            "proof": "weekly-segments-or-finite-exhaustion",
+            "from": "2030-01-07",
+            "eventIds": [
+              "e"
+            ]
+          },
+          "transactionMs": 6.200000001117587,
+          "lineagePrepareMs": 3.399999998509884,
+          "lineageAfterMs": 0.09999999962747097,
+          "confirmationMs": 4.400000000372529,
+          "readMs": 13.599999999627471,
+          "changedRows": 2
+        },
+        {
+          "method": "saveRoutine",
+          "id": "fixed",
+          "fullPrepareMs": 7137.5,
+          "fullCommitMs": 2509.7999999988824,
+          "prepareMs": 27.59999999962747,
+          "relationsMs": 8.199999999254942,
+          "validationMs": 1.199999999254942,
+          "proof": {
+            "dates": 8,
+            "combinations": 1,
+            "checks": 8,
+            "proof": "weekly-segments-or-finite-exhaustion",
+            "from": "2030-01-07",
+            "eventIds": [
+              "e"
+            ]
+          },
+          "transactionMs": 11.400000000372529,
+          "lineagePrepareMs": 13.300000000745058,
+          "lineageAfterMs": 0.19999999925494194,
+          "confirmationMs": 6.699999999254942,
+          "readMs": 15.600000001490116,
+          "changedRows": 2
+        },
+        {
+          "method": "deleteRoutine",
+          "id": "delete",
+          "fullPrepareMs": 6212.60000000149,
+          "fullCommitMs": 2585,
+          "prepareMs": 32.19999999925494,
+          "relationsMs": 21,
+          "validationMs": 0.10000000149011612,
+          "proof": {
+            "dates": 8,
+            "combinations": 1,
+            "checks": 8,
+            "proof": "weekly-segments-or-finite-exhaustion",
+            "from": "2030-01-07",
+            "eventIds": [
+              "e"
+            ]
+          },
+          "transactionMs": 28.399999998509884,
+          "lineagePrepareMs": 30.700000001117587,
+          "lineageAfterMs": 0,
+          "confirmationMs": 3.600000001490116,
+          "readMs": 12.899999998509884,
+          "changedRows": 2
+        }
+      ],
+      "exportMs": 1174,
+      "importMs": 7218.300000000745,
+      "restoreMs": 2896,
+      "heap": {
+        "usedJSHeapSize": 300869782,
+        "totalJSHeapSize": 354142262
+      },
+      "allHistoricalHashesEqual": true,
+      "photoHashesEqual": true
+    }
+  }
+}

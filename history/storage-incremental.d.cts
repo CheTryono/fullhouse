@@ -7,8 +7,8 @@ export interface PreparedDelta {readonly [preparedDelta]:true;readonly format:'p
 export interface IncrementalAccess {
  prepareRoutine<M extends import('./storage-routines.cjs').RoutineMethod>(token:VerifiedWindow,method:M,payload:import('./storage-routines.cjs').RoutinePayloads[M],context:import('./storage-routines.cjs').RoutineContext):Promise<PreparedDelta>;
  commitRoutine:IncrementalAccess['commitExecution'];
- routineMetrics(operation:PreparedDelta):unknown;
- readRoutine(token:VerifiedWindow,id:string,options?:{after?:string;revisionAfter?:string;limit?:number}):Promise<{readonly routine:Readonly<Routine>|null;readonly related:readonly unknown[];readonly captures:readonly unknown[];readonly captureCount:number;readonly revisionCount:number;readonly next:string|null;readonly readMs:number;readonly photoBytesHydrated:0}>;
+ routineMetrics(operation:PreparedDelta):{readonly relationsMs:number;readonly validationMs:number;readonly proof:{readonly dates:number;readonly combinations:number;readonly checks:number;readonly proof:string;readonly from:string;readonly eventIds:readonly string[]}}|null;
+ readRoutine(token:VerifiedWindow,id:string,options?:{after?:string;revisionAfter?:string;limit?:number}):Promise<{readonly routine:Readonly<Routine>|null;readonly related:readonly unknown[];readonly captures:readonly unknown[];readonly captureCount:number;readonly revisionCount:number;readonly revisionCatalog:readonly {readonly key:string;readonly hash:string}[];readonly next:string|null;readonly readMs:number;readonly photoBytesHydrated:0}>;
  preparePlanning<M extends import('./storage-goals.cjs').PlanningMethod>(token:VerifiedWindow,method:M,payload:import('./storage-goals.cjs').PlanningPayloads[M],context:import('./storage-goals.cjs').PlanningContext):Promise<PreparedDelta>;
  commitPlanning:IncrementalAccess['commitExecution'];
  readGoal(token:VerifiedWindow,id:string):Promise<{readonly goal:Readonly<Goal>|null;readonly related:readonly unknown[];readonly photoBytesHydrated:0;readonly readMs:number}>;

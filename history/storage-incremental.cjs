@@ -208,10 +208,11 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
         for(const store of ['routines','events']){
             const next=new Map(partial.tables[store].map(r=>[r.key,r]));
             for(const row of partial.tables[store])if(!same(row,b.maps[store].get(row.key)))changed.push({store,row});
-            for(const row of b.plan.tables[store])if(!next.has(row.key))changed.push({store,row,deleted:true});
-            tables[store]=partial.tables[store].map(r=>b.maps[store].get(r.key)?.hash===r.hash?b.maps[store].get(r.key):r);
+            const selected=new Set(scope.rows.filter(r=>r.store===store).map(r=>r.row.key));
+            for(const row of b.plan.tables[store])if(selected.has(row.key)&&!next.has(row.key))changed.push({store,row,deleted:true});
+            const changes=new Map(changed.filter(c=>c.store===store).map(c=>[c.row.key,c]));tables[store]=b.plan.tables[store].filter(r=>!changes.get(r.key)?.deleted).map(r=>changes.get(r.key)?.row||r).concat(partial.tables[store].filter(r=>!b.maps[store].has(r.key)));
         }
-        const header={...b.plan.header,routineIds:partial.header.routineIds,eventIds:partial.header.eventIds},plan={...b.plan,tables,header};plan.rootHash=await model.rootHash(plan);
+        const header={...b.plan.header,routineIds:b.plan.header.routineIds.filter(id=>!changed.some(c=>c.store==='routines'&&c.deleted&&c.row.key===id)).concat(partial.header.routineIds.filter(id=>!b.maps.routines.has(id))),eventIds:b.plan.header.eventIds.filter(id=>!changed.some(c=>c.store==='events'&&c.deleted&&c.row.key===id))},plan={...b.plan,tables,header};plan.rootHash=await model.rootHash(plan);
         const operation=await seal(b,plan,changed,[],scope.context.operationId,scope.rows,started,{kind:'routine',method,payload:scope.payload,context:scope.context});
         operations.get(operation).metrics={relationsMs,validationMs,proof};
         return operation;

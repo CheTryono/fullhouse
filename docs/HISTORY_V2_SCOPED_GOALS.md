@@ -302,3 +302,12 @@ pendiente según el caso; restaurar solo en destino nuevo y validar antes de ado
 No se borra la fuente anterior ni se elige una rama por fecha. El checkpoint básico
 es `5e22a8b`; el commit final cierra pruebas y documentación. No quedan procesos de
 prueba activos al cerrar la entrega. Producción y workflow permanecen sin cambios.
+
+
+## Avance B.2 sobre 0e9e25c (experimental)
+
+[Operaciones incrementales de rutinas](HISTORY_V2_SCOPED_ROUTINES.md) añade lectura,
+creación/edición, eliminación y recuperación por componente de planificación. Conserva
+los formatos/autoridad y filas históricas. Calendarios no demostrables se bloquean,
+sin usar ocho ocurrencias como garantía. B.3, B.4 y 4C permanecen pendientes; no hay
+activación ni cambios de Planner público.
