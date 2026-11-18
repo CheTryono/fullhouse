@@ -473,3 +473,18 @@ Se mantienen autoridad persistente, CAS, confirmación y formato público v1 int
 conocido BUG-05 público. Las mediciones de B.2 y de almacenamiento siguen siendo
 históricas; el motor nuevo mide solo planificación, no vuelve a medir fotos ni corpus
 completo. Su lectura no accede a tablas de ejecuciones, revisiones o blobs.
+
+
+## Revisión B.3a.1 sobre beff908
+
+[Garantías actuales y bloqueos](HISTORY_V2_CALENDAR_HARDENING.md). Corregidos catálogo
+base/variante B.2, cobertura de siete estados locales y nueva captura de fecha normalizada.
+Preparación y commit de rutinas comprueban la zona; recuperar exige nueva validación.
+Plantillas __base admitidas, revisiones ambiguas siguen bloqueadas. No se integró el
+verificador general en Planner ni se amplió su dominio local indefinido.
+
+Node 231 contratos + 6 TODO; npm test 395 + 6 TODO y único BUG-05 público. Chromium
+incluye cuatro zonas y corpus 5000/501/42,2 MB; no otros motores ni dispositivos físicos.
+B.3b solo puede proponerse con dominio seguro explícito y pruebas de efectos por alcance.
+4C continúa NO preparada: capturas ambiguas, cortes/fechas inexistentes, capacidades de
+escritores viejos, privacidad, React y compatibilidad de dispositivos siguen pendientes.

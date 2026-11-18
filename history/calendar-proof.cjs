@@ -162,9 +162,15 @@ function stateFrames(events, routines, date, profile, s) {
     return { active, data, frame, selections };
 }
 function environment() { return { zone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateConstructor: Date.toString(), utc: Intl.DateTimeFormat().resolvedOptions().timeZone === 'UTC' }; }
+function calendarSemantics(schedule) {
+    return sha256(canonical({functions:NAMES.map(n=>[n,typeof schedule[n]==='function'?schedule[n].toString():null]),DAYS:schedule.DAYS}));
+}
+async function assertCalendarSemantics(schedule) {
+    if(await calendarSemantics(schedule)!==APPROVED)throw Error('Calendario indeterminado: unsupported-semantics');
+}
 function createCalendarProof(schedule) {
     const s = Object.freeze({ ...schedule }), pinnedDate = Date;
-    const semantics = sha256(canonical({ functions: NAMES.map(n => [n, typeof s[n] === 'function' ? s[n].toString() : null]), DAYS: s.DAYS }));
+    const semantics = calendarSemantics(s);
     async function prove(input, { signal, yieldControl = later } = {}) {
         let snapshot, inputError;
         try {
@@ -281,4 +287,4 @@ function createCalendarProof(schedule) {
     return Object.freeze({ prove, verify });
 }
 function projectPlan(plan, { from, through, budgets, disallowSameRoutineCooccurrence } = {}) { const events = new Map(plan.tables.events.map(r => [r.key, r.value])), routines = new Map(plan.tables.routines.map(r => [r.key, r.value])); return { events: plan.header.eventIds.map(k => copy(events.get(k))), routines: plan.header.routineIds.map(k => copy(routines.get(k))), from, ...(through === undefined ? {} : { through }), ...(budgets === undefined ? {} : { budgets }), ...(disallowSameRoutineCooccurrence === undefined ? {} : { disallowSameRoutineCooccurrence }) }; }
-module.exports = { ALGORITHM, APPROVED, DEFAULTS, HARD, createCalendarProof, projectPlan, stateFrames, snapshotInput: bounded };
+module.exports = { ALGORITHM, APPROVED, DEFAULTS, HARD, createCalendarProof, projectPlan, stateFrames, snapshotInput: bounded, assertCalendarSemantics };

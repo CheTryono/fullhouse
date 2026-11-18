@@ -3,6 +3,7 @@ import type { Engine, Command, Operation, CaptureContext } from './engine.cjs';
 export type SourceDocument = Data | DocumentV2 | Frozen<Data | DocumentV2>;
 export interface Frame { start: number; end: number; length: number }
 export interface Schedule {
+  parseDay(date:string):Date;
   validData(value: unknown): boolean;
   occurs(event: EventItem | Frozen<EventItem>, date: string): boolean;
   eventFrame(event: EventItem | Frozen<EventItem>, date: string, document: SourceDocument): Frame | null;

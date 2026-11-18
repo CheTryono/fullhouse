@@ -1,0 +1,495 @@
+{
+  "base": "beff908",
+  "browser": "156.0.8078.79",
+  "comparison": "previous session rejected; full validation comparator separate; same facts/bytes; single desktop sample",
+  "result": {
+    "executions": 5000,
+    "revisions": 501,
+    "photoBytes": 42175847,
+    "images": 65,
+    "previousOpenMs": 6060.800000000745,
+    "openMs": 1288.300000000745,
+    "previousSessionError": "Documento demasiado complejo",
+    "previousAttemptMs": 102.69999999925494,
+    "operations": [
+      {
+        "method": "saveRoutine",
+        "id": "new",
+        "fullPrepareMs": 7232.300000000745,
+        "fullCommitMs": 2929,
+        "prepareMs": 33,
+        "relationsMs": 4.799999997019768,
+        "validationMs": 1.800000000745058,
+        "proof": {
+          "dates": 7,
+          "combinations": 1,
+          "checks": 0,
+          "status": "valid",
+          "proof": "local-weekday-states-or-finite-exhaustion-v2",
+          "zone": "UTC",
+          "domain": {
+            "min": "0100-01-01",
+            "max": "9999-12-31"
+          },
+          "segments": [
+            {
+              "from": "2030-01-07",
+              "through": "9999-12-31",
+              "coverage": "all-local-weekdays",
+              "weekdays": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6
+              ],
+              "representatives": 7
+            }
+          ],
+          "from": "2030-01-07",
+          "eventIds": []
+        },
+        "transactionMs": 5.799999997019768,
+        "lineagePrepareMs": 3.600000001490116,
+        "lineageAfterMs": 0,
+        "confirmationMs": 3.400000002235174,
+        "readMs": 2.699999999254942,
+        "changedRows": 1,
+        "photoBytesHydrated": 0,
+        "newImages": 0
+      },
+      {
+        "method": "saveRoutine",
+        "id": "rename",
+        "fullPrepareMs": 6854.60000000149,
+        "fullCommitMs": 2462.800000000745,
+        "prepareMs": 19.399999998509884,
+        "relationsMs": 5.200000002980232,
+        "validationMs": 1.5999999977648258,
+        "proof": {
+          "dates": 8,
+          "combinations": 1,
+          "checks": 8,
+          "status": "valid",
+          "proof": "local-weekday-states-or-finite-exhaustion-v2",
+          "zone": "UTC",
+          "domain": {
+            "min": "0100-01-01",
+            "max": "9999-12-31"
+          },
+          "segments": [
+            {
+              "from": "2030-01-07",
+              "through": "2030-01-07",
+              "coverage": "finite-exhaustion",
+              "weekdays": [
+                1
+              ],
+              "representatives": 1
+            },
+            {
+              "from": "2030-01-08",
+              "through": "9999-12-31",
+              "coverage": "all-local-weekdays",
+              "weekdays": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6
+              ],
+              "representatives": 7
+            }
+          ],
+          "from": "2030-01-07",
+          "eventIds": [
+            "e"
+          ]
+        },
+        "transactionMs": 7.800000000745058,
+        "lineagePrepareMs": 3.199999999254942,
+        "lineageAfterMs": 0,
+        "confirmationMs": 4.199999999254942,
+        "readMs": 13.100000001490116,
+        "changedRows": 2,
+        "photoBytesHydrated": 0,
+        "newImages": 0
+      },
+      {
+        "method": "saveRoutine",
+        "id": "add",
+        "fullPrepareMs": 6763.599999997765,
+        "fullCommitMs": 2606.7000000029802,
+        "prepareMs": 16.599999997764826,
+        "relationsMs": 3.800000000745058,
+        "validationMs": 1.699999999254942,
+        "proof": {
+          "dates": 8,
+          "combinations": 1,
+          "checks": 8,
+          "status": "valid",
+          "proof": "local-weekday-states-or-finite-exhaustion-v2",
+          "zone": "UTC",
+          "domain": {
+            "min": "0100-01-01",
+            "max": "9999-12-31"
+          },
+          "segments": [
+            {
+              "from": "2030-01-07",
+              "through": "2030-01-07",
+              "coverage": "finite-exhaustion",
+              "weekdays": [
+                1
+              ],
+              "representatives": 1
+            },
+            {
+              "from": "2030-01-08",
+              "through": "9999-12-31",
+              "coverage": "all-local-weekdays",
+              "weekdays": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6
+              ],
+              "representatives": 7
+            }
+          ],
+          "from": "2030-01-07",
+          "eventIds": [
+            "e"
+          ]
+        },
+        "transactionMs": 6.800000000745058,
+        "lineagePrepareMs": 3.199999999254942,
+        "lineageAfterMs": 0.10000000149011612,
+        "confirmationMs": 4.099999997764826,
+        "readMs": 11.600000001490116,
+        "changedRows": 2,
+        "photoBytesHydrated": 0,
+        "newImages": 0
+      },
+      {
+        "method": "saveRoutine",
+        "id": "reorder",
+        "fullPrepareMs": 6896.900000002235,
+        "fullCommitMs": 3009,
+        "prepareMs": 20.199999999254942,
+        "relationsMs": 4,
+        "validationMs": 2,
+        "proof": {
+          "dates": 8,
+          "combinations": 1,
+          "checks": 8,
+          "status": "valid",
+          "proof": "local-weekday-states-or-finite-exhaustion-v2",
+          "zone": "UTC",
+          "domain": {
+            "min": "0100-01-01",
+            "max": "9999-12-31"
+          },
+          "segments": [
+            {
+              "from": "2030-01-07",
+              "through": "2030-01-07",
+              "coverage": "finite-exhaustion",
+              "weekdays": [
+                1
+              ],
+              "representatives": 1
+            },
+            {
+              "from": "2030-01-08",
+              "through": "9999-12-31",
+              "coverage": "all-local-weekdays",
+              "weekdays": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6
+              ],
+              "representatives": 7
+            }
+          ],
+          "from": "2030-01-07",
+          "eventIds": [
+            "e"
+          ]
+        },
+        "transactionMs": 6.600000001490116,
+        "lineagePrepareMs": 4.899999998509884,
+        "lineageAfterMs": 0.10000000149011612,
+        "confirmationMs": 3.2999999970197678,
+        "readMs": 12.400000002235174,
+        "changedRows": 1,
+        "photoBytesHydrated": 0,
+        "newImages": 0
+      },
+      {
+        "method": "saveRoutine",
+        "id": "remove",
+        "fullPrepareMs": 7875.199999999255,
+        "fullCommitMs": 3075.800000000745,
+        "prepareMs": 27.599999997764826,
+        "relationsMs": 5.699999999254942,
+        "validationMs": 2.099999997764826,
+        "proof": {
+          "dates": 8,
+          "combinations": 1,
+          "checks": 8,
+          "status": "valid",
+          "proof": "local-weekday-states-or-finite-exhaustion-v2",
+          "zone": "UTC",
+          "domain": {
+            "min": "0100-01-01",
+            "max": "9999-12-31"
+          },
+          "segments": [
+            {
+              "from": "2030-01-07",
+              "through": "2030-01-07",
+              "coverage": "finite-exhaustion",
+              "weekdays": [
+                1
+              ],
+              "representatives": 1
+            },
+            {
+              "from": "2030-01-08",
+              "through": "9999-12-31",
+              "coverage": "all-local-weekdays",
+              "weekdays": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6
+              ],
+              "representatives": 7
+            }
+          ],
+          "from": "2030-01-07",
+          "eventIds": [
+            "e"
+          ]
+        },
+        "transactionMs": 9.899999998509884,
+        "lineagePrepareMs": 3.600000001490116,
+        "lineageAfterMs": 0,
+        "confirmationMs": 3.800000000745058,
+        "readMs": 11.199999999254942,
+        "changedRows": 2,
+        "photoBytesHydrated": 0,
+        "newImages": 0
+      },
+      {
+        "method": "saveRoutine",
+        "id": "fixed",
+        "fullPrepareMs": 6966.300000000745,
+        "fullCommitMs": 2728.5,
+        "prepareMs": 24.5,
+        "relationsMs": 5.400000002235174,
+        "validationMs": 1.3999999985098839,
+        "proof": {
+          "dates": 8,
+          "combinations": 1,
+          "checks": 8,
+          "status": "valid",
+          "proof": "local-weekday-states-or-finite-exhaustion-v2",
+          "zone": "UTC",
+          "domain": {
+            "min": "0100-01-01",
+            "max": "9999-12-31"
+          },
+          "segments": [
+            {
+              "from": "2030-01-07",
+              "through": "2030-01-07",
+              "coverage": "finite-exhaustion",
+              "weekdays": [
+                1
+              ],
+              "representatives": 1
+            },
+            {
+              "from": "2030-01-08",
+              "through": "9999-12-31",
+              "coverage": "all-local-weekdays",
+              "weekdays": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6
+              ],
+              "representatives": 7
+            }
+          ],
+          "from": "2030-01-07",
+          "eventIds": [
+            "e"
+          ]
+        },
+        "transactionMs": 8.5,
+        "lineagePrepareMs": 4,
+        "lineageAfterMs": 0.19999999925494194,
+        "confirmationMs": 4.200000002980232,
+        "readMs": 11.099999997764826,
+        "changedRows": 2,
+        "photoBytesHydrated": 0,
+        "newImages": 0
+      },
+      {
+        "method": "saveRoutine",
+        "id": "alternative-base-id",
+        "fullPrepareMs": 7458.699999999255,
+        "fullCommitMs": 3066.7000000029802,
+        "prepareMs": 21,
+        "relationsMs": 5.300000000745058,
+        "validationMs": 2.2999999970197678,
+        "proof": {
+          "dates": 8,
+          "combinations": 2,
+          "checks": 16,
+          "status": "valid",
+          "proof": "local-weekday-states-or-finite-exhaustion-v2",
+          "zone": "UTC",
+          "domain": {
+            "min": "0100-01-01",
+            "max": "9999-12-31"
+          },
+          "segments": [
+            {
+              "from": "2030-01-07",
+              "through": "2030-01-07",
+              "coverage": "finite-exhaustion",
+              "weekdays": [
+                1
+              ],
+              "representatives": 1
+            },
+            {
+              "from": "2030-01-08",
+              "through": "9999-12-31",
+              "coverage": "all-local-weekdays",
+              "weekdays": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6
+              ],
+              "representatives": 7
+            }
+          ],
+          "from": "2030-01-07",
+          "eventIds": [
+            "e"
+          ]
+        },
+        "transactionMs": 7.299999997019768,
+        "lineagePrepareMs": 4.300000000745058,
+        "lineageAfterMs": 0.10000000149011612,
+        "confirmationMs": 3,
+        "readMs": 11.900000002235174,
+        "changedRows": 1,
+        "photoBytesHydrated": 0,
+        "newImages": 0
+      },
+      {
+        "method": "deleteRoutine",
+        "id": "delete",
+        "fullPrepareMs": 6784.29999999702,
+        "fullCommitMs": 3143.400000002235,
+        "prepareMs": 38.099999997764826,
+        "relationsMs": 9.300000000745058,
+        "validationMs": 1.1000000014901161,
+        "proof": {
+          "dates": 8,
+          "combinations": 1,
+          "checks": 8,
+          "status": "valid",
+          "proof": "local-weekday-states-or-finite-exhaustion-v2",
+          "zone": "UTC",
+          "domain": {
+            "min": "0100-01-01",
+            "max": "9999-12-31"
+          },
+          "segments": [
+            {
+              "from": "2030-01-07",
+              "through": "2030-01-07",
+              "coverage": "finite-exhaustion",
+              "weekdays": [
+                1
+              ],
+              "representatives": 1
+            },
+            {
+              "from": "2030-01-08",
+              "through": "9999-12-31",
+              "coverage": "all-local-weekdays",
+              "weekdays": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6
+              ],
+              "representatives": 7
+            }
+          ],
+          "from": "2030-01-07",
+          "eventIds": [
+            "e"
+          ]
+        },
+        "transactionMs": 6.600000001490116,
+        "lineagePrepareMs": 3.699999999254942,
+        "lineageAfterMs": 0.10000000149011612,
+        "confirmationMs": 4.199999999254942,
+        "readMs": 12.599999997764826,
+        "changedRows": 2,
+        "photoBytesHydrated": 0,
+        "newImages": 0
+      }
+    ],
+    "exportMs": 1546.800000000745,
+    "importMs": 6509.800000000745,
+    "restoreMs": 3726.900000002235,
+    "heap": {
+      "usedJSHeapSize": 363814931,
+      "totalJSHeapSize": 418221191
+    },
+    "allHistoricalHashesEqual": true,
+    "photoHashesEqual": true
+  },
+  "implementationHashes": {
+    "history/storage-routines.cjs": "f8dfe1bfef826424969724d13e275cb3cb59d4c17ba73d3fd08163fbffd437b5",
+    "history/calendar-proof.cjs": "4028e70f076131c2b0817055592e0fd65d9e2961d34201f63905ac56584c1484",
+    "history/adapter.cjs": "b1be7801f16afbd86399d26bcdafb37d6fe9e512815ce08add084b62440981ed",
+    "history/codec.cjs": "d5d4a9c136f364289b578c5d8a5975ae722cdc190ffb3ed2d240073c6205bc62",
+    "history/storage-incremental.cjs": "271e1322519cf09af08e218d35f5220f606e57e037ee785035e2d27fef1bc57f"
+  },
+  "scope": "Single Chromium desktop sample; real synthetic JPEG/PNG corpus; no physical phone, no peak-memory or leak claim"
+}

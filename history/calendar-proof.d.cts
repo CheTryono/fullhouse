@@ -78,5 +78,6 @@ export interface CalendarProof {
     verify(input: unknown, result: Result, options?: Options): Promise<boolean>;
 }
 export function createCalendarProof(schedule: Record<string, unknown>): CalendarProof;
+export function assertCalendarSemantics(schedule:Record<string,unknown>):Promise<void>;
 export function projectPlan(plan: import('./storage-model.cjs').StoragePlan, options: Omit<CalendarInput, 'events' | 'routines'>): CalendarInput;
 export const ALGORITHM: string, APPROVED: string, DEFAULTS: Readonly<Budgets>, HARD: Readonly<Budgets>;

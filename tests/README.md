@@ -620,3 +620,27 @@ Firefox/WebKit no probados. También se reverificaron Chromium rutinas B.2, fall
 guardado público pendiente y límites/dependencias de horarios, sin errores JavaScript.
 
 [Fundamentos, restricciones, mediciones y diseño siguiente](../docs/HISTORY_V2_CALENDAR_PROOF.md).
+
+
+## B.3a.1 · seguridad de alternativas y pruebas locales
+
+```sh
+node --test tests/history-contract.alternative-safety.test.cjs tests/history-contract.calendar-local.test.cjs
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-alternative-safety.cjs
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-calendar-local.cjs
+FULLHOUSE_ROUTINES_ALTERNATIVE_SAFETY=1 NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-routines-performance.cjs
+```
+
+16 pruebas nuevas reales; la reproducción anterior __base exige ahora base y variante
+separadas. Primeros tres casos fallaron antes del arreglo, así como las reproducciones
+locales de viernes omitido y captura normalizada. Los hallazgos públicos de preview y
+addDays son observaciones explícitas sin corrección pública, no funcionalidades resueltas.
+
+Cierre: check/tipos correctos, regresión 164, contratos 231 + 6 TODO; npm test 395
+aprobadas + 6 TODO y único fallo conocido público BUG-05. Se ejecutaron también las
+suites Chromium de rutinas/fallos, motor/Worker, almacenamiento/linaje, integración,
+legado, guardado pendiente y horarios. Nueva cobertura Mexico City/New York/Madrid/Apia;
+Firefox/WebKit y dispositivos físicos no probados. El benchmark grande es opcional y
+se ejecuta aislado de otras mediciones, con fotografías sintéticas reales.
+
+[Modelo, dominios, límites y resultados](../docs/HISTORY_V2_CALENDAR_HARDENING.md).

@@ -1,15 +1,7 @@
 'use strict';
-const { copy, same } = require('./json.cjs'), model = require('./storage-model.cjs');
+const { copy, same } = require('./json.cjs'), model = require('./storage-model.cjs'), civil = require('./calendar-math.cjs');
 const clock = () => performance.now(), fail = s => { throw Error(s); };
 const LIMITS = Object.freeze({ combinations: 256, dates: 20000, checks: 100000 });
-const add = (day, n) => {
-    const d = new Date(day + 'T12:00:00Z');
-    d.setUTCDate(d.getUTCDate() + n);
-    const s = d.toISOString().slice(0, 10);
-    if (!/^\d{4}-\d\d-\d\d$/.test(s))
-        fail('Fecha fuera del presupuesto verificable');
-    return s;
-};
 function references(steps, field) { return steps.flatMap(s => [s[field], ...references(s.children || [], field), ...(s.variants || []).flatMap(v => [v[field], ...references(v.children || [], field)])]).filter(Boolean); }
 function component(events, id) {
     const ids = new Set([id]);
@@ -31,14 +23,19 @@ function choices(r) {
     let result = [{}];
     const seen = new Set(), walk = steps => {
         for (const s of steps) {
-            if (seen.has(s.id))
+            if (typeof s.id !== 'string' || !s.id.trim() || seen.has(s.id))
                 fail('Identificadores de pasos ambiguos');
             seen.add(s.id);
+            const variants = s.variants || [];
+            if (variants.some(v => typeof v.id !== 'string' || !v.id.trim()) || new Set(variants.map(v => v.id)).size !== variants.length)
+                fail('Identificadores de variantes ambiguos');
             if ((s.mode || ((s.variants || []).length ? 'alternatives' : 'always')) === 'alternatives' && s.chooseWhen === 'execute') {
-                const options = ['__base', ...(s.variants || []).map(v => v.id)];
+                // Ausencia de clave = base de planificación. Ningún string queda
+                // reservado: '__base' puede ser un ID real en una plantilla v1.
+                const options = [null, ...variants.map(v => v.id)];
                 if (result.length * options.length > LIMITS.combinations)
                     fail('Demasiadas combinaciones de alternativas para demostrar seguridad');
-                result = result.flatMap(c => options.map(id => ({ ...c, [s.id]: id })));
+                result = result.flatMap(c => options.map(id => id === null ? { ...c } : ({ ...c, [s.id]: id })));
             }
             walk(s.children || []);
             for (const v of s.variants || [])
@@ -48,45 +45,50 @@ function choices(r) {
     walk(r.steps);
     return result;
 }
-function proofDates(events, today) {
-    const boundaries = new Set([today]), weekly = new Set(['none', 'dates', 'daily', 'weekly', 'weekdays', 'custom']);
-    for (const e of events) {
-        if (!weekly.has(e.repeat) && !e.endDate)
-            fail('Recurrencia indefinida no demostrable en B.2: ' + e.id + ' (' + e.repeat + ')');
-        for (const d of [e.date, ...(e.specificDates || []), ...Object.keys(e.overrides || {})])
-            if (d >= today) {
-                boundaries.add(d);
-                boundaries.add(add(d, 1));
-            }
-        if (e.endDate && e.endDate >= today)
-            boundaries.add(add(e.endDate, 1));
-    }
-    const points = [...boundaries].sort(), dates = new Set();
-    const put = d => {
-        dates.add(d);
-        if (dates.size > LIMITS.dates)
-            fail('Alcance de fechas demasiado grande; operación bloqueada, sin validación parcial');
-    };
-    for (let i = 0; i < points.length; i++) {
-        const start = points[i], end = points[i + 1] || null, irregular = events.some(e => !weekly.has(e.repeat) && e.date < (end || '9999-12-31') && e.endDate >= start);
-        if (irregular) {
-            if (!end)
-                fail('Recurrencia sin final demostrable');
-            for (let d = start; d < end; d = add(d, 1))
-                put(d);
-        }
-        else
-            for (let n = 0; n < 7; n++) {
-                const d = add(start, n);
-                if (end && d >= end)
-                    break;
-                put(d);
-            }
-    }
-    return [...dates].sort();
+function calendarZone() {
+    const zone=Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if(typeof zone!=='string'||!zone)indeterminate('Zona local desconocida');
+    return zone;
 }
+function indeterminate(message) {
+    const error=Error('Calendario indeterminado: '+message);
+    error.status='indeterminate';error.code='CALENDAR_INDETERMINATE';throw error;
+}
+// Solo estados semanales o agotamiento finito. No presupone que siete etiquetas
+// consecutivas representen siete weekdays locales (Apia 2011 es un contraejemplo).
+function calendarDates(events,today,parseDay=null) {
+    const zone=calendarZone();
+    if(!parseDay&&zone!=='UTC')indeterminate('Se requiere el puerto parseDay real para la zona local');
+    const weekday=d=>(parseDay?parseDay(d):new Date(d+'T00:00:00Z')).getDay();
+    let lo,hi;
+    try{lo=civil.ordinal(today);hi=civil.ordinal(civil.MAX);}catch{indeterminate('Fecha fuera del dominio 0100–9999');}
+    const boundaries=new Set([lo,hi+1]),weekly=new Set(['none','dates','daily','weekly','weekdays','custom']);
+    for(const e of events) {
+        if(!weekly.has(e.repeat)&&!e.endDate)indeterminate('Recurrencia indefinida no demostrable en B.2: '+e.id+' ('+e.repeat+')');
+        for(const value of [e.date,...(e.specificDates||[]),...Object.keys(e.overrides||{}),...(e.endDate?[e.endDate]:[])]) {
+            let d;try{d=civil.ordinal(value);}catch{indeterminate('Fecha de programación fuera del dominio');}
+            if(d>=lo&&d<=hi){boundaries.add(d);boundaries.add(d+1);}
+        }
+    }
+    const points=[...boundaries].sort((a,b)=>a-b),dates=new Set(),segments=[];
+    const put=d=>{dates.add(d);if(dates.size>LIMITS.dates)indeterminate('Alcance de fechas demasiado grande; sin validación parcial');};
+    for(let i=0;i<points.length-1;i++) {
+        const start=points[i],end=points[i+1]-1,from=civil.date(start),through=civil.date(end);
+        const irregular=events.some(e=>!weekly.has(e.repeat)&&e.date<=through&&e.endDate>=from),seen=new Set();let examined=0;
+        for(let n=start;n<=end;n++) {
+            const date=civil.date(n),day=weekday(date);
+            if(!Number.isInteger(day)||day<0||day>6)indeterminate('parseDay no devuelve un weekday válido');
+            put(date);seen.add(day);examined++;
+            if(!irregular&&seen.size===7)break;
+        }
+        segments.push({from,through,coverage:!irregular&&seen.size===7&&examined<end-start+1?'all-local-weekdays':'finite-exhaustion',weekdays:[...seen].sort(),representatives:examined});
+    }
+    if(calendarZone()!==zone)indeterminate('La zona cambió durante la preparación');
+    return {dates:[...dates].sort(),segments,zone,domain:{min:civil.MIN,max:civil.MAX}};
+}
+function proofDates(events,today,parseDay=null){return calendarDates(events,today,parseDay).dates;}
 function prove(before, after, id, today, schedule) {
-    const events = component(before.events, id), ids = new Set(events.map(e => e.id)), next = after.events.filter(e => ids.has(e.id)), dates = proofDates(next, today), routines = new Map(after.routines.map(r => [r.id, r]));
+    const events = component(before.events, id), ids = new Set(events.map(e => e.id)), next = after.events.filter(e => ids.has(e.id)), catalog = calendarDates(next, today, schedule.parseDay), dates = catalog.dates, routines = new Map(after.routines.map(r => [r.id, r]));
     let profiles = [{}], checks = 0;
     for (const e of next) {
         const r = routines.get(e.routineId), options = r ? choices(r) : [{}];
@@ -115,7 +117,7 @@ function prove(before, after, id, today, schedule) {
                 }
             }
         }
-    return { dates: dates.length, combinations: profiles.length, checks, proof: 'weekly-segments-or-finite-exhaustion', from: today, eventIds: [...ids] };
+    return { dates: dates.length, combinations: profiles.length, checks, status:'valid',proof: 'local-weekday-states-or-finite-exhaustion-v2', zone:catalog.zone, domain:catalog.domain, segments:catalog.segments, from: today, eventIds: [...ids] };
 }
 function selectScope(plan, method, payload, context) {
     if (!['saveRoutine', 'deleteRoutine'].includes(method))
@@ -172,11 +174,12 @@ async function buildChange(scope, { legacy, schedule, plannerActions }) {
     for (const event of candidate.events)
         if (event.recipeRevisionId && event.routineId !== candidate.recipeRevisions[event.recipeRevisionId]?.sourceRoutineId)
             delete event.recipeRevisionId;
+    await require('./calendar-proof.cjs').assertCalendarSemantics(schedule);
     const normalized = await model.prepareDocument(candidate, legacy), planningStart = clock();
     if (method === 'saveRoutine') {
         const r = candidate.routines.find(r => r.id === id);
-        for (let n = 0; n < 7; n++) {
-            const date = add(context.today, n);
+        // routineBalance solo depende del weekday: cubre sus siete estados reales.
+        for (const date of calendarDates([], '2000-01-03', schedule.parseDay).dates) {
             for (const c of choices(r)) {
                 const active = schedule.activeSteps(r.steps, date, c);
                 if (!active.length)
@@ -223,4 +226,4 @@ function relatedRows(plan, id) {
             rows.push({ store: 'goals', row });
     return rows;
 }
-module.exports = { LIMITS, selectScope, buildChange, relatedRows, index, proofDates, choices };
+module.exports = { LIMITS, selectScope, buildChange, relatedRows, index, proofDates, choices, calendarDates, calendarZone };

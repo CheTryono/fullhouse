@@ -276,3 +276,29 @@ No se modifican controles React ni se publica el laboratorio en Pages.
 
 [Resultados medidos](../../docs/measurements/history-calendar-proof.chromium.json) ·
 [Demostraciones, límites y compatibilidad B.2](../../docs/HISTORY_V2_CALENDAR_PROOF.md).
+
+
+## Seguridad de alternativas y cobertura semanal local · B.3a.1
+
+```sh
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-alternative-safety.cjs
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-calendar-local.cjs
+FULLHOUSE_ROUTINES_ALTERNATIVE_SAFETY=1 NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-routines-performance.cjs
+```
+
+Primera suite: rechazo antes de TX, controles/recibos intactos, borradores, recuperación
+binaria, aborto, acuse perdido, dos pestañas y cambio de zona por CDP. Recuperar exige
+una preparación local nueva antes de confirmar. Compara hashes por clave y fotos.
+
+Segunda: cuatro zonas reales de Chromium (Mexico City, New York, Madrid, Apia), estados
+semanales completos y rangos finitos frente a helpers reales, igualdad con Worker,
+indefinido general indeterminado y bloqueo de captura normalizada. Cero Storage público.
+390 px es viewport adaptable, no Android/iOS físico. No Firefox/WebKit.
+
+El modo opcional de capacidad conserva el corpus 5000/501/42175847 bytes y añade una
+variante real __base sobre un paso fijo. Compara raíz con reconstrucción física completa;
+la sesión completa anterior rechaza el corpus por complejidad. Lectura cero bytes de
+fotos y recibos cero imágenes nuevas; archivo completo restaurable. Una muestra, sin
+SLO físico móvil, pico de memoria ni atribución de mejora al cambio de centinela.
+
+[Garantías y restricciones](../../docs/HISTORY_V2_CALENDAR_HARDENING.md).

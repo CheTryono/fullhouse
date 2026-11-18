@@ -11,7 +11,7 @@ const { chromium } = require('playwright'), assert = require('node:assert/strict
                 Storage.prototype[k] = () => { throw Error('No public storage'); };
         });
         await page.goto(url + '/storage');
-        const result = await page.evaluate(async () => {
+        const result = await page.evaluate(async (alternativeSafety) => {
             const H = FullhouseHistory, L = H.schedule.validData, now = () => performance.now(), heapSample = () => performance.memory ? { usedJSHeapSize: performance.memory.usedJSHeapSize, totalJSHeapSize: performance.memory.totalJSHeapSize } : null, copy = x => JSON.parse(JSON.stringify(x)), doc = copy(H.scenarios(H).list.find(s => s.id === 'edited').doc), template = copy(Object.values(doc.logs)[0]);
             doc.logs = {};
             for (let i = 0; i < 5000; i++) {
@@ -90,6 +90,14 @@ const { chromium } = require('playwright'), assert = require('node:assert/strict
             draft.durationMin = 200;
             draft.steps[1].flexible = true;
             commands.push(['saveRoutine', copy(draft), contextFor('fixed')]);
+            if(alternativeSafety){
+                const leaf=draft.steps.find(s=>!s.flexible&&!s.children?.length);
+                if(!leaf)throw Error('Missing fixed leaf for alternative benchmark');
+                leaf.mode='alternatives';leaf.chooseWhen='execute';
+                leaf.variants=[{id:'__base',title:'Real ID',desc:'',min:leaf.min,days:[]}];
+                commands.push(['saveRoutine',copy(draft),contextFor('alternative-base-id')]);
+            }
+
             commands.push(['deleteRoutine', { id: 'r' }, contextFor('delete')]);
             for (const [method, payload, c] of commands) {
                 const ref = H.plannerActions({ ...full, logs: {} }, c);
@@ -122,7 +130,7 @@ const { chromium } = require('playwright'), assert = require('node:assert/strict
                     throw Error('Root mismatch');
                 if ((payload.id === 'r') && view.captureCount !== 5000)
                     throw Error('Historical index lost');
-                operations.push({ method, id: c.operationId, fullPrepareMs, fullCommitMs, prepareMs, ...metrics, transactionMs: saved.transactionMs, lineagePrepareMs: saved.lineagePrepareMs, lineageAfterMs: saved.lineageAfterMs, confirmationMs: saved.confirmationMs, readMs, changedRows: op.changedRows });
+                operations.push({ method, id: c.operationId, fullPrepareMs, fullCommitMs, prepareMs, ...metrics, transactionMs: saved.transactionMs, lineagePrepareMs: saved.lineagePrepareMs, lineageAfterMs: saved.lineageAfterMs, confirmationMs: saved.confirmationMs, readMs, changedRows: op.changedRows,photoBytesHydrated:view.photoBytesHydrated,newImages:saved.receipt.newImages });
             }
             const state = await db.open(), hashes = Object.fromEntries(['executions', 'revisions', 'evidence'].map(t => [t, new Map(plan.tables[t].map(r => [r.key, r.hash]))]));
             for (const t of Object.keys(hashes))
@@ -146,9 +154,9 @@ const { chromium } = require('playwright'), assert = require('node:assert/strict
             old.close();
             target.close();
             return { executions: 5000, revisions: 501, photoBytes: plan.images.reduce((n, i) => n + i.size, 0), images: plan.images.length, previousOpenMs, openMs, previousSessionError, previousAttemptMs, operations, exportMs, importMs, restoreMs, heap, allHistoricalHashesEqual: true, photoHashesEqual: true };
-        });
+        },process.env.FULLHOUSE_ROUTINES_ALTERNATIVE_SAFETY==='1');
         assert.ok(result.photoBytes > 42000000);
-        console.log(JSON.stringify({ base: '0e9e25c', browser: browser.version(), comparison: 'previous session rejected; full validation comparator separate; same facts/bytes; single desktop sample', result }, null, 2));
+        console.log(JSON.stringify({ base: process.env.FULLHOUSE_ROUTINES_ALTERNATIVE_SAFETY==='1'?'beff908':'0e9e25c', browser: browser.version(), comparison: 'previous session rejected; full validation comparator separate; same facts/bytes; single desktop sample', result }, null, 2));
     }
     finally {
         if (browser)

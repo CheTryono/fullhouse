@@ -4,6 +4,9 @@ Base `33bd80a` (PR #14), rama `feature/history-calendar-proof-v2`.
 **Motor puro implementado, sin integrar en B.2 ni en Planner. Producción permanece v1.**
 No prepara ni confirma saveEvent, shiftEvent o deleteEvent. No activa 4C.
 
+Actualización B.3a.1: [alternativas B.2 y prueba de estados locales](HISTORY_V2_CALENDAR_HARDENING.md).
+B.2 comparte ahora la barrera de helpers aprobados, no el verificador general.
+
 ## 1. Inventario exacto de reglas actuales
 
 La fuente de semántica es `app.tsx`; `scripts/history-browser.cjs` extrae las funciones
@@ -46,11 +49,10 @@ Tres limitaciones se reproducen sin modificar producción:
 2. repeatCollision devuelve false para every365 desde 2000-01-01 y every366 desde
    2000-01-11; existe coocurrencia 129940 días después del primer origen. No es
    aceptable interpretar ese false como demostración de ausencia.
-3. `storage-routines.choices()` usa `__base` como centinela. Una variante legítima
-   con ese ID puede ocultar el estado sin elección. Un bloque de diez minutos con
-   base de veinte y variante de diez reproduce la omisión. El nuevo motor usa
-   ausencia de clave para la base. B.2 no se declara corregido: esta ruta requiere
-   revisión antes de reutilizar su catálogo como autorización en B.3.
+3. En esa base, `storage-routines.choices()` usaba `__base` como centinela.
+   B.3a.1 corrige el catálogo y su reproducción ahora exige base ausente y variante
+   real. La escritura completa antes fallaba por reserva global del codec; ahora
+   admite la plantilla actual, pero no una revisión capturada ambigua. Ver HARDENING.
 
 Samoa aporta otro contraejemplo a una sustitución UTC: con origen 2011-12-29,
 every2 no ocurre el 31 según el cálculo local de Apia, aunque la diferencia civil
@@ -344,7 +346,7 @@ Después se verifica el calendario restante y la conservación por clave/hash de
 | --- | --- |
 | Modelo matemático UTC, resultados y certificados | Aprobado en Node/Chromium para el dominio y presupuestos descritos |
 | Worker/cancelación, sin historial/fotos | Implementado y verificado; latencia física móvil/otros motores pendiente |
-| Verificador B.2 reemplazado por el nuevo | No implementado deliberadamente; centinela B.2 requiere seguimiento |
+| Verificador B.2 reemplazado por el nuevo | No reemplazado; B.3a.1 corrige catálogo B.2 y su cobertura semanal local |
 | Recurrencias indefinidas en zona local arbitraria | No implementado; bloqueadas conservadoramente |
 | Dominio experimental y política de timezone pública | Decisión pendiente antes de activación |
 | saveEvent/shiftEvent/deleteEvent por alcance | No implementado; B.3b/c requieren autorización nueva |
@@ -356,9 +358,10 @@ Después se verifica el calendario restante y la conservación por clave/hash de
 Recomendación: revisar este motor y las restricciones temporales antes de autorizar
 B.3b. Puede servir de base experimental para componentes demostrables UTC o rangos
 locales finitos; no justifica desbloquear todos los calendarios locales indefinidos.
-El siguiente cambio mínimo debe corregir la enumeración base de B.2 o integrar de
-forma optativa este motor con pruebas de paridad, y acordar el tratamiento de capturas
-situadas en el corte. No se empieza esa intervención automáticamente.
+B.3a.1 ya corrige la enumeración base y las garantías semanales locales de B.2.
+El dominio del verificador general sigue igual: fuera de UTC requiere through explícito.
+Acordar cortes/capturas y el dominio de las operaciones sigue siendo obligatorio;
+no se empieza B.3b automáticamente.
 
 Checkpoints conservados: investigación e8b0659 con corrección del arnés 87786aa;
 motor/contrato y 36 pruebas Node en 38341be; cierre de presupuestos, navegador,

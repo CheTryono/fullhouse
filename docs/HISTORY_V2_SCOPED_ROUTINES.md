@@ -52,7 +52,8 @@ No se emplea schedulePreview (máximo ocho filas) como certificado del calendari
 
 - Inicios, finales, fechas específicas y excepciones delimitan segmentos.
 - none/dates/daily/weekly/weekdays/custom son semanales o puntuales entre límites;
-  siete fechas consecutivas por segmento cubren todas las clases de día posibles.
+  desde B.3a.1 se observan los siete weekdays locales reales, o se agota el segmento.
+  Siete etiquetas consecutivas no bastaban en Apia. Ver CALENDAR_HARDENING.
 - monthly/yearly/every con final se comprueban día a día durante su actividad.
 - Una recurrencia indefinida monthly/yearly/every en el componente se bloquea: B.2
   no demuestra su periodicidad completa. No se usa un horizonte arbitrario.
@@ -275,8 +276,26 @@ antes de terminar este cierre documental.
 El [motor puro de calendario](HISTORY_V2_CALENDAR_PROOF.md) demuestra nuevos casos
 mensuales/anuales/every en UTC o agota rangos locales finitos. **No está integrado**
 en esta ruta B.2. Se conserva su rechazo conservador de calendarios no demostrables.
-Nueva reproducción: choices() reserva __base aunque una variante puede tener ese ID,
-omitiendo así el estado sin elección en el catálogo. El nuevo motor enumera ausencia
-de clave y no tiene ese defecto. La ruta B.2 requiere seguimiento antes de ser usada
-como autorización general; no se afirma paridad exacta para ese caso. No se cambió
-Planner ni la persistencia como parte de esta investigación.
+Hallazgo de esa base: choices() reservaba __base y omitía el estado sin elección.
+Corregido posteriormente en B.3a.1: ambos catálogos enumeran base ausente y variante
+real. El codec distingue plantillas actuales de revisiones capturadas; no se amplía
+silenciosamente el formato de elecciones históricas.
+
+
+## B.3a.1 · garantía local y alternativas (base beff908)
+
+[Informe normativo de esta revisión](HISTORY_V2_CALENDAR_HARDENING.md). 16 pruebas
+nuevas, transacciones reales y corpus grande verificados. proofDates admite parseDay
+inyectado; fuera de UTC es obligatorio. buildChange usa siempre el helper real con
+huella aprobada. Su prueba devuelve zona/dominio/segmentos y cubre todos los estados
+semanales o todas las etiquetas finitas, sin extrapolar every/monthly/yearly locales.
+
+La zona se fija al preparar y se comprueba antes/dentro/después del commit. Cambiarla
+bloquea reutilizar una prueba previa; recuperación reconstruye el comando. Fechas fuera
+de 0100–9999 se bloquean, no se migran. El adaptador rechaza nuevas capturas de fechas
+normalizadas y conserva el contexto de ejecuciones existentes.
+
+Las plantillas actuales pueden contener variante __base válida si todas las opciones
+caben; revisiones nuevas con ese ID continúan bloqueadas por ambigüedad del formato.
+No se declara solucionada esa compatibilidad de captura/adopción ni la interfaz React.
+Producción y esquema v1 intactos. B.3b no ha comenzado; 4C continúa bloqueada.

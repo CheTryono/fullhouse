@@ -1,3 +1,33 @@
+# BUG-05 · B.3a.1: alternativas B.2 y garantías locales
+
+- Base beff908 (PR #15), rama fix/history-calendar-alternative-safety-v2; checkpoint
+  A 1441697. Tres pruebas iniciales fallaron antes del arreglo; después pasan.
+- choices() representa la base por ausencia de clave. Incluye variantes __base reales,
+  ramas anidadas/inactivas y combinaciones completas; rechaza IDs ambiguos por ámbito.
+- Aclaración de la reproducción anterior: el catálogo omitía la base, pero el codec
+  rechazaba globalmente ese ID antes de escribir. Ahora lo permite en plantillas
+  actuales; conserva reserva en revisiones históricas y significado de elecciones viejas.
+  Capturar/adoptar esa definición sigue bloqueado hasta aprobar formato inequívoco.
+- Corregida otra omisión experimental: Apia 2011 necesita nueve etiquetas para cubrir
+  los siete weekdays. B.2 comprueba estados semanales reales o agota segmentos finitos;
+  comparte la huella de semántica B.3a. No deduce garantías locales a partir de UTC.
+- Nuevas capturas de fechas locales normalizadas se bloquean: no congelar una variante
+  de viernes cuando Date local devuelve sábado. Capturas anteriores no se reinterpretan.
+- Preparación/commit de rutinas fijan y comprueban la zona; recuperar en otra zona exige
+  reconstrucción y validación nueva. Sin cambiar esquema, linaje, raíces ni formatos.
+- Node: check/tipos correctos; regresión 164; contratos 231 + 6 TODO; npm test 395
+  aprobadas + 6 TODO y único fallo conocido público BUG-05. 16 pruebas nuevas reales.
+- Chromium: rutinas/fallos, calendario/Worker, almacenamiento/linaje, integración/legado,
+  guardado pendiente y horarios; nuevas suites de alternativas, recuperación y cuatro
+  zonas, incluida America/Mexico_City. Sin Firefox/WebKit ni teléfonos físicos.
+- Corpus 5000 ejecuciones, 501 revisiones, 42175847 bytes JPEG/PNG: hashes históricos y
+  fotos conservados; variante __base preparada en ~21 ms, cero imágenes hidratadas/nuevas.
+  Muestra única; no atribuir una mejora al centinela ni prometer memoria móvil.
+- Auditoría deja explícitos preview __fh_preview__, cortes addDays en fechas inexistentes,
+  diccionarios/IDs y capturas ambiguas. No se corrige producción sin autorización.
+- Informe y condiciones de dominio para B.3b: docs/HISTORY_V2_CALENDAR_HARDENING.md.
+  app.tsx/app.js/workflow y v1 intactos; sin migración, publicación ni comienzo B.3b/4C.
+
 # BUG-05 · 4B.3b B.3a: motor puro de demostración del calendario
 
 - Base 33bd80a (PR #14), rama feature/history-calendar-proof-v2. Checkpoints

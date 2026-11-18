@@ -22,8 +22,9 @@ No es un compromiso de fechas ni autorización de despliegue.
 | ✅ | BUG-05 fase 4B.3: preparación técnica aislada | PR #11 fusionada, main d1dae11; incremental/Worker, recuperación y capacidad. No preparado para 4C |
 | ✅ | BUG-05 fase 4B.3b · A: autoridad persistente | PR #12 fusionada, main cc1d901; manifiesto/cadena, vigilancia y barrera física 2, solo laboratorio |
 | ✅ | BUG-05 fase 4B.3b · B.1: metas y revisiones por alcance | PR #13 fusionada, main 0e9e25c; sin activación pública |
-| ✅ | BUG-05 fase 4B.3b · B.2: rutinas por alcance | PR #14 fusionada, main 33bd80a; creación/edición/eliminación aisladas. Límites conservadores y hallazgo de centinela documentado en CALENDAR_PROOF |
-| 🔄 | BUG-05 fase 4B.3b · B.3a: demostración del calendario | Motor puro UTC/períodos/segmentos, prueba finita local y Worker verificados; pendiente revisión. Sin integración de escrituras. Ver CALENDAR_PROOF |
+| ✅ | BUG-05 fase 4B.3b · B.2: rutinas por alcance | PR #14 fusionada, main 33bd80a; creación/edición/eliminación aisladas. Límites conservadores; centinela corregido en B.3a.1 y límites de captura documentados en CALENDAR_HARDENING |
+| ✅ | BUG-05 fase 4B.3b · B.3a: demostración del calendario | PR #15 fusionada, main beff908; motor puro, sin activación pública |
+| 🔄 | BUG-05 B.3a.1: alternativas y garantías locales | Checkpoint A 1441697; catálogo seguro, estados semanales locales, guardas de captura/zona y pruebas. Pendiente revisión; ver CALENDAR_HARDENING |
 | ⬜ | BUG-05 fase 4B.3b · B.3b/B.3c: programación por alcance | Crear/editar/desplazar/eliminar, cortes históricos, series y dependencias. Requiere autorización; no iniciados |
 | ⬜ | BUG-05 fase 4B.3b · B.4: adopción por alcance | Tramo nuevo explícito, conservación de legado y evidencias |
 | ⬜ | Otros bloqueos antes de 4C | Privacidad aprobada, paridad React, fuentes grandes/cadenas largas y otros motores/dispositivos |
