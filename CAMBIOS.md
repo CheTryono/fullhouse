@@ -1,3 +1,33 @@
+# BUG-05 · fase 4B.3: preparación técnica aislada
+
+- Base main 35ca45c (PR #10). Ruta incremental por capacidades verificadas para
+  ejecuciones existentes y primera captura; revisión/evento/foto se confirman en una TX.
+- Lecturas por alcance/página, fotografías Blob bajo demanda, hashes solo de cambios
+  y raíz compatible sobre catálogo. Apertura/importación/exportación conservan revisión
+  completa. Corrupción conocida bloquea escritores mediante cuarentena persistente.
+- Worker para construcciones grandes; lotes acotados y eliminación de búsquedas
+  cuadráticas en verificación. Subárboles previamente congelados se comparten.
+- Paquetes .fhrecovery conservan candidato/comando/ID/borradores sin afirmar guardado;
+  replay validado, recibos perdidos, cancelación explícita y restauración aparte.
+  Diagnóstico .fhdiagnostic conserva stores/blobs reconocidos sin fingir respaldo válido.
+- .fharchive conserva formato y límites; salida por chunks con close/abort y snapshot
+  validado. No se exportan archivos parciales como completos.
+- Laboratorio /readiness aislado, cinco paletas y teclado; análisis de referencias de
+  fotos sin borrado. Purga solo demostrada en vault sintético, sin política irreversible.
+- Medición antes/después contra Git 35ca45c sobre mismo corpus: 5.000 ejecuciones,
+  501 revisiones, 42,2 MB de fotos; memoria retenida medida en ventanas nuevas.
+  Capacidad adicional: 1.095 ejecuciones y 379 fotos / 27,2 MB con año de foto diaria.
+- Se prepara toggleMilestone mediante método real extraído; Planner público sigue igual.
+- Check/tipos correctos; regresión 164; contrato 150 aprobadas y 6 TODO. npm test:
+  314 aprobadas, 6 TODO y único fallo conocido BUG-05 (salida 1).
+- Chromium: preparación 76, UI 70, fotos 4; suites anteriores 65/28/120/186 y
+  guardado/horarios públicos aprobados. Firefox/WebKit no disponibles: descarga 403.
+- No preparado para 4C: falta autoridad persistente de fuentes (incremental sobre
+  datos migrados bloqueado), planificación multi-entidad escalable, paridad React,
+  política de privacidad y pruebas en otros motores/dispositivos. Sin activar ni migrar.
+
+---
+
 # BUG-05 · fase 4B.2: compatibilidad histórica aislada
 
 - Base main 52dbe4d (PR #9). Diario opcional recordEdits: hechos originales,

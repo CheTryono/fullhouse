@@ -8,7 +8,7 @@ export interface CompatSession {
  save(document:DocumentV2|Frozen<DocumentV2>,id:string):Promise<Frozen<SessionState>>;
  edit(key:string,command:EditCommand):Promise<Frozen<SessionState>>;native(request:NativeRequest):Promise<Frozen<SessionState>>;adopt(key:string,request:Adoption):Promise<Frozen<SessionState>>;
  retry():Promise<Frozen<SessionState>>;
- plan(method:'saveRoutine'|'saveEvent'|'shiftEvent'|'deleteRoutine'|'deleteEvent'|'saveGoal'|'saveProgress'|'saveDayReview',payload:unknown,context:{today:string;ids:string[];operationId:string;confirm?:boolean;state?:Record<string,unknown>}):Promise<Frozen<SessionState>>;
+ plan(method:'saveRoutine'|'saveEvent'|'shiftEvent'|'deleteRoutine'|'deleteEvent'|'saveGoal'|'saveProgress'|'saveDayReview'|'toggleMilestone',payload:unknown,context:{today:string;ids:string[];operationId:string;confirm?:boolean;state?:Record<string,unknown>}):Promise<Frozen<SessionState>>;
  photo(target:{kind:'legacy';key:string}|{kind:'native';request:NativeRequest},process:()=>Promise<Evidence>,command:EditCommand|NativeRequest):Promise<Frozen<SessionState>>;
  packet():unknown;resume(value:unknown):Frozen<SessionState>;setDraft(key:string,value:unknown):void;clearDraft(key:string):void;
 }

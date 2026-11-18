@@ -80,7 +80,10 @@ async function verifyPlan(plan,legacy){
   requireValue(plan?.format===1 && Array.isArray(plan.images),'Formato físico incompatible');
   const headerFields=['version','goalIds','routineIds','eventIds','revisionIds','logKeys','reviewDates','dayReviewsPresent'];
   requireValue(plan.header && Object.keys(plan.header).length===headerFields.length && headerFields.every(k=>Object.hasOwn(plan.header,k)) && plan.header.version===2 && typeof plan.header.dayReviewsPresent==='boolean','Encabezado físico incompatible');
-  const all=new Set();for(const t of TABLES){requireValue(Array.isArray(plan.tables[t]),'Store ausente');const seen=new Set();for(const r of plan.tables[t]){requireValue(Object.keys(r).every(k=>(t==='executions'?['key','value','hash','day','executionId','seriesDay']:['key','value','hash']).includes(k)),'Campo físico desconocido');requireValue(!seen.has(r.key) && r.hash===await sha256(canonical(r.value)),'Metadatos corruptos/duplicados');seen.add(r.key);} }
+  const all=new Set();for(const t of TABLES){requireValue(Array.isArray(plan.tables[t]),'Store ausente');const seen=new Set();for(const r of plan.tables[t]){requireValue(Object.keys(r).every(k=>(t==='executions'?['key','value','hash','day','executionId','seriesDay']:['key','value','hash']).includes(k)),'Campo físico desconocido');requireValue(!seen.has(r.key),'Metadatos duplicados');seen.add(r.key);}
+    // Lotes acotados: mismas comprobaciones, sin miles de await secuenciales.
+    for(let i=0;i<plan.tables[t].length;i+=128)await Promise.all(plan.tables[t].slice(i,i+128).map(async r=>requireValue(r.hash===await sha256(canonical(r.value)),'Metadatos corruptos')));
+  }
   for(const row of plan.tables.executions){const v=row.value,c=v.log?.history?.capture,day=c?.scheduledDate || /@(\d{4}-\d{2}-\d{2})$/.exec(row.key)?.[1];requireValue(Object.keys(v).length===4 && typeof v.hasEvidences==='boolean' && Array.isArray(v.evidenceKeys) && new Set(v.evidenceKeys).size===v.evidenceKeys.length && v.owner===(c?'execution:'+c.executionId:'legacy:'+row.key) && row.executionId===c?.executionId && same(row.seriesDay,c?[c.seriesId,c.scheduledDate]:undefined) && row.day===day,'Identidad/índice físico inválido');}
   for(const row of plan.tables.evidence)requireValue(Object.keys(row.value).every(k=>['id','kind','caption','stepId','createdAt','owner','hash','mime'].includes(k)) && row.key===canonical([row.value.owner,row.value.id]),'Referencia física de evidencia inválida');
   for(const image of plan.images){requireValue(!all.has(image.hash) && image.blob instanceof Blob && image.size>0 && image.size<=8*1024*1024 && image.size===image.blob.size && image.hash===await bytesHash(image.blob),'Imagen corrupta');all.add(image.hash);}
@@ -88,7 +91,7 @@ async function verifyPlan(plan,legacy){
   const sourceIds=new Set();for(const source of plan.sourceBackups || []){requireValue(source && Object.keys(source).length===5 && ['main','alias'].includes(source.source) && typeof source.migrationId==='string' && source.id===canonical([source.migrationId,source.source]) && !sourceIds.has(source.id) && (source.raw===null || typeof source.raw==='string'),'Copia de fuente inválida/duplicada');requireValue(source.hash===(source.raw===null?null:await sha256(source.raw)),'Original de migración corrupto');sourceIds.add(source.id);}
   const doc=structuralDocument(plan);validateMetadata(doc,legacy);requireValue(plan.rootHash===await rootHash(plan),'Integridad raíz inválida');
   // Todas las filas deben estar referenciadas por el encabezado o sus ejecuciones.
-  for(const [t,field] of [['goals','goalIds'],['routines','routineIds'],['events','eventIds'],['revisions','revisionIds'],['executions','logKeys'],['reviews','reviewDates']]){const ids=plan.header[field];requireValue(Array.isArray(ids) && ids.every(k=>typeof k==='string') && new Set(ids).size===ids.length && ids.length===plan.tables[t].length && ids.every(k=>plan.tables[t].some(r=>r.key===k)),'Filas ocultas o duplicadas');}
+  for(const [t,field] of [['goals','goalIds'],['routines','routineIds'],['events','eventIds'],['revisions','revisionIds'],['executions','logKeys'],['reviews','reviewDates']]){const ids=plan.header[field],keys=new Set(plan.tables[t].map(r=>r.key));requireValue(Array.isArray(ids) && ids.every(k=>typeof k==='string') && new Set(ids).size===ids.length && ids.length===plan.tables[t].length && ids.every(k=>keys.has(k)),'Filas ocultas o duplicadas');}
   requireValue(plan.header.dayReviewsPresent || plan.tables.reviews.length===0,'Revisiones diarias ocultas');
   const owners=new Set(plan.tables.executions.flatMap(r=>r.value.evidenceKeys));requireValue(owners.size===plan.tables.evidence.length,'Evidencias sin dueño');return plan;
 }
@@ -105,4 +108,4 @@ function retainHistory(oldTables,next){
   }
   for(const row of oldTables.evidence)requireValue(same(row.value,evidence.get(row.key)?.value),'No se elimina ni sustituye evidencia');
 }
-module.exports={TABLES,prepareDocument,verifyPlan,hydrate,rootHash,bytesHash,retainHistory};
+module.exports={TABLES,prepareDocument,verifyPlan,hydrate,rootHash,bytesHash,retainHistory,structuralDocument,validateMetadata,dataURL};

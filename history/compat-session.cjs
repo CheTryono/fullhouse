@@ -22,7 +22,7 @@ function createCompatSession({database,compat,legacy,plannerActions,engine}){
  async function adopt(key,request){ready();return save(compat.adopt(confirmed,key,request).after,request.id);}
  async function retry(){if(busy||!pending||recovery)throw Error('No hay pendiente reintentable');busy=true;try{await write();}finally{busy=false;}return state();}
  async function plan(method,payload,context){ready();context=copy(context);
-   const allowed=['saveRoutine','saveEvent','shiftEvent','deleteRoutine','deleteEvent','saveGoal','saveProgress','saveDayReview'];if(!allowed.includes(method))throw Error('Formulario no permitido');
+   const allowed=['saveRoutine','saveEvent','shiftEvent','deleteRoutine','deleteEvent','saveGoal','saveProgress','saveDayReview','toggleMilestone'];if(!allowed.includes(method))throw Error('Formulario no permitido');
    const before=confirmed;const collection={saveRoutine:'routines',saveEvent:'events',saveGoal:'goals'}[method];if(collection && payload.id && !before[collection].some(x=>x.id===payload.id))throw Error('El elemento a editar ya no existe');
    if(method==='deleteRoutine'&&!before.routines.some(x=>x.id===payload.id))throw Error('La rutina ya no existe');if(['deleteEvent','shiftEvent'].includes(method)&&!before.events.some(x=>x.id===(payload.eventId || payload.id)))throw Error('La actividad ya no existe');
    const {controller,result}=plannerActions(copy(before),{...context,state:context.state});
@@ -31,6 +31,7 @@ function createCompatSession({database,compat,legacy,plannerActions,engine}){
    if(method==='shiftEvent')await controller.shiftEvent(before.events.find(e=>e.id===payload.eventId),payload.date,payload.delta);
    else if(method==='deleteRoutine')await controller.deleteRoutine(before.routines.find(r=>r.id===payload.id));
    else if(method==='deleteEvent')await controller.deleteEvent(before.events.find(e=>e.id===payload.id));
+   else if(method==='toggleMilestone')await controller.toggleMilestone(payload.goalId,payload.milestoneId);
    else await controller[method]();
    const {candidate,messages}=result();if(!candidate)throw Error(messages.join('\n')||'Formulario rechazado');
    candidate.logs=copy(before.logs);candidate.recipeRevisions=copy(before.recipeRevisions);

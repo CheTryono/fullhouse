@@ -1,5 +1,10 @@
 # BUG-05 · fase 4B.2: compatibilidad experimental
 
+> Preparación 4B.3: [rendimiento, recuperación y matriz de salida](HISTORY_V2_READINESS.md).
+> El acceso incremental y los artefactos nuevos siguen aislados. No cambian Data2
+> público ni activan migración. Las limitaciones de fases anteriores se actualizan
+> en ese informe; 4C permanece bloqueado.
+
 Base `52dbe4d` (PR #9). No activa v2, IndexedDB ni cambios de Planner público.
 
 ## Diseño previo a la extensión

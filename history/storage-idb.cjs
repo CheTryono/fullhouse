@@ -5,7 +5,7 @@ const {sha256}=require('./persistence.cjs');
 const {proposeMigration,inspectSources,fingerprint:sourceFingerprint}=require('./storage-sources.cjs');
 const STORES=['control',...TABLES,'images','commits','candidates','sources'];
 // Solo nombres de laboratorio y factory explícito: no se abre una DB al importar.
-function createLabDatabase({factory,name,legacy}){
+function createLabDatabase({factory,name,legacy,schedule}){
   if(typeof name!=='string' || !name.startsWith('fullhouse-lab-'))throw Error('Solo bases de laboratorio');let connection=null;
   async function connect(){
     if(connection)return connection;if(!factory?.open)throw Error('IndexedDB no disponible');
@@ -30,14 +30,14 @@ function createLabDatabase({factory,name,legacy}){
     let head;try{head=verifiedHead(rows);}catch(error){fail(error);return;}
     const plan=head?{format:1,header:head.header,rootHash:head.rootHash,tables:Object.fromEntries(TABLES.map(t=>[t,rows[t]])),sourceBackups:rows.sources,images:rows.images.filter(i=>rows.evidence.some(e=>e.value.hash===i.hash))}:null;
     const headReceipt=head?rows.commits.find(c=>c.id===head.id):null;
-    done({head,headReceipt,plan,conflict:rows.control.find(r=>r.key==='source-conflict') || null,candidates:rows.candidates.map(c=>({id:c.id,rootHash:c.rootHash || c.plan.rootHash,status:c.status})),sources:rows.sources,receipts:rows.commits.length,storedImages:rows.images.length});
+    done({head,headReceipt,plan,conflict:rows.control.find(r=>r.key==='source-conflict'||r.key==='integrity-block') || null,candidates:rows.candidates.map(c=>({id:c.id,rootHash:c.rootHash || c.plan.rootHash,status:c.status})),sources:rows.sources,receipts:rows.commits.length,storedImages:rows.images.length});
   },fail));}
   async function open(){try{const snapshot=await read();if(snapshot.head && (snapshot.head.format!==1 || !Number.isSafeInteger(snapshot.head.generation) || snapshot.head.generation<1 || snapshot.headReceipt?.rootHash!==snapshot.head.rootHash || snapshot.headReceipt?.generation!==snapshot.head.generation))throw Error('Cabecera/recibo incompatibles');if(snapshot.plan)await verifyPlan(snapshot.plan,legacy);if(snapshot.conflict)return {status:'recovery',error:'Fuentes divergentes tras commit',...snapshot};return {status:snapshot.head?'ready':snapshot.candidates.length?'candidate-awaiting-confirmation':'empty',...snapshot};}catch(error){return {status:'recovery',error:error.name+': '+error.message};}}
   async function commit(plan,{expected=null,id,replace=false,fault=null,migrationId=null}={}){
     plan=freeze(structuredClone(plan));await verifyPlan(plan,legacy);const operationHash=await sha256(canonical({rootHash:plan.rootHash,sources:(plan.sourceBackups || []).map(s=>[s.id,s.hash]).sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0)}));if(typeof id!=='string'||!id.trim())throw Error('Identidad de operación necesaria');
     const receipt=await transaction(STORES,'readwrite',(tx,done,fail)=>fetchAll(tx,STORES,rows=>{
       try{
-        if(rows.control.some(r=>r.key==='source-conflict'))throw Error('Fuentes divergentes: escritura bloqueada');
+        if(rows.control.some(r=>r.key==='source-conflict'||r.key==='integrity-block'))throw Error('Fuentes divergentes: escritura bloqueada');
         const previous=rows.commits.find(c=>c.id===id),head=verifiedHead(rows);
         if(previous){if(previous.rootHash!==plan.rootHash || previous.operationHash!==operationHash)throw Error('ID reutilizado para otra operación');done({...previous,repeated:true});return;}
         if((head?.generation || 0)!==(expected?.generation || 0) || (head?.rootHash || null)!==(expected?.rootHash || null))throw Error('Operación obsoleta');
@@ -65,7 +65,7 @@ function createLabDatabase({factory,name,legacy}){
     const rebuilt=await proposeMigration(proposal.sources,proposal.selection,legacy);if(rebuilt.plan.rootHash!==proposal.plan.rootHash || canonical(rebuilt.fingerprint)!==canonical(proposal.fingerprint))throw Error('Candidato no equivale a la fuente v1');
     await verifyPlan(proposal.plan,legacy);if(typeof id!=='string'||!id.trim())throw Error('ID de migración necesario');
     await transaction(STORES,'readwrite',(tx,done,fail)=>fetchAll(tx,STORES,rows=>{
-      try{if(rows.control.some(r=>r.key==='source-conflict'))throw Error('Fuentes divergentes');const previous=rows.candidates.find(c=>c.id===id),head=verifiedHead(rows);
+      try{if(rows.control.some(r=>r.key==='source-conflict'||r.key==='integrity-block'))throw Error('Fuentes divergentes');const previous=rows.candidates.find(c=>c.id===id),head=verifiedHead(rows);
         if(previous){if((previous.rootHash || previous.plan.rootHash)!==proposal.plan.rootHash || previous.selection!==proposal.selection || canonical(previous.fingerprint)!==canonical(proposal.fingerprint))throw Error('Migración repetida diferente');done();return;}
         if((head?.generation || 0)!==(expected?.generation || 0) || (head?.rootHash || null)!==(expected?.rootHash || null))throw Error('Base de migración obsoleta');
         for(const source of ['main','alias'])tx.objectStore('sources').add({id:canonical([id,source]),migrationId:id,source,raw:proposal.sources[source],hash:proposal.fingerprint[source]});
@@ -95,7 +95,9 @@ function createLabDatabase({factory,name,legacy}){
 
   async function listExecutions(day,limit=100){if(!Number.isSafeInteger(limit)||limit<1||limit>1000)throw Error('Límite de consulta inválido');return transaction(['executions'],'readonly',(tx,done,fail)=>{const rows=[],request=tx.objectStore('executions').index('byDay').openCursor(globalThis.IDBKeyRange.only(day));request.onerror=()=>fail(request.error);request.onsuccess=()=>{const cursor=request.result;if(!cursor || rows.length>=limit){done(rows);return;}rows.push(cursor.value);cursor.continue();};});}
   async function readEvidence(owner,id){const value=await transaction(['evidence','images'],'readonly',(tx,done,fail)=>{const e=tx.objectStore('evidence').get(canonical([owner,id]));e.onerror=()=>fail(e.error);e.onsuccess=()=>{if(!e.result){done(null);return;}const image=tx.objectStore('images').get(e.result.value.hash);image.onerror=()=>fail(image.error);image.onsuccess=()=>done({evidence:e.result.value,image:image.result});};});if(!value)return null;const {bytesHash}=require('./storage-model.cjs');if(!value.image || await bytesHash(value.image.blob)!==value.evidence.hash)throw Error('Evidencia corrupta');return {...value.evidence,blob:value.image.blob};}
+  async function exportDiagnostic(){const rows=await transaction(STORES,'readonly',(tx,done,fail)=>fetchAll(tx,STORES,done,fail));return require('./storage-diagnostic.cjs').exportDiagnostic(rows);}
   function close(){if(connection){connection.close();connection=null;}}
-  return Object.freeze({open,read,commit,stageMigration,verifyCandidate,finalizeMigration,listExecutions,readEvidence,close});
+  const incremental=schedule?require('./storage-incremental.cjs').createIncrementalAccess({open,transaction,legacy,schedule}):null;
+  return Object.freeze({exportDiagnostic,incremental,open,read,commit,stageMigration,verifyCandidate,finalizeMigration,listExecutions,readEvidence,close});
 }
 module.exports={createLabDatabase,STORES};

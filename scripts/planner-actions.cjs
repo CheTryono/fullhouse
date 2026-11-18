@@ -1,7 +1,7 @@
 'use strict';
 // Extrae operaciones reales, sin constructor, carga inicial ni acceso a Storage.
 const ts=require('typescript'),fs=require('node:fs'),path=require('node:path');
-const members=['routineIssue','schedulePreview','betweenDayIssue','cancelFutureDependencies','saveRoutine','saveEvent','shiftEvent','deleteRoutine','deleteEvent','saveGoal','saveProgress','saveDayReview','toggleStep','toggleEvent','saveOccurrenceNote','saveEvidence','deleteEvidence','selectVariant'];
+const members=['routineIssue','schedulePreview','betweenDayIssue','cancelFutureDependencies','saveRoutine','saveEvent','shiftEvent','deleteRoutine','deleteEvent','saveGoal','saveProgress','saveDayReview','toggleMilestone','toggleStep','toggleEvent','saveOccurrenceNote','saveEvidence','deleteEvidence','selectVariant'];
 function plannerSource(){
   const ast=ts.createSourceFile('app.tsx',fs.readFileSync(path.join(__dirname,'../app.tsx'),'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
   const functions=new Map(),constants=new Map();

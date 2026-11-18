@@ -1,21 +1,26 @@
 'use strict';
-const {parse,canonical}=require('./json.cjs');
+const {parse,canonical,freeze}=require('./json.cjs');
 const {TABLES,verifyPlan}=require('./storage-model.cjs');
 const {sha256}=require('./persistence.cjs');
 const MAGIC='FULLHOUSE-ARCHIVE-1\n',MAX_FRAME=16*1024*1024;
 function prefix(size){if(!Number.isSafeInteger(size)||size<0||size>MAX_FRAME)throw Error('Parte de respaldo demasiado grande');const b=new Uint8Array(4);new DataView(b.buffer).setUint32(0,size);return b;}
 function jsonFrame(value){const bytes=new TextEncoder().encode(JSON.stringify(value));return [prefix(bytes.length),bytes];}
-async function exportArchive(plan,legacy){
-  await verifyPlan(plan,legacy);
+async function* archiveChunks(input,legacy){
+  const plan=freeze(structuredClone(input));await verifyPlan(plan,legacy);
   if(TABLES.reduce((n,t)=>n+plan.tables[t].length,0)>100000 || plan.images.length>10000 || (plan.sourceBackups || []).length>1000)throw Error('El archivo excede el presupuesto portable del prototipo');
   const sources=plan.sourceBackups || [],sourceDescriptors=await Promise.all(sources.map(async s=>({id:s.id,hash:await sha256(canonical(s))})));
   const manifest={format:'fullhouse-history-archive',version:1,storageFormat:1,header:plan.header,rootHash:plan.rootHash,counts:Object.fromEntries(TABLES.map(t=>[t,plan.tables[t].length])),images:plan.images.map(({hash,size})=>({hash,size})),sources:sourceDescriptors};
-  manifest.checksum=await sha256(canonical(manifest));
-  const parts=[MAGIC,...jsonFrame(manifest)];
-  for(const t of TABLES)for(const row of plan.tables[t])parts.push(...jsonFrame({store:t,row}));
-  for(const source of sources)parts.push(...jsonFrame(source));
-  for(const image of plan.images)parts.push(prefix(image.size),image.blob);
-  const result=new Blob(parts,{type:'application/octet-stream'});if(result.size>512*1024*1024)throw Error('Archivo mayor a 512 MiB; conservar datos y revisar presupuesto');return result;
+  manifest.checksum=await sha256(canonical(manifest));let total=0;
+  async function* bounded(parts){for(const part of parts){total+=typeof part==='string'?new TextEncoder().encode(part).length:part.size ?? part.byteLength;if(total>512*1024*1024)throw Error('Archivo mayor a 512 MiB; conservar datos');yield part;}}
+  yield* bounded([MAGIC,...jsonFrame(manifest)]);
+  for(const t of TABLES)for(const row of plan.tables[t])yield* bounded(jsonFrame({store:t,row}));
+  for(const source of sources)yield* bounded(jsonFrame(source));
+  for(const image of plan.images)yield* bounded([prefix(image.size),image.blob]);
+}
+async function exportArchive(plan,legacy){const parts=[];for await(const chunk of archiveChunks(plan,legacy))parts.push(chunk);return new Blob(parts,{type:'application/octet-stream'});}
+async function writeArchive(plan,legacy,sink){
+  if(!sink || !['write','close','abort'].every(k=>typeof sink[k]==='function'))throw Error('Destino transaccional/incompleto no permitido');
+  try{for await(const chunk of archiveChunks(plan,legacy))await sink.write(chunk);await sink.close();return {complete:true};}catch(e){await sink.abort(e);throw e;}
 }
 async function importArchive(blob,legacy){
   if(!(blob instanceof Blob) || blob.size>512*1024*1024)throw Error('Respaldo no compatible o mayor a 512 MiB del prototipo');
@@ -33,4 +38,4 @@ async function importArchive(blob,legacy){
   if(offset!==blob.size)throw Error('Datos adicionales no reconocidos');
   const plan={format:1,header:manifest.header,tables,images,rootHash:manifest.rootHash,sourceBackups};await verifyPlan(plan,legacy);return plan;
 }
-module.exports={exportArchive,importArchive};
+module.exports={exportArchive,importArchive,writeArchive};
