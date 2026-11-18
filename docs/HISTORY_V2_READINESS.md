@@ -419,3 +419,16 @@ TODO no se eliminan. Resultados y limitaciones detallados en LINEAGE_SCOPED.
 También se completaron IndexedDB 65 y lector 120. No quedan procesos de prueba
 activos al cerrar la verificación. El primer intento interrumpido y el diagnóstico
 con timeout se documentan en LINEAGE_SCOPED; la repetición original terminó con salida 0.
+
+
+## Avance B.1 sobre cc1d901 (experimental)
+
+[Metas y revisiones por alcance](HISTORY_V2_SCOPED_GOALS.md) incorpora saveGoal,
+saveProgress, toggleMilestone y saveDayReview, con la misma autoridad y formato.
+B.2 (rutinas), B.3 (programación) y B.4 (adopción incremental) siguen pendientes.
+La aplicación pública continúa en v1; esta actualización no habilita 4C ni modifica
+las limitaciones de concurrencia y privacidad del hito A.
+
+B.1 verificado: metas/revisiones incrementales y recuperación; corpus grande con
+raíces/fotos iguales. La memoria informada (~66 MB en ambas modalidades) no demuestra
+reducción; faltan procesos frescos/dispositivos. Detalle y métricas en SCOPED_GOALS.

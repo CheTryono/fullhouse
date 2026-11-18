@@ -1,0 +1,355 @@
+{
+  "base": "cc1d901",
+  "initialAuthority": {
+    "base": "cc1d901",
+    "browser": "156.0.8078.79",
+    "result": {
+      "sourceBytesUTF16": 8389508,
+      "receipts": 501,
+      "openMs": 253.70000000018626,
+      "reopenMs": 353.79999999981374,
+      "auditMs": 99.90000000037253,
+      "samples": [
+        {
+          "receipts": 2,
+          "prepareMs": 3.7999999998137355,
+          "transactionMs": 2.7000000001862645,
+          "lineagePrepareMs": 90.20000000018626,
+          "confirmationMs": 68,
+          "lineageAfterMs": 67
+        },
+        {
+          "receipts": 101,
+          "prepareMs": 20.399999999441206,
+          "transactionMs": 3.3999999994412065,
+          "lineagePrepareMs": 103.1000000005588,
+          "confirmationMs": 172.1000000005588,
+          "lineageAfterMs": 169.59999999962747
+        },
+        {
+          "receipts": 251,
+          "prepareMs": 66.59999999962747,
+          "transactionMs": 7.099999999627471,
+          "lineagePrepareMs": 114.70000000018626,
+          "confirmationMs": 75.70000000018626,
+          "lineageAfterMs": 70.90000000037253
+        },
+        {
+          "receipts": 501,
+          "prepareMs": 106.30000000074506,
+          "transactionMs": 23.100000000558794,
+          "lineagePrepareMs": 115.69999999925494,
+          "confirmationMs": 75.59999999962747,
+          "lineageAfterMs": 68.29999999981374
+        }
+      ],
+      "conflictPersistent": true,
+      "heap": 83968064
+    }
+  },
+  "scopedGoals": {
+    "base": "cc1d901",
+    "browser": "156.0.8078.79",
+    "comparison": "same facts; previous session attempted and rejected; full-validation comparator reported separately; one sample; desktop only",
+    "result": {
+      "executions": 5000,
+      "revisions": 501,
+      "images": 65,
+      "photoBytes": 42175847,
+      "beforeOpenMs": 4540.200000000186,
+      "afterOpenMs": 1386.1000000005588,
+      "previousSessionError": "Documento demasiado complejo",
+      "previousAttemptMs": 97.79999999981374,
+      "operations": [
+        {
+          "method": "saveGoal",
+          "fullPrepareMs": 7283.9000000003725,
+          "fullCommitMs": 2916.600000000559,
+          "prepareMs": 18.09999999962747,
+          "transactionMs": 6,
+          "lineagePrepareMs": 4.2000000001862645,
+          "confirmationMs": 3.7000000001862645,
+          "lineageAfterMs": 0.09999999962747097,
+          "readMs": 2.8999999994412065,
+          "changedRows": 1
+        },
+        {
+          "method": "saveGoal",
+          "fullPrepareMs": 7137.600000000559,
+          "fullCommitMs": 2750.4000000003725,
+          "prepareMs": 29.199999999254942,
+          "transactionMs": 40.5,
+          "lineagePrepareMs": 10.5,
+          "confirmationMs": 14.900000000372529,
+          "lineageAfterMs": 0.10000000055879354,
+          "readMs": 3,
+          "changedRows": 2
+        },
+        {
+          "method": "saveProgress",
+          "fullPrepareMs": 6503,
+          "fullCommitMs": 2642.4000000003725,
+          "prepareMs": 15.099999999627471,
+          "transactionMs": 6.199999999254942,
+          "lineagePrepareMs": 3.6000000005587935,
+          "confirmationMs": 3.7000000001862645,
+          "lineageAfterMs": 0.10000000055879354,
+          "readMs": 2.6000000005587935,
+          "changedRows": 1
+        },
+        {
+          "method": "saveGoal",
+          "fullPrepareMs": 6688.299999999814,
+          "fullCommitMs": 2683.7999999998137,
+          "prepareMs": 13.599999999627471,
+          "transactionMs": 14.799999999813735,
+          "lineagePrepareMs": 3.800000000745058,
+          "confirmationMs": 5,
+          "lineageAfterMs": 0.2999999998137355,
+          "readMs": 6.8999999994412065,
+          "changedRows": 1
+        },
+        {
+          "method": "saveProgress",
+          "fullPrepareMs": 6974.799999999814,
+          "fullCommitMs": 2566.800000000745,
+          "prepareMs": 26.09999999962747,
+          "transactionMs": 17.299999999813735,
+          "lineagePrepareMs": 11,
+          "confirmationMs": 3.6000000005587935,
+          "lineageAfterMs": 0.10000000055879354,
+          "readMs": 3,
+          "changedRows": 1
+        },
+        {
+          "method": "saveGoal",
+          "fullPrepareMs": 6662.5,
+          "fullCommitMs": 2642.5999999996275,
+          "prepareMs": 12.900000000372529,
+          "transactionMs": 7.099999999627471,
+          "lineagePrepareMs": 3.7999999998137355,
+          "confirmationMs": 3.6000000005587935,
+          "lineageAfterMs": 0,
+          "readMs": 4,
+          "changedRows": 1
+        },
+        {
+          "method": "toggleMilestone",
+          "fullPrepareMs": 6611.299999999814,
+          "fullCommitMs": 2511.2000000001863,
+          "prepareMs": 13.199999999254942,
+          "transactionMs": 7.2000000001862645,
+          "lineagePrepareMs": 6.7000000001862645,
+          "confirmationMs": 4.7000000001862645,
+          "lineageAfterMs": 0.09999999962747097,
+          "readMs": 4.5,
+          "changedRows": 1
+        },
+        {
+          "method": "toggleMilestone",
+          "fullPrepareMs": 6734.5999999996275,
+          "fullCommitMs": 2590.100000000559,
+          "prepareMs": 12.899999999441206,
+          "transactionMs": 7.5,
+          "lineagePrepareMs": 3.7999999998137355,
+          "confirmationMs": 3.7000000001862645,
+          "lineageAfterMs": 0.10000000055879354,
+          "readMs": 3.6000000005587935,
+          "changedRows": 1
+        },
+        {
+          "method": "saveDayReview",
+          "fullPrepareMs": 6720.4000000003725,
+          "fullCommitMs": 2746.7999999998137,
+          "prepareMs": 13.100000000558794,
+          "transactionMs": 6.2000000001862645,
+          "lineagePrepareMs": 3.8999999994412065,
+          "confirmationMs": 3.900000000372529,
+          "lineageAfterMs": 0.09999999962747097,
+          "readMs": 3.599999999627471,
+          "changedRows": 1
+        },
+        {
+          "method": "saveGoal",
+          "fullPrepareMs": 7234.4000000003725,
+          "fullCommitMs": 2750.2000000001863,
+          "prepareMs": 16.399999999441206,
+          "transactionMs": 5.6000000005587935,
+          "lineagePrepareMs": 5,
+          "confirmationMs": 3.3999999994412065,
+          "lineageAfterMs": 0,
+          "readMs": 2.6000000005587935,
+          "changedRows": 2
+        },
+        {
+          "method": "saveGoal",
+          "fullPrepareMs": 6480,
+          "fullCommitMs": 2578.2000000001863,
+          "prepareMs": 12.799999999813735,
+          "transactionMs": 7.2000000001862645,
+          "lineagePrepareMs": 3.8999999994412065,
+          "confirmationMs": 3.5,
+          "lineageAfterMs": 0,
+          "readMs": 3.6000000005587935,
+          "changedRows": 1
+        }
+      ],
+      "repeated": [
+        {
+          "count": 1,
+          "prepareMs": 11.699999999254942,
+          "transactionMs": 6.6000000005587935,
+          "confirmationMs": 2.7999999998137355,
+          "lineagePrepareMs": 3.5
+        },
+        {
+          "count": 25,
+          "prepareMs": 17.200000000186265,
+          "transactionMs": 5.2000000001862645,
+          "confirmationMs": 3.2000000001862645,
+          "lineagePrepareMs": 4.8999999994412065
+        },
+        {
+          "count": 50,
+          "prepareMs": 18.200000000186265,
+          "transactionMs": 5.800000000745058,
+          "confirmationMs": 2.599999999627471,
+          "lineagePrepareMs": 5.2999999998137355
+        }
+      ],
+      "fullVerificationMs": 1203.5999999996275,
+      "exportMs": 1302.5999999996275,
+      "importMs": 5879.5,
+      "restoreMs": 3462.399999999441,
+      "archiveBytes": 49660205,
+      "heap": {
+        "usedJSHeapSize": 340711181,
+        "totalJSHeapSize": 398214549
+      },
+      "allHistoricalHashesEqual": true,
+      "photoHashesEqual": true,
+      "retainedHeap": [
+        {
+          "mode": "previous-session",
+          "gcAvailable": true,
+          "root": "ad47d3df5e413e8b522ceab40390a3d341011d9f8a48260a7133d05a7d30efb1",
+          "used": 66115442
+        },
+        {
+          "mode": "scoped-window",
+          "gcAvailable": true,
+          "root": "ad47d3df5e413e8b522ceab40390a3d341011d9f8a48260a7133d05a7d30efb1",
+          "used": 65994666
+        }
+      ]
+    }
+  },
+  "smallParity": {
+    "base": "cc1d901",
+    "browser": "156.0.8078.79",
+    "results": [
+      {
+        "width": 1280,
+        "operations": 12,
+        "retries": 3,
+        "recovery": true,
+        "stale": true,
+        "corrupt": true,
+        "legacyAndAdoptedPreserved": true,
+        "restore": true,
+        "sourceBlocked": true,
+        "orphan": true,
+        "realTwoTabs": true
+      },
+      {
+        "width": 390,
+        "operations": 12,
+        "retries": 3,
+        "recovery": true,
+        "stale": true,
+        "corrupt": true,
+        "legacyAndAdoptedPreserved": true,
+        "restore": true,
+        "sourceBlocked": true,
+        "orphan": true,
+        "realTwoTabs": true
+      }
+    ]
+  },
+  "faults": {
+    "base": "cc1d901",
+    "browser": "156.0.8078.79",
+    "quota": {
+      "error": "No se confirmó el guardado (QuotaExceededError). Conserva el candidato y reintenta.",
+      "generation": 1
+    },
+    "retry": {
+      "generation": 2,
+      "id": "quota"
+    },
+    "readFailure": {
+      "pendingKept": true,
+      "generation": 3
+    },
+    "reopened": {
+      "generation": 1,
+      "goals": 0,
+      "events": 0
+    }
+  },
+  "authorityAndGoalAfterChain": {
+    "base": "cc1d901",
+    "browser": "156.0.8078.79",
+    "result": {
+      "sourceBytesUTF16": 8389508,
+      "receipts": 502,
+      "executionReceipts": 501,
+      "goalAfterChain": {
+        "prepareMs": 10.799999999813735,
+        "transactionMs": 1.8999999994412065,
+        "lineagePrepareMs": 121.90000000037253,
+        "confirmationMs": 70.20000000018626,
+        "lineageAfterMs": 69
+      },
+      "openMs": 350.3999999994412,
+      "reopenMs": 348.8999999994412,
+      "auditMs": 89.19999999925494,
+      "samples": [
+        {
+          "receipts": 2,
+          "prepareMs": 4.6000000005587935,
+          "transactionMs": 6.099999999627471,
+          "lineagePrepareMs": 104.09999999962747,
+          "confirmationMs": 95.79999999981374,
+          "lineageAfterMs": 94.59999999962747
+        },
+        {
+          "receipts": 101,
+          "prepareMs": 20.699999999254942,
+          "transactionMs": 9,
+          "lineagePrepareMs": 110.5,
+          "confirmationMs": 66.90000000037253,
+          "lineageAfterMs": 64.5
+        },
+        {
+          "receipts": 251,
+          "prepareMs": 50.700000000186265,
+          "transactionMs": 7.5,
+          "lineagePrepareMs": 107.5,
+          "confirmationMs": 83,
+          "lineageAfterMs": 74.59999999962747
+        },
+        {
+          "receipts": 501,
+          "prepareMs": 117.70000000018626,
+          "transactionMs": 8.5,
+          "lineagePrepareMs": 119.8999999994412,
+          "confirmationMs": 81.6000000005588,
+          "lineageAfterMs": 73.40000000037253
+        }
+      ],
+      "conflictPersistent": true,
+      "heap": 93161885
+    }
+  }
+}

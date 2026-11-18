@@ -1,3 +1,25 @@
+# BUG-05 · 4B.3b B.1: metas, progreso, hitos y revisiones incrementales
+
+- Base cc1d901 (PR #12), rama feature/history-scoped-goals-v2. Checkpoint básico
+  5e22a8b; cuatro operaciones aisladas mediante métodos reales extraídos de Planner.
+- Lectura de metas/relaciones y revisión diaria sin hidratar ejecuciones ni fotos.
+  Preparación de proyección mínima, hashes de cambios y raíz sobre catálogo existente.
+- Meta y review-* se confirman juntos con autoridad/cabeza/recibo; eliminación acotada
+  del evento de revisión propio, nunca de logs ni evidencias. Se conserva orden de IDs.
+- Sesión separa confirmado/candidato/borradores; reintentos estables, lectura posterior,
+  recuperación binaria y rechazo de obsolescencia/corrupción/fuentes divergentes.
+- Instante explícito solo en extractor experimental; producción conserva reloj y v1.
+  Revisión diaria usa today, no selectedDate; reemplaza su nota como antes, sin auditoría
+  inventada. Historial de progreso y capturas permanecen conservados.
+- Guardas documentadas: referencias nuevas inválidas/cíclicas, hito desaparecido,
+  colisión review-*, reutilización de ID capturado y revisión que excede el día.
+- Linaje inicial comprobado con fuentes sintéticas grandes y 501 recibos. Resultados
+  ampliados y límites: docs/HISTORY_V2_SCOPED_GOALS.md.
+- Verificado: check/tipos; regresión 164, contratos 163 + 6 TODO; npm test 327
+  aprobadas + 6 TODO y único fallo conocido BUG-05. Chromium: linaje 101, IDB 65,
+  legado 186, integración 28; suites nuevas de metas, fallos y capacidad aprobadas.
+- B.2/B.3/B.4 y 4C pendientes. Sin cambios públicos, migración, workflow ni borrado físico.
+
 # BUG-05 · fase 4B.3b, hito A: autoridad persistente aislada
 
 - Base d1dae11 (PR #11), rama feature/history-lineage-scoped-v2. Hito B pendiente

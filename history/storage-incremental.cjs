@@ -16,7 +16,7 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
     let integrityBlocked = false;
     const tokens = new WeakMap(), operations = new WeakMap(), engine = createEngine(legacy), adapter = createAdapter(schedule), compat = createLegacyCompat({ legacy, engine, adapter });
     const fail = s => { throw Error(s); };
-    function token(plan, head) { const t = Object.freeze({ format: 'verified-history-window', generation: head.generation, rootHash: head.rootHash }); tokens.set(t, { plan, head, maps: Object.fromEntries(TABLES.map(n => [n, new Map(plan.tables[n].map(r => [r.key, r]))])), assets: new Map(plan.images.map(i => [i.hash, i])) }); return t; }
+    function token(plan, head, previousGoalIds=null) { const t = Object.freeze({ format: 'verified-history-window', generation: head.generation, rootHash: head.rootHash }); tokens.set(t, { plan, head, historicalGoalIds:previousGoalIds||new Set(plan.tables.executions.flatMap(r=>(r.value.log.history?.capture.plan.goals||[]).map(g=>g.id))), maps: Object.fromEntries(TABLES.map(n => [n, new Map(plan.tables[n].map(r => [r.key, r]))])), assets: new Map(plan.images.map(i => [i.hash, i])) }); return t; }
     const base = t => integrityBlocked ? fail('Verificación completa falló: recuperación explícita necesaria') : tokens.get(t) || fail('Ventana no verificada o de otra conexión');
     async function quarantine(reason) {
         integrityBlocked = true;
@@ -170,35 +170,54 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
         return seal(b, plan, changed, images, id, scopeRecords(s), started, { key, command: cmd });
     }
     async function verifyRows(b, records) {
-        const actual=await transaction(['control','commits',...new Set(records.map(r=>r.store))],'readonly',(tx,done,abort)=>fetch(tx,[['head','control','head'],['conflict','control','source-conflict'],['integrity','control','integrity-block'],['lineage','control','lineage-conflict'],['receipt','commits',b.head.id],...records.map((r,i)=>['row'+i,r.store,r.row.key])],v=>{try{guard(v.head,v.conflict||v.integrity||v.lineage,v.receipt,b);done(v);}catch(e){abort(e);}},abort));
-        for(let i=0;i<records.length;i++)if(!same(actual['row'+i],records[i].row)||await sha256(canonical(actual['row'+i].value))!==actual['row'+i].hash){await quarantine('Entidad relacionada corrupta');fail('Entidad relacionada corrupta');}
-    }
-    async function readGoal(t,id) {
-        const started=clock(),b=base(t),records=require('./storage-goals.cjs').relatedRows(b.plan,id);await verifyRows(b,records);
-        return freeze({goal:copy(b.maps.goals.get(id)?.value||null),related:records.map(r=>({store:r.store,key:r.row.key,value:copy(r.row.value)})),photoBytesHydrated:0,readMs:clock()-started});
-    }
-    async function readDayReview(t,date) {
-        const started=clock(),b=base(t),row=b.maps.reviews.get(date);await verifyRows(b,row?[{store:'reviews',row}]:[]);
-        return freeze({date,review:copy(row?.value||null),photoBytesHydrated:0,readMs:clock()-started});
-    }
-    async function preparePlanning(t,method,payload,context) {
-        if(!protocol)fail('Las operaciones B.1 requieren wrapper con linaje');
-        const started=clock(),b=base(t),goals=require('./storage-goals.cjs'),scope=goals.selectScope(b.plan,method,payload,context);await verifyRows(b,scope.rows);
-        const {partial,request}=await goals.buildChange(scope,{legacy,schedule,plannerActions}),changed=[],tables={...b.plan.tables};
-        for(const store of ['goals','events','reviews']) {
-            for(const row of partial.tables[store])if(!same(row,b.maps[store].get(row.key)))changed.push({store,row});
+        const actual = await transaction(['control', 'commits', ...new Set(records.map(r => r.store))], 'readonly', (tx, done, abort) => fetch(tx, [['head', 'control', 'head'], ['conflict', 'control', 'source-conflict'], ['integrity', 'control', 'integrity-block'], ['lineage', 'control', 'lineage-conflict'], ['receipt', 'commits', b.head.id], ...records.map((r, i) => ['row' + i, r.store, r.row.key])], v => { try {
+            guard(v.head, v.conflict || v.integrity || v.lineage, v.receipt, b);
+            done(v);
         }
-        const reviewId='review-'+request.goalId;
-        if(method==='saveGoal'&&b.maps.events.has(reviewId)&&!partial.tables.events.some(r=>r.key===reviewId))changed.push({store:'events',row:b.maps.events.get(reviewId),deleted:true});
-        for(const store of ['goals','events','reviews']) {
-            const deltas=changed.filter(c=>c.store===store),updates=new Map(deltas.map(c=>[c.row.key,c]));
-            tables[store]=b.plan.tables[store].filter(r=>!updates.get(r.key)?.deleted).map(r=>updates.get(r.key)?.row||r).concat(deltas.filter(c=>!c.deleted&&!b.maps[store].has(c.row.key)).map(c=>c.row));
+        catch (e) {
+            abort(e);
+        } }, abort));
+        for (let i = 0; i < records.length; i++)
+            if (!same(actual['row' + i], records[i].row) || await sha256(canonical(actual['row' + i].value)) !== actual['row' + i].hash) {
+                await quarantine('Entidad relacionada corrupta');
+                fail('Entidad relacionada corrupta');
+            }
+    }
+    async function readGoal(t, id) {
+        const started = clock(), b = base(t), records = require('./storage-goals.cjs').relatedRows(b.plan, id);
+        await verifyRows(b, records);
+        return freeze({ goal: copy(b.maps.goals.get(id)?.value || null), related: records.map(r => ({ store: r.store, key: r.row.key, value: copy(r.row.value) })), photoBytesHydrated: 0, readMs: clock() - started });
+    }
+    async function readDayReview(t, date) {
+        const started = clock(), b = base(t), row = b.maps.reviews.get(date);
+        await verifyRows(b, row ? [{ store: 'reviews', row }] : []);
+        return freeze({ date, review: copy(row?.value || null), photoBytesHydrated: 0, readMs: clock() - started });
+    }
+    async function preparePlanning(t, method, payload, context) {
+        if (!protocol)
+            fail('Las operaciones B.1 requieren wrapper con linaje');
+        const started = clock(), b = base(t), goals = require('./storage-goals.cjs'), scope = goals.selectScope(b.plan, method, payload, context);
+        if(method==='saveGoal'&&!scope.request.payload.id&&b.historicalGoalIds.has(scope.request.goalId))fail('El ID reservado ya pertenece a una meta histórica');
+        await verifyRows(b, scope.rows);
+        const { partial, request } = await goals.buildChange(scope, { legacy, schedule, plannerActions }), changed = [], tables = { ...b.plan.tables };
+        for (const store of ['goals', 'events', 'reviews']) {
+            for (const row of partial.tables[store])
+                if (!same(row, b.maps[store].get(row.key)))
+                    changed.push({ store, row });
         }
-        const header={...b.plan.header,goalIds:[...b.plan.header.goalIds,...changed.filter(c=>c.store==='goals'&&!b.maps.goals.has(c.row.key)).map(c=>c.row.key)],reviewDates:[...b.plan.header.reviewDates,...changed.filter(c=>c.store==='reviews'&&!b.maps.reviews.has(c.row.key)).map(c=>c.row.key)],dayReviewsPresent:b.plan.header.dayReviewsPresent||method==='saveDayReview'};
+        const reviewId = 'review-' + request.goalId;
+        if (method === 'saveGoal' && b.maps.events.has(reviewId) && !partial.tables.events.some(r => r.key === reviewId))
+            changed.push({ store: 'events', row: b.maps.events.get(reviewId), deleted: true });
+        for (const store of ['goals', 'events', 'reviews']) {
+            const deltas = changed.filter(c => c.store === store), updates = new Map(deltas.map(c => [c.row.key, c]));
+            tables[store] = b.plan.tables[store].filter(r => !updates.get(r.key)?.deleted).map(r => updates.get(r.key)?.row || r).concat(deltas.filter(c => !c.deleted && !b.maps[store].has(c.row.key)).map(c => c.row));
+        }
+        const header = { ...b.plan.header, goalIds: [...b.plan.header.goalIds, ...changed.filter(c => c.store === 'goals' && !b.maps.goals.has(c.row.key)).map(c => c.row.key)], reviewDates: [...b.plan.header.reviewDates, ...changed.filter(c => c.store === 'reviews' && !b.maps.reviews.has(c.row.key)).map(c => c.row.key)], dayReviewsPresent: b.plan.header.dayReviewsPresent || method === 'saveDayReview' };
         // Planner coloca review-* al final al editar, incluso si la fila no cambia.
-        header.eventIds=method==='saveGoal'?[...b.plan.header.eventIds.filter(id=>id!==reviewId),...partial.tables.events.map(r=>r.key)]:b.plan.header.eventIds;
-        const plan={...b.plan,tables,header};plan.rootHash=await model.rootHash(plan);
-        return seal(b,plan,changed,[],request.context.operationId,scope.rows,started,{kind:'planning',method,payload:request.payload,context:request.context});
+        header.eventIds = method === 'saveGoal' ? [...b.plan.header.eventIds.filter(id => id !== reviewId), ...partial.tables.events.map(r => r.key)] : b.plan.header.eventIds;
+        const plan = { ...b.plan, tables, header };
+        plan.rootHash = await model.rootHash(plan);
+        return seal(b, plan, changed, [], request.context.operationId, scope.rows, started, { kind: 'planning', method, payload: request.payload, context: request.context });
     }
     async function seal(b, plan, changed, images, id, scopeRows, started, command = null) {
         const order = (a, b) => a < b ? -1 : a > b ? 1 : 0;
@@ -364,7 +383,7 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
             }
         }
         const checkedAt=clock();if(protocol)await protocol.confirmed(context,snapshot);const lineageAfterMs=clock()-checkedAt;
-        return { status: 'confirmed', receipt, token: token(op.plan, freeze(snapshot.head)), writeMs, transactionMs, lineagePrepareMs, lineageAfterMs, confirmationMs: clock() - readAt };
+        return { status: 'confirmed', receipt, token: token(op.plan, freeze(snapshot.head),op.command?.kind==='planning'?b.historicalGoalIds:null), writeMs, transactionMs, lineagePrepareMs, lineageAfterMs, confirmationMs: clock() - readAt };
     }
     async function page(t, { after = null, limit = 50, date = null } = {}) {
         const b = base(t);

@@ -199,3 +199,33 @@ dos pestañas, barreras físicas/capacidades, abortos/cuota real, acuse perdido,
 operaciones obsoletas, restauración/fotos y UI. Node añade cuatro contratos reales;
 los seis TODO y BUG-05 público permanecen. El benchmark no mide las operaciones B
 que siguen pendientes. [Contrato, límites y resultados](../../docs/HISTORY_V2_LINEAGE_SCOPED.md).
+
+
+## Metas incrementales · 4B.3b B.1
+
+```sh
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-goals.cjs
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-goals-faults.cjs
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-goals-performance.cjs
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-goals-lineage-stress.cjs
+```
+
+Solo orígenes loopback, bases fullhouse-lab-* y datos sintéticos. El benchmark grande
+y las suites grandes de almacenamiento deben ejecutarse secuencialmente para evitar
+competencia entre corpus y presión de memoria. No se añaden dependencias al proyecto.
+Las nueve pruebas Node nuevas se incluyen en test:history-contract; tipos incluidos
+en check:history-contract. Los seis TODO y BUG-05 público se mantienen.
+
+Paridad pequeña con la sesión anterior: 12 operaciones por viewport 1280/390, legado,
+adopción, dos pestañas reales, corrupción, fuentes y respaldo completo. Fallos:
+cuota real antes de abrir DB en perfil desechable, lectura posterior inyectada,
+reintento y cierre durante TX de meta/review. El viewport de 390 px no es un teléfono.
+
+El corpus grande conserva 5.000 capturas completadas, 501 versiones y 42,2 MB de fotos.
+La sesión anterior rechaza ese corpus por complejidad: el benchmark separa ese rechazo
+del comparador de validación física completa, cuya igualdad de raíz sí comprueba.
+No confundir heap informado con memoria total ni atribuir reducciones no demostradas.
+El estrés de linaje usa fuentes de 8,4 MB UTF-16 y 500 ediciones antes de crear una
+meta con revisión; no afirma que ambas fuentes quepan en localStorage real.
+
+[Arquitectura, resultados y límites](../../docs/HISTORY_V2_SCOPED_GOALS.md).
