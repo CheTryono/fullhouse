@@ -452,3 +452,23 @@ no prueban un escritor v2 público que todavía no existe. BUG-05 original no ca
 No hay `skip`; los TODO no cuentan como aprobados. Los registros reales no se usan.
 El [protocolo](../docs/HISTORY_V2_PERSISTENCE.md) enumera limitaciones: puertos nativos,
 resolución manual completa, capacidad, legado y formularios/adjuntos públicos.
+
+
+## Laboratorio de almacenamiento · fase 4B.1
+
+Prototipo IndexedDB aislado, no disponible en Planner. Iniciar con
+`node scripts/serve-history-lab.cjs` y abrir `/storage` en el puerto indicado.
+Solo fuentes sintéticas, selección/confirmación explícitas y bases `fullhouse-lab-*`.
+No abrir en el origen público ni cargar información personal.
+
+```sh
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-storage.cjs
+```
+
+65 casos Chromium con IndexedDB real, escritorio/móvil; cuota nativa, interrupción,
+crash de proceso descartable, concurrencia, archivo completo y nueve respaldos antiguos.
+Playwright externo y Chromium son requisitos de desarrollo; sin dependencias nuevas.
+9 pruebas Node nuevas en `tests/history-contract.storage.test.cjs`, incluidas por
+`npm run test:history-contract`; cinco TODO de integración pública permanecen.
+La reproducción pública BUG-05 debe seguir fallando hasta integrar las pantallas.
+[Decisión, medidas e inventario pendiente](../docs/HISTORY_V2_STORAGE_DECISION.md).

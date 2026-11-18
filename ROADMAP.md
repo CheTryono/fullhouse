@@ -16,8 +16,10 @@ No es un compromiso de fechas ni autorización de despliegue.
 | ✅ | BUG-05 fase 1: contrato histórico, compatibilidad y pruebas | PR #5 fusionada; main 5e1f683; reproducción pública todavía fallida |
 | ✅ | BUG-05 fase 2: motor y codec aislados | PR #6 fusionada; main 31f2ae3; sin activación pública |
 | ✅ | BUG-05 fase 3: lectura y progreso históricos | PR #7 fusionada; main 4324abc. Laboratorio aislado; Planner sigue en v1 |
-| 🔄 | BUG-05 fase 4A: integración y persistencia simuladas | Puente a operaciones reales, confirmado/pendiente, dos ranuras/manifiesto y recuperación probados en Map. Pendiente de revisión; sin activación |
-| ⬜ | BUG-05 fase 4B: cerrar compatibilidad e integración nativa | Resolver legado/fotos/cuotas, puertos reales en previsualización, todas las rutas, concurrencia y rollback; autorización separada antes de activar |
+| ✅ | BUG-05 fase 4A: integración y persistencia simuladas | PR #8 fusionada; main 470212c; sin activación pública |
+| 🔄 | BUG-05 fase 4B.1: arquitectura y migración sintética | IndexedDB, archivo portable y laboratorio; 65 casos Chromium; pendiente de revisión |
+| ⬜ | BUG-05 fase 4B.2: compatibilidad funcional | Adopción de legado, edición/evidencias, borradores y todas las rutas actuales |
+| ⬜ | BUG-05 fase 4B.3: preparación de activación | Rendimiento/móvil real, recuperación, concurrencia antigua, capacidad y rollback; autorización separada |
 | ⬜ | Automatizar pruebas en GitHub Actions | Separar pruebas que deben pasar y error conocido explícito; no ocultarlo |
 | ⬜ | Entorno de previsualización por PR | Aislado de datos y publicación de producción |
 | ⬜ | Organizar tareas y solicitudes de funcionalidades | Issues, prioridades, criterios de aceptación y relación con PR |

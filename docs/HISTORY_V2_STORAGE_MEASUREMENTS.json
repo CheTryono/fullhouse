@@ -1,0 +1,143 @@
+{
+  "base": "470212c",
+  "node": "v24.22.1",
+  "browser": "156.0.8078.79",
+  "cases": 65,
+  "metrics": [
+    {
+      "width": 1280,
+      "closure": {
+        "generation": 1,
+        "note": "Nota sintética conservada"
+      },
+      "executions": 5000,
+      "revisions": 501,
+      "images": 65,
+      "evidenceLinks": 66,
+      "jpegBytes": 38295636,
+      "pngBytes": 3880270,
+      "blobBytes": 42175847,
+      "archiveBytes": 49538150,
+      "prepareMs": 4905,
+      "writeReadbackMs": 2700,
+      "exportMs": 848,
+      "importMs": 3850,
+      "totalMs": 37980,
+      "originUsage": 131284992,
+      "originQuota": 10868703232,
+      "largeMigration": {
+        "sourceCharacters": 9962687,
+        "logs": 7,
+        "images": 7,
+        "imageBytes": 7470296,
+        "nativeCaptures": 0,
+        "sourceCopiesPreserved": true
+      },
+      "delta": {
+        "metadataRows": 1,
+        "newImages": 0,
+        "writeAndFullVerificationMs": 2499
+      },
+      "dayAndPhotoQueryMs": 4,
+      "crossOrigin": {
+        "root": "63fa704f650cd08d8ea5843df03e8e0662f3ce713413780400c9d8999878b356",
+        "images": 65,
+        "records": 5000
+      },
+      "alternatives": {
+        "inlineCharacters": 67227235,
+        "metadataCharacters": 7172309,
+        "smallInlineCharacters": 3313,
+        "smallMetadataCharacters": 4376,
+        "smallWritesMs": 8,
+        "previousAUnchanged": true,
+        "previousCUnchanged": true,
+        "aError": "QuotaExceededError",
+        "cError": "QuotaExceededError",
+        "aMs": 27,
+        "cMs": 2,
+        "metadataFailed": true,
+        "orphanCount": 1,
+        "previous": "confirmed"
+      },
+      "quota": {
+        "error": "QuotaExceededError: ",
+        "unchanged": true,
+        "images": 1,
+        "reportedQuota": 10737442647,
+        "reportedUsage": 24407
+      },
+      "processCrash": {
+        "generation": 2,
+        "note": "Confirmed before crash",
+        "images": 1
+      },
+      "denied": "SecurityError"
+    },
+    {
+      "width": 390,
+      "closure": {
+        "generation": 1,
+        "note": "Nota sintética conservada"
+      },
+      "executions": 5000,
+      "revisions": 501,
+      "images": 65,
+      "evidenceLinks": 66,
+      "jpegBytes": 38295636,
+      "pngBytes": 3880270,
+      "blobBytes": 42175847,
+      "archiveBytes": 49538150,
+      "prepareMs": 4830,
+      "writeReadbackMs": 2585,
+      "exportMs": 847,
+      "importMs": 3771,
+      "totalMs": 36352,
+      "originUsage": 131284992,
+      "originQuota": 10868703232,
+      "largeMigration": {
+        "sourceCharacters": 9962687,
+        "logs": 7,
+        "images": 7,
+        "imageBytes": 7470296,
+        "nativeCaptures": 0,
+        "sourceCopiesPreserved": true
+      },
+      "delta": {
+        "metadataRows": 1,
+        "newImages": 0,
+        "writeAndFullVerificationMs": 2418
+      },
+      "dayAndPhotoQueryMs": 4,
+      "alternatives": {
+        "inlineCharacters": 67227235,
+        "metadataCharacters": 7172309,
+        "smallInlineCharacters": 3313,
+        "smallMetadataCharacters": 4376,
+        "smallWritesMs": 7,
+        "previousAUnchanged": true,
+        "previousCUnchanged": true,
+        "aError": "QuotaExceededError",
+        "cError": "QuotaExceededError",
+        "aMs": 25,
+        "cMs": 2,
+        "metadataFailed": true,
+        "orphanCount": 1,
+        "previous": "confirmed"
+      },
+      "quota": {
+        "error": "QuotaExceededError: ",
+        "unchanged": true,
+        "images": 1,
+        "reportedQuota": 10737442647,
+        "reportedUsage": 24407
+      },
+      "processCrash": {
+        "generation": 2,
+        "note": "Confirmed before crash",
+        "images": 1
+      },
+      "denied": "SecurityError"
+    }
+  ]
+}
