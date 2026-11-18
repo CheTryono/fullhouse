@@ -43,7 +43,7 @@ async function verifyAuthority(a, head, receipts) {
         fail('Génesis o punta inconsistentes');
     return true;
 }
-function createLineageDatabase({ factory, name, legacy, schedule, readSources, writerCapabilities = CAPS, readOnly = false }) {
+function createLineageDatabase({ factory, name, legacy, schedule, plannerActions=null, readSources, writerCapabilities = CAPS, readOnly = false }) {
     if (typeof readSources !== 'function')
         fail('readSources inyectado es obligatorio');
     const capabilities = copy(writerCapabilities), readonly = readOnly || !Array.isArray(capabilities) || !CAPS.every(c => capabilities.includes(c));
@@ -198,7 +198,7 @@ function createLineageDatabase({ factory, name, legacy, schedule, readSources, w
             fail('Autoridad no confirmada');
         } await watch(authority.origin.fingerprints); }
     };
-    db = require('./storage-idb.cjs').createLabDatabase({ factory, name, legacy, schedule, physicalVersion: 2, protocol, readOnly: readonly });
+    db = require('./storage-idb.cjs').createLabDatabase({ factory, name, legacy, schedule, plannerActions, physicalVersion: 2, protocol, readOnly: readonly });
     async function stageMigration(proposal, options) { proposal = freeze(structuredClone(proposal)); options = freeze(structuredClone(options)); protocol.assertWritable(); const s = await db.protocolSnapshot(); if (s.head)
         fail('No se prepara otra migración sobre una autoridad activa'); await watch(proposal.fingerprint, proposal.sources); const result = await db.stageMigration(proposal, options); await watch(proposal.fingerprint, proposal.sources); return result; }
     async function finalizeMigration(id, { confirm = false, ...options } = {}) { if (!confirm)

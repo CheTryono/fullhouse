@@ -12,7 +12,7 @@ function freezeShared(value) {
     return Object.freeze(value);
 }
 const clock = () => globalThis.performance?.now() ?? Date.now();
-function createIncrementalAccess({ open, transaction, legacy, schedule, protocol=null }) {
+function createIncrementalAccess({ open, transaction, legacy, schedule, protocol=null, plannerActions=null }) {
     let integrityBlocked = false;
     const tokens = new WeakMap(), operations = new WeakMap(), engine = createEngine(legacy), adapter = createAdapter(schedule), compat = createLegacyCompat({ legacy, engine, adapter });
     const fail = s => { throw Error(s); };
@@ -169,11 +169,42 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
         plan.rootHash = await model.rootHash(plan);
         return seal(b, plan, changed, images, id, scopeRecords(s), started, { key, command: cmd });
     }
+    async function verifyRows(b, records) {
+        const actual=await transaction(['control','commits',...new Set(records.map(r=>r.store))],'readonly',(tx,done,abort)=>fetch(tx,[['head','control','head'],['conflict','control','source-conflict'],['integrity','control','integrity-block'],['lineage','control','lineage-conflict'],['receipt','commits',b.head.id],...records.map((r,i)=>['row'+i,r.store,r.row.key])],v=>{try{guard(v.head,v.conflict||v.integrity||v.lineage,v.receipt,b);done(v);}catch(e){abort(e);}},abort));
+        for(let i=0;i<records.length;i++)if(!same(actual['row'+i],records[i].row)||await sha256(canonical(actual['row'+i].value))!==actual['row'+i].hash){await quarantine('Entidad relacionada corrupta');fail('Entidad relacionada corrupta');}
+    }
+    async function readGoal(t,id) {
+        const started=clock(),b=base(t),records=require('./storage-goals.cjs').relatedRows(b.plan,id);await verifyRows(b,records);
+        return freeze({goal:copy(b.maps.goals.get(id)?.value||null),related:records.map(r=>({store:r.store,key:r.row.key,value:copy(r.row.value)})),photoBytesHydrated:0,readMs:clock()-started});
+    }
+    async function readDayReview(t,date) {
+        const started=clock(),b=base(t),row=b.maps.reviews.get(date);await verifyRows(b,row?[{store:'reviews',row}]:[]);
+        return freeze({date,review:copy(row?.value||null),photoBytesHydrated:0,readMs:clock()-started});
+    }
+    async function preparePlanning(t,method,payload,context) {
+        if(!protocol)fail('Las operaciones B.1 requieren wrapper con linaje');
+        const started=clock(),b=base(t),goals=require('./storage-goals.cjs'),scope=goals.selectScope(b.plan,method,payload,context);await verifyRows(b,scope.rows);
+        const {partial,request}=await goals.buildChange(scope,{legacy,schedule,plannerActions}),changed=[],tables={...b.plan.tables};
+        for(const store of ['goals','events','reviews']) {
+            for(const row of partial.tables[store])if(!same(row,b.maps[store].get(row.key)))changed.push({store,row});
+        }
+        const reviewId='review-'+request.goalId;
+        if(method==='saveGoal'&&b.maps.events.has(reviewId)&&!partial.tables.events.some(r=>r.key===reviewId))changed.push({store:'events',row:b.maps.events.get(reviewId),deleted:true});
+        for(const store of ['goals','events','reviews']) {
+            const deltas=changed.filter(c=>c.store===store),updates=new Map(deltas.map(c=>[c.row.key,c]));
+            tables[store]=b.plan.tables[store].filter(r=>!updates.get(r.key)?.deleted).map(r=>updates.get(r.key)?.row||r).concat(deltas.filter(c=>!c.deleted&&!b.maps[store].has(c.row.key)).map(c=>c.row));
+        }
+        const header={...b.plan.header,goalIds:[...b.plan.header.goalIds,...changed.filter(c=>c.store==='goals'&&!b.maps.goals.has(c.row.key)).map(c=>c.row.key)],reviewDates:[...b.plan.header.reviewDates,...changed.filter(c=>c.store==='reviews'&&!b.maps.reviews.has(c.row.key)).map(c=>c.row.key)],dayReviewsPresent:b.plan.header.dayReviewsPresent||method==='saveDayReview'};
+        // Planner coloca review-* al final al editar, incluso si la fila no cambia.
+        header.eventIds=method==='saveGoal'?[...b.plan.header.eventIds.filter(id=>id!==reviewId),...partial.tables.events.map(r=>r.key)]:b.plan.header.eventIds;
+        const plan={...b.plan,tables,header};plan.rootHash=await model.rootHash(plan);
+        return seal(b,plan,changed,[],request.context.operationId,scope.rows,started,{kind:'planning',method,payload:request.payload,context:request.context});
+    }
     async function seal(b, plan, changed, images, id, scopeRows, started, command = null) {
         const order = (a, b) => a < b ? -1 : a > b ? 1 : 0;
         changed.sort((a, b) => order(a.store, b.store) || order(a.row.key, b.row.key));
         images.sort((a, b) => order(a.hash, b.hash));
-        const operationHash = await sha256(canonical({ id, base: b.head, rootHash: plan.rootHash, changes: changed.map(c => [c.store, c.row.key, c.row.hash]), images: images.map(i => [i.hash, i.size]) }));
+        const operationHash = await sha256(canonical({ id, base: b.head, rootHash: plan.rootHash, changes: changed.map(c => [c.store, c.row.key, c.row.hash,...(c.deleted?[true]:[])]), images: images.map(i => [i.hash, i.size]) }));
         const frozenPlan = freezeShared(plan), frozenChanges = freezeShared(changed), frozenImages = freezeShared(images);
         const op = Object.freeze({ format: 'prepared-history-delta', id, prepareMs: clock() - started, changedRows: changed.length, newImages: images.length });
         operations.set(op, { base: b, plan: frozenPlan, changed: frozenChanges, images: frozenImages, operationHash, scopeRows, command });
@@ -190,6 +221,11 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
         }
         if (!same(metadata.base, b.head))
             fail('Pendiente obsoleto: preservar para reconciliar o restaurar aparte');
+        if (metadata.operation?.kind==='planning') {
+            const command=copy(metadata.operation),rebuilt=await preparePlanning(t,command.method,command.payload,command.context),value=operations.get(rebuilt);
+            if(rebuilt.id!==metadata.id||value.plan.rootHash!==candidate.rootHash||!same(value.plan.sourceBackups,candidate.sourceBackups))fail('El comando no reproduce el candidato íntegro');
+            return rebuilt;
+        }
         if (metadata.operation) {
             const { key, command } = copy(metadata.operation), action = command.action?.type === 'annotate' ? command.action.action : command.action;
             if (action?.type === 'evidence' && !Object.hasOwn(action.evidence, 'src')) {
@@ -275,7 +311,7 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
                 if (fault === 'before-writes')
                     fail('Fallo antes de escribir');
                 for (const c of op.changed)
-                    tx.objectStore(c.store).put(c.row);
+                    if(c.deleted)tx.objectStore(c.store).delete(c.row.key);else tx.objectStore(c.store).put(c.row);
                 for (const image of op.images)
                     tx.objectStore('images').put(image);
                 if (fault === 'after-records')
@@ -315,7 +351,7 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
         }
         for (let i = 0; i < op.changed.length; i++) {
             const row = snapshot['change' + i];
-            if (!same(row, op.changed[i].row) || await sha256(canonical(row.value)) !== row.hash) {
+            if (op.changed[i].deleted?row!==null:!same(row, op.changed[i].row) || await sha256(canonical(row.value)) !== row.hash) {
                 await quarantine('Lectura posterior corrupta');
                 fail('Lectura posterior corrupta');
             }
@@ -437,13 +473,13 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
         if (!op)
             fail('Delta ajeno');
         let command = op.command ? copy(op.command) : null;
-        if (command) {
+        if (command && command.kind!=='planning') {
             const action = command.command.action?.type === 'annotate' ? command.command.action.action : command.command.action;
             if (action?.type === 'evidence')
                 delete action.evidence.src;
         }
         return require('./recovery-binary.cjs').exportRecovery({ id: operation.id, base: op.base.head, candidate: op.plan, drafts: copy(drafts), operation: command }, legacy);
     }
-    return Object.freeze({ resumePending, inspectOperation, exportPending, openWindow, prepareExecution, commitExecution, page, readExecution, readPhoto, statistics });
+    return Object.freeze({ readGoal,readDayReview,preparePlanning,commitPlanning:commitExecution,resumePending, inspectOperation, exportPending, openWindow, prepareExecution, commitExecution, page, readExecution, readPhoto, statistics });
 }
 module.exports = { createIncrementalAccess };
