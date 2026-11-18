@@ -229,3 +229,26 @@ El estrés de linaje usa fuentes de 8,4 MB UTF-16 y 500 ediciones antes de crear
 meta con revisión; no afirma que ambas fuentes quepan en localStorage real.
 
 [Arquitectura, resultados y límites](../../docs/HISTORY_V2_SCOPED_GOALS.md).
+
+
+## Rutinas incrementales · B.2
+
+```sh
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-routines.cjs
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-routines-faults.cjs
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-routines-performance.cjs
+```
+
+Solo laboratorios fullhouse-lab-* y datos sintéticos; no publicar. Ejecutar benchmarks
+y suites grandes secuencialmente. FULLHOUSE_ROUTINES_STAGE=edit comprueba únicamente
+el checkpoint de creación/edición; no sustituye la suite completa predeterminada.
+Las doce pruebas Node nuevas se incluyen en test:history-contract; se mantienen seis
+TODO y el fallo conocido público BUG-05. Los logs conservados de la tarea interrumpida
+terminaron completos y siguieron siendo válidos: no se volvieron a medir sin necesidad.
+
+La demostración usa segmentos/clases semanales o enumeración finita; bloquea otras
+recurrencias indefinidas y presupuestos excedidos. Compara hechos con métodos reales,
+preserva hashes históricos por clave y verifica fotos al restaurar. No presenta el
+rechazo por complejidad de la sesión anterior como latencia de una escritura válida.
+No se probaron Firefox/WebKit ni dispositivos físicos; viewport estrecho es Chromium.
+[Contrato, resultados y limitaciones](../../docs/HISTORY_V2_SCOPED_ROUTINES.md).

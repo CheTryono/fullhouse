@@ -261,5 +261,45 @@
       "allHistoricalHashesEqual": true,
       "photoHashesEqual": true
     }
+  },
+  "faultsFutureDependentRemoval": {
+    "base": "0e9e25c",
+    "browser": "156.0.8078.79",
+    "quota": {
+      "error": "No se confirmó el guardado (QuotaExceededError). Conserva el candidato y reintenta.",
+      "generation": 1
+    },
+    "retry": {
+      "generation": 2,
+      "id": "quota"
+    },
+    "readFailure": {
+      "pendingKept": true,
+      "generation": 3
+    },
+    "reopened": {
+      "generation": 1,
+      "duration": 30,
+      "events": 2
+    },
+    "source": {
+      "denied": true,
+      "status": "recovery"
+    },
+    "tabs": {
+      "denied": true,
+      "title": "One"
+    },
+    "dependencies": {
+      "nestedRejected": true,
+      "transitiveCancellation": true,
+      "historicalHashesEqual": true,
+      "corruptionBlocked": true
+    }
+  },
+  "recovery": {
+    "checkpoint": "d5789c6",
+    "implementationChangedAfterRecovery": false,
+    "reusedCompletedMeasurements": true
   }
 }

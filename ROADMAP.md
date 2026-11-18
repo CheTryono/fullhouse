@@ -22,7 +22,7 @@ No es un compromiso de fechas ni autorización de despliegue.
 | ✅ | BUG-05 fase 4B.3: preparación técnica aislada | PR #11 fusionada, main d1dae11; incremental/Worker, recuperación y capacidad. No preparado para 4C |
 | ✅ | BUG-05 fase 4B.3b · A: autoridad persistente | PR #12 fusionada, main cc1d901; manifiesto/cadena, vigilancia y barrera física 2, solo laboratorio |
 | ✅ | BUG-05 fase 4B.3b · B.1: metas y revisiones por alcance | PR #13 fusionada, main 0e9e25c; sin activación pública |
-| 🔄 | BUG-05 fase 4B.3b · B.2: rutinas por alcance | Creación/edición/eliminación aisladas para revisión; prueba de calendarios admitidos, bloqueos explícitos y conservación histórica. Ver SCOPED_ROUTINES |
+| 🔄 | BUG-05 fase 4B.3b · B.2: rutinas por alcance | Creación/edición/eliminación verificadas en laboratorio; recuperación d5789c6 y resultados preservados. Calendarios no demostrables bloqueados. Ver SCOPED_ROUTINES |
 | ⬜ | BUG-05 fase 4B.3b · B.3: programación por alcance | Series, excepciones, dependencias y límites BUG-04 |
 | ⬜ | BUG-05 fase 4B.3b · B.4: adopción por alcance | Tramo nuevo explícito, conservación de legado y evidencias |
 | ⬜ | Otros bloqueos antes de 4C | Privacidad aprobada, paridad React, fuentes grandes/cadenas largas y otros motores/dispositivos |

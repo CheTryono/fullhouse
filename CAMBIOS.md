@@ -12,6 +12,11 @@
   hashes por clave. Lectura histórica sigue disponible después de borrar plantilla.
 - Reintentos estables, pérdida de acuse, cuota, cierre multi-entidad, obsolescencia,
   corrupción y fuente v1 divergente cubiertos; sin promesas de exclusión perfecta.
+- Verificado: check/tipos; regresión 164; contratos 175 + 6 TODO; npm test 339
+  aprobadas + 6 TODO y único fallo conocido BUG-05. Chromium: linaje 101, IDB 65,
+  legado 186, integración 28, metas B.1, rutinas/fallos/capacidad y regresiones públicas.
+- Recuperación de interrupción: cambios conservados en d5789c6; mediciones completas
+  válidas reutilizadas sin modificar lógica ni repetir suites innecesariamente.
 - Resultados, comparación y límites: docs/HISTORY_V2_SCOPED_ROUTINES.md.
 - Producción/almacenamiento v1 y workflow intactos. BUG-05 público permanece conocido;
   B.3, B.4, privacidad y activación 4C siguen pendientes de revisión/autorización.

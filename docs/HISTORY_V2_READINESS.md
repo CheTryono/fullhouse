@@ -441,3 +441,11 @@ creación/edición, eliminación y recuperación por componente de planificació
 los formatos/autoridad y filas históricas. Calendarios no demostrables se bloquean,
 sin usar ocho ocurrencias como garantía. B.3, B.4 y 4C permanecen pendientes; no hay
 activación ni cambios de Planner público.
+
+
+Cierre recuperado de B.2: check/tipos correctos; regresión 164, contratos 175 + 6 TODO,
+npm test 339 aprobadas + 6 TODO y único fallo público BUG-05. Suites Chromium de
+rutinas, fallos, capacidad, linaje, IDB, B.1, legado, integración, guardado y horarios
+completas. Se reutilizaron registros válidos posteriores al código actual, sin
+reconstruir ni volver a medir. La matriz de SCOPED_ROUTINES mantiene bloqueadas
+recurrencias indefinidas no demostradas, integración pública y 4C.

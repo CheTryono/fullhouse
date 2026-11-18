@@ -91,7 +91,7 @@ Antes de ampliar pruebas de eliminación: ocho contratos Node aprobados; tipos c
 Chromium 1280/390, nueve operaciones equivalentes por viewport. La ejecución completada
 con cinco pasos conserva cinco unidades tras añadir tres a la plantilla, incluidas
 notas, fotografía y definición original. El corpus pequeño incluye legado y adopción.
-Los resultados ampliados de eliminación/fallos/capacidad se documentan al cerrar.
+Los resultados ampliados de eliminación/fallos/capacidad figuran a continuación.
 
 
 ## Verificación y escenarios de eliminación/fallos
@@ -186,3 +186,85 @@ Heap informado al final: 300.9 MB, con corpus y ambas rutas retenidas en la pág
 No es pico ni consumo aislado de la ruta nueva y **no demuestra reducción de memoria**.
 Falta medir cada modalidad en un proceso fresco y dispositivos físicos. Los índices
 se comparten en cambios de planificación, pero raíz y catálogos conservan trabajo O(N).
+
+
+## Cierre de verificación y recuperación del trabajo
+
+Se recuperó íntegra la rama feature/history-scoped-routines-v2, basada en 0e9e25c,
+con el checkpoint e935aa8 y los cambios posteriores sin commit. Se conservaron como
+checkpoint adicional d5789c6 antes de editar documentación. No había procesos de
+pruebas activos ni resultados grandes truncados que hubiera que reconstruir.
+
+Los módulos actuales se habían guardado antes de las comprobaciones y mediciones
+completas recuperadas. No se cambió lógica de implementación al retomar, por lo que
+no se repitieron las suites completas ni el benchmark. La última modificación del
+ensayo de fallos (retirada de eventos dependientes futuros) también tenía un registro
+JSON completo posterior: pasó y queda añadido al archivo de mediciones. El ensayo
+anterior de segmentos pasados y la prueba Node conservan la cobertura de truncación.
+
+| Comando / suite | Resultado completo recuperado, válido para el código entregado |
+| --- | --- |
+| npm run check | Correcto: TypeScript, sintaxis y app.js sincronizado; sin escribirlos |
+| npm run check:history-contract | Correcto, contratos de rutinas y sesión incluidos |
+| npm run test:regression | 164 aprobadas |
+| npm run test:history-contract | 175 aprobadas, 6 TODO, cero fallos |
+| npm test | 339 aprobadas, 6 TODO y único fallo público conocido BUG-05; salida 1 |
+| history-scoped-routines | 9 operaciones equivalentes por viewport 1280/390; invariantes de cinco pasos, alternativa, legado/adopción, eliminación, reintento y restauración aprobados |
+| history-scoped-routines-faults | Cuota real, lectura posterior fallida, cierre multi-entidad, dos pestañas, fuente v1, corrupción y dependencias aprobados |
+| history-scoped-routines-performance | 7 operaciones con raíces iguales; 5.000 ejecuciones, 501 revisiones y 42,2 MB de fotos; hashes por clave y restauración aprobados |
+| history-lineage | 101 grupos aprobados |
+| history-storage | 65 casos aprobados; cuota/crash/denegación y nueve formatos históricos incluidos |
+| history-scoped-goals y sus fallos | Paridad B.1 en 1280/390, recuperación, cuota real y cierre aprobados |
+| history-legacy | 186 casos aprobados; cinco paletas y ambos viewports |
+| history-integration | 28 casos aprobados |
+| pending-save | 4 combinaciones públicas sintéticas aprobadas |
+| day-shifts | 2 viewports públicos sintéticos aprobados |
+
+Los doce contratos Node nuevos cubren normalización, metas/evidencia requerida,
+actualización de eventos, 24:00, insuficiencia fija, combinaciones simultáneas,
+recurrencias finitas/bloqueadas, confirmación, cancelación, dependencias encadenadas,
+excepciones/series lejanas y rechazo de eliminación parcial. Los seis TODO de fases
+posteriores permanecen sin convertirlos artificialmente en aprobados. La reproducción
+pública BUG-05 sigue fallando porque Planner permanece en v1; no se modifica su test.
+
+Firefox, WebKit/Safari y teléfonos físicos no fueron probados. Un viewport de 390 px
+representa Chromium de escritorio, no Android/iPhone. Las pruebas públicas existentes
+usan datos sintéticos y orígenes/perfiles desechables, sin acceder al origen publicado.
+No se identificaron errores JavaScript inesperados en los flujos verificados.
+
+### Matriz de salida
+
+| Requisito | Estado |
+| --- | --- |
+| Crear/editar/eliminar rutinas y efectos relacionados en el alcance admitido | Implementado y verificado en laboratorio |
+| Inmutabilidad de revisiones, capturas, notas/fotos y progreso histórico | Verificada por hashes y lectura, incluso tras eliminación |
+| Calendarios finitos y clases semanales por segmento | Verificados en los escenarios descritos; sin validación parcial silenciosa |
+| Recurrencias indefinidas monthly/yearly/every y exceso de presupuesto | Bloqueados explícitamente; no admitidos por esta entrega |
+| TX, acuses, reintentos, recuperación, obsolescencia y fuentes | Verificados; límites residuales v1/IDB del hito A conservados |
+| Rendimiento del corpus de referencia | Medido; muestra única, catálogo O(N), memoria aislada pendiente |
+| React público, B.3, B.4 y reconciliación de usuarios | No implementados aquí |
+| Privacidad/borrado físico y activación 4C | Pendientes de decisión/autorización |
+
+B.2 puede entregarse para revisión con estos límites. Hay base para planificar B.3,
+que deberá tratar segmentación general y ampliar calendarios no demostrados; no se
+inicia en esta rama. La matriz no autoriza 4C. El código público, carga/guardado,
+app.tsx/app.js y workflow no tienen diferencias con la base 0e9e25c.
+
+
+## Archivos de B.2
+
+- Motor/puertos nuevos: history/storage-routines.cjs y su contrato .d.cts;
+  history/routines-session.cjs y su contrato .d.cts.
+- Integración experimental: history/storage-incremental.cjs/.d.cts,
+  scripts/history-browser.cjs y contracts/tsconfig.json.
+- Pruebas: tests/history-contract.scoped-routines.test.cjs,
+  tests/contracts/history-scoped-routines.types.ts y las tres suites Chromium
+  history-scoped-routines, history-scoped-routines-faults y
+  history-scoped-routines-performance; sus README describen los comandos.
+- Documentación: este contrato, HISTORY_V2_SCOPED_ROUTINES_MEASUREMENTS.json,
+  ROADMAP.md, CAMBIOS.md y actualizaciones de LINEAGE_SCOPED, SCOPED_GOALS y READINESS.
+
+No se modifican app.tsx, app.js, la carga/guardado públicos, el workflow de Pages
+ni tests/known-bugs.test.cjs. No se publicaron laboratorios ni se activó almacenamiento
+nuevo. El checkpoint de recuperación conserva también las pruebas de eliminación
+antes de terminar este cierre documental.
