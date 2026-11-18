@@ -323,3 +323,12 @@ saveProgress, toggleMilestone y saveDayReview, con la misma autoridad y formato.
 B.2 (rutinas), B.3 (programación) y B.4 (adopción incremental) siguen pendientes.
 La aplicación pública continúa en v1; esta actualización no habilita 4C ni modifica
 las limitaciones de concurrencia y privacidad del hito A.
+
+
+## Avance B.2 sobre 0e9e25c (experimental)
+
+[Operaciones incrementales de rutinas](HISTORY_V2_SCOPED_ROUTINES.md) añade lectura,
+creación/edición, eliminación y recuperación por componente de planificación. Conserva
+los formatos/autoridad y filas históricas. Calendarios no demostrables se bloquean,
+sin usar ocho ocurrencias como garantía. B.3, B.4 y 4C permanecen pendientes; no hay
+activación ni cambios de Planner público.

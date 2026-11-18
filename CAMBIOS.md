@@ -1,3 +1,26 @@
+# BUG-05 · 4B.3b B.2: rutinas incrementales aisladas
+
+- Base 0e9e25c (PR #13), rama feature/history-scoped-routines-v2; checkpoint e935aa8.
+- Puertos de lectura paginada, preparación, confirmación y recuperación para saveRoutine
+  y deleteRoutine. Proyección del componente conectado, sin reconstruir logs ni fotos.
+- Métodos reales de Planner para normalizar árboles/alternativas/tiempos y derivar
+  minutos, desvinculación y cancelaciones; efectos relacionados en una sola TX.
+- Prueba adicional del calendario por clases semanales y segmentos, o enumeración
+  finita; alternativas combinadas, cadenas, excepciones y series lejanas incluidas.
+  Recurrencias indefinidas no demostradas y excesos de presupuesto se bloquean.
+- Capturas, revisiones, notas, marcas, alternativas resueltas y fotografías conservan
+  hashes por clave. Lectura histórica sigue disponible después de borrar plantilla.
+- Reintentos estables, pérdida de acuse, cuota, cierre multi-entidad, obsolescencia,
+  corrupción y fuente v1 divergente cubiertos; sin promesas de exclusión perfecta.
+- Verificado: check/tipos; regresión 164; contratos 175 + 6 TODO; npm test 339
+  aprobadas + 6 TODO y único fallo conocido BUG-05. Chromium: linaje 101, IDB 65,
+  legado 186, integración 28, metas B.1, rutinas/fallos/capacidad y regresiones públicas.
+- Recuperación de interrupción: cambios conservados en d5789c6; mediciones completas
+  válidas reutilizadas sin modificar lógica ni repetir suites innecesariamente.
+- Resultados, comparación y límites: docs/HISTORY_V2_SCOPED_ROUTINES.md.
+- Producción/almacenamiento v1 y workflow intactos. BUG-05 público permanece conocido;
+  B.3, B.4, privacidad y activación 4C siguen pendientes de revisión/autorización.
+
 # BUG-05 · 4B.3b B.1: metas, progreso, hitos y revisiones incrementales
 
 - Base cc1d901 (PR #12), rama feature/history-scoped-goals-v2. Checkpoint básico

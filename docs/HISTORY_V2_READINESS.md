@@ -432,3 +432,20 @@ las limitaciones de concurrencia y privacidad del hito A.
 B.1 verificado: metas/revisiones incrementales y recuperación; corpus grande con
 raíces/fotos iguales. La memoria informada (~66 MB en ambas modalidades) no demuestra
 reducción; faltan procesos frescos/dispositivos. Detalle y métricas en SCOPED_GOALS.
+
+
+## Avance B.2 sobre 0e9e25c (experimental)
+
+[Operaciones incrementales de rutinas](HISTORY_V2_SCOPED_ROUTINES.md) añade lectura,
+creación/edición, eliminación y recuperación por componente de planificación. Conserva
+los formatos/autoridad y filas históricas. Calendarios no demostrables se bloquean,
+sin usar ocho ocurrencias como garantía. B.3, B.4 y 4C permanecen pendientes; no hay
+activación ni cambios de Planner público.
+
+
+Cierre recuperado de B.2: check/tipos correctos; regresión 164, contratos 175 + 6 TODO,
+npm test 339 aprobadas + 6 TODO y único fallo público BUG-05. Suites Chromium de
+rutinas, fallos, capacidad, linaje, IDB, B.1, legado, integración, guardado y horarios
+completas. Se reutilizaron registros válidos posteriores al código actual, sin
+reconstruir ni volver a medir. La matriz de SCOPED_ROUTINES mantiene bloqueadas
+recurrencias indefinidas no demostradas, integración pública y 4C.
