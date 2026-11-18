@@ -6,7 +6,7 @@ export interface ReadNode {
   checked: boolean; note: string; evidenceIds: string[]; children: ReadNode[];
 }
 export interface Facts extends Required<RecordLog> {}
-interface BaseView { key: string; label: string; date: string | null }
+interface BaseView { recordEdits?:import('../contracts/history-v2').RecordEdits | null;hiddenEvidenceIds?:string[];adoption?:ExecutionCapture['adoption'] | null; key: string; label: string; date: string | null }
 export interface HistoricalView extends BaseView {
   kind: 'historical'; provenance: 'recorded' | 'adopted-current'; executionId: string; seriesId: string; eventId: string;
   capturedAt: string; title: string; description: string; routineDescription: string;

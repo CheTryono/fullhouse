@@ -43,8 +43,9 @@ function validateV2(doc, isLegacyData) {
     const occurrence = JSON.stringify([c.seriesId, c.scheduledDate]);
     check(!occurrences.has(occurrence), 'duplicate series/date occurrence'); occurrences.add(occurrence);
     check(day(c.scheduledDate) && stamp(c.capturedAt), 'invalid capture date');
-    check(['complete', 'step', 'choice', 'note', 'evidence'].includes(c.captureReason), 'invalid capture reason');
+    check(['complete', 'step', 'choice', 'note', 'evidence','adopt'].includes(c.captureReason), 'invalid capture reason');
     check(['recorded', 'adopted-current'].includes(c.provenance), 'invalid provenance');
+    check(c.captureReason!=='adopt' || c.provenance==='adopted-current' && !!c.adoption,'adoption reason requires explicit source');
     check(c.sourceRoutineId === null || id(c.sourceRoutineId), 'invalid sourceRoutineId');
     const recipe = c.recipeRevisionId === null ? null : doc.recipeRevisions[c.recipeRevisionId];
     if (!check(c.recipeRevisionId === null || !!recipe, 'missing recipe reference')) continue;
@@ -157,14 +158,15 @@ function strengthen(doc, isLegacyData) {
   }
   for (const r of Object.values(doc.dayReviews || {})) fields(r,['note','closedAt']);
   for (const log of Object.values(doc.logs)) {
-    fields(log,['completed','checkedSteps'],['note','choices','stepNotes','evidences','history']);
+    fields(log,['completed','checkedSteps'],['note','choices','stepNotes','evidences','history','recordEdits']);
     unique(log.checkedSteps); dictionary(log.choices || {}); dictionary(log.stepNotes || {});
     for (const e of log.evidences || []) fields(e,['id','kind','src','caption','createdAt'],['stepId']);
     unique((log.evidences || []).map(e=>e.id));
+    check(require('./record-journal.cjs').validate(log,isLegacyData).length===0,'invalid record edit journal');
     if (!log.history) continue;
     const h=log.history,c=h.capture,p=c.plan,r=c.recipeRevisionId===null?null:doc.recipeRevisions[c.recipeRevisionId].definition;
     fields(h,['capture','resolution','state','actualTiming','continuations','corrections']);
-    fields(c,['format','executionId','seriesId','sourceEventId','sourceRoutineId','scheduledDate','capturedAt','captureReason','provenance','recipeRevisionId','plan']);
+    fields(c,['format','executionId','seriesId','sourceEventId','sourceRoutineId','scheduledDate','capturedAt','captureReason','provenance','recipeRevisionId','plan'],['adoption']);
     fields(p,['title','description','kind','allDay','durationMode','window','budgetMinutes','goals']);
     if (p.window) fields(p.window,['startMin','endMin']);
     unique(p.goals.map(g=>g.id)); p.goals.forEach(g=>fields(g,['id','title'],['area','color']));
@@ -226,6 +228,11 @@ function strengthen(doc, isLegacyData) {
       if(!pending && ['fixed','between'].includes(p.durationMode)) check(res.totalPlannedMinutes===p.budgetMinutes,'invalid historical budget');
     }
   }
+  for(const [key,log] of Object.entries(doc.logs)) {
+    const link=log.recordEdits?.adoption, origin=log.history?.capture.adoption;
+    if(link){const target=doc.logs[link.logKey]?.history?.capture;check(!log.history && target?.provenance==='adopted-current' && target.executionId===link.executionId && target.adoption?.legacyKey===key && target.capturedAt===link.recordedAt && target.recipeRevisionId===link.recipeRevisionId && target.sourceRoutineId===link.sourceRoutineId,'broken adoption target');}
+    if(origin){check(fields(origin,['legacyKey']) && doc.logs[origin.legacyKey]?.recordEdits?.adoption?.logKey===key && log.history.capture.provenance==='adopted-current','broken adoption source');}
+  }
   return errors;
 }
 function validateSafe(doc, legacy) {
@@ -247,7 +254,7 @@ function transitionSafe(before, after, action, legacy, targetId) {
   try {
     const b=copy(before),a=copy(after);
     const check=(ok,label)=>{if(!ok)errors.push(label);};
-    const actions=['progress','complete','correct-choice','continue','close-partial','reopen','edit-template','delete-template','reprogram'];
+    const actions=['annotate','progress','complete','correct-choice','continue','close-partial','reopen','edit-template','delete-template','reprogram'];
     check(actions.includes(action),'unknown transition');
     for(const [k,r] of Object.entries(b.recipeRevisions)) check(same(r,a.recipeRevisions[k]),'historical recipe removed or mutated');
     const records=new Map(Object.values(a.logs).filter(l=>l.history).map(l=>[l.history.capture.executionId,l]));
@@ -261,6 +268,7 @@ function transitionSafe(before, after, action, legacy, targetId) {
       check(!targetId || targetId===old.history.capture.executionId,'unrelated execution altered');
       const h=old.history,n=next.history;
       check(same(h.capture,n.capture),'capture mutated');
+      check(require('./record-journal.cjs').retained(old,next),'record journal rewritten');
       check(Date.parse(n.state.lastRecordedAt)>=Date.parse(h.state.lastRecordedAt),'record time reversed');
       check(same(h.actualTiming,n.actualTiming),'actual duration changed by unrelated action');
       check((old.evidences || []).every(e=>same(e,(next.evidences || []).find(x=>x.id===e.id))),'evidence lost or overwritten');
@@ -269,6 +277,7 @@ function transitionSafe(before, after, action, legacy, targetId) {
       check(same(h.continuations,action==='continue'?n.continuations.slice(0,-1):n.continuations) && n.continuations.length===h.continuations.length+(action==='continue'?1:0),'invalid continuation transition');
       if(corrected) { const x=n.corrections.at(-1); check(x.kind===(action==='reopen'?'reopen':'choice') && same(x.before,checkpoint(old)),'missing prior checkpoint'); }
       if(action!=='correct-choice' && action!=='progress') check(same(old.choices || {},next.choices || {}) && same(h.resolution,n.resolution),'unexpected alternative change');
+      if(action==='annotate')check(h.state.status===n.state.status && h.state.completionSource===n.state.completionSource && h.state.completedRecordedAt===n.state.completedRecordedAt && same(old.checkedSteps,next.checkedSteps),'annotation changed completion/progress');
       if(action==='progress') {
         check(h.state.status==='active' && n.state.status==='active','progress requires active execution');
         // Only previously unresolved choices may resolve without a correction.
@@ -284,7 +293,7 @@ function transitionSafe(before, after, action, legacy, targetId) {
       if(action==='close-partial') check(h.state.status==='active' && n.state.status==='closed-partial','invalid partial closure');
       if(action==='continue') check(h.state.status==='active' && n.state.status==='active','only active execution can continue');
       if(['edit-template','delete-template','reprogram'].includes(action)) check(false,'planning changed historical execution');
-      if(!['progress','correct-choice'].includes(action)) check(same(old.checkedSteps,next.checkedSteps) && old.note===next.note && same(old.stepNotes || {},next.stepNotes || {}) && same(old.evidences || [],next.evidences || []),'unrelated progress changed');
+      if(!['annotate','progress','correct-choice'].includes(action)) check(same(old.checkedSteps,next.checkedSteps) && old.note===next.note && same(old.stepNotes || {},next.stepNotes || {}) && same(old.evidences || [],next.evidences || []),'unrelated progress changed');
     }
     // Action operates on one execution. Other records may be read, never rewritten.
     check(changed<=1,'multi-execution transition is not supported');

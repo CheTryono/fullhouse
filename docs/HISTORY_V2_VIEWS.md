@@ -1,5 +1,11 @@
 # BUG-05 fase 3 · lector, adaptador y vistas aisladas
 
+> Avance 4B.2 (experimental): diario opcional, adopción explícita y sesión con
+> IndexedDB aislado descritos en [compatibilidad del legado](HISTORY_V2_LEGACY_COMPAT.md).
+> Las afirmaciones anteriores sobre ausencia de adopción/edición corresponden a
+> fases previas. No hay activación pública; borrado físico y paridad React completa
+> siguen bloqueando producción.
+
 Base: `origin/main` `31f2ae3` (PR #6). No se activa v2 en Planner.
 Las vistas son una integración preparatoria real del motor/lector con interfaces
 **de laboratorio**, no una modificación de las pantallas públicas. La publicación

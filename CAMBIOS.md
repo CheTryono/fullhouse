@@ -1,3 +1,24 @@
+# BUG-05 · fase 4B.2: compatibilidad histórica aislada
+
+- Base main 52dbe4d (PR #9). Diario opcional recordEdits: hechos originales,
+  ediciones explícitas, marcas/notas desaparecidas y referencias de fotos sin duplicar bytes.
+- Adopción voluntaria de una definición actual: tramo nuevo adopted-current,
+  enlace recíproco al legado y progreso vacío, incluso continuando en otra fecha.
+- Anotaciones posteriores al completado conservan el estado; correcciones y
+  reaperturas mantienen contexto y auditoría. Plantillas borradas no impiden consultar.
+- Sesión experimental con IndexedDB inyectado, último confirmado, pendientes,
+  reintentos estables, CAS, borradores y recuperación manual tras descarga/recarga.
+  Fotos asíncronas reservan destino y comando antes del await.
+- Formularios /compat ejecutan métodos reales extraídos de Planner; cinco paletas,
+  móvil/escritorio, diálogo propio y teclado. No se despliega el laboratorio.
+- Retirada reversible de fotos, claramente distinta de borrado físico: política de
+  eliminación/fuentes/respaldos pendiente de aprobación. No hay GC ni borrado irreversible.
+- No se afirma equivalencia de todos los controles React. BUG-05 público sigue
+  fallando hasta su integración real; permanecen TODO de producción y borrado físico.
+- app.tsx/app.js, carga/guardado v1, claves públicas, dependencias y Pages intactos.
+
+---
+
 # BUG-05 · fase 4B.1: almacenamiento experimental
 
 - IndexedDB aislado: metadatos por registro, fotografías Blob deduplicadas, índices,
@@ -347,3 +368,11 @@ BUG-05 (salida 1); no se presenta como suite completamente aprobada.
 
 Chromium adicional: integración anterior 28 casos y lector 120 combinaciones,
 sin errores JavaScript ni accesos a Storage público.
+
+## Comprobaciones de 4B.2
+
+Check y tipos correctos; regresión 164 aprobadas; contrato 143 aprobadas y 6 TODO.
+`npm test`: 307 aprobadas, 6 TODO y un fallo conocido BUG-05 (salida 1).
+Chromium: 186 casos nuevos de legado/compatibilidad, 65 de IndexedDB,
+28 de integración y 120 combinaciones del lector. Guardado público: 4 combinaciones;
+horarios públicos: escritorio/móvil. Sin errores JS inesperados.

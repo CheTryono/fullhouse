@@ -3,7 +3,7 @@ const http=require('node:http'),fs=require('node:fs'),path=require('node:path');
 const {bundle}=require('./history-browser.cjs');
 async function start(){
   const root=path.resolve(__dirname,'..'),resources=new Map([
-    ['/storage', ['tests/history-lab/storage.html','text/html']],['/storage-view.js',['tests/history-lab/storage-view.js','text/javascript']],['/integration', ['tests/history-lab/integration.html','text/html']],['/integration-view.js',['tests/history-lab/integration-view.js','text/javascript']],['/', ['tests/history-lab/index.html','text/html']],['/view.js',['tests/history-lab/view.js','text/javascript']],
+    ['/compat',['tests/history-lab/compat.html','text/html']],['/compat-view.js',['tests/history-lab/compat-view.js','text/javascript']],['/compat.css',['tests/history-lab/compat.css','text/css']],['/storage', ['tests/history-lab/storage.html','text/html']],['/storage-view.js',['tests/history-lab/storage-view.js','text/javascript']],['/integration', ['tests/history-lab/integration.html','text/html']],['/integration-view.js',['tests/history-lab/integration-view.js','text/javascript']],['/', ['tests/history-lab/index.html','text/html']],['/view.js',['tests/history-lab/view.js','text/javascript']],
     ['/lab.css',['tests/history-lab/lab.css','text/css']],['/styles.css',['styles.css','text/css']]]);
   const code=bundle();const server=http.createServer((req,res)=>{
     res.setHeader('Cache-Control','no-store');res.setHeader('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'self'; img-src data:; base-uri 'none'; form-action 'none'");
@@ -14,4 +14,4 @@ async function start(){
   });await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   return {server,url:'http://127.0.0.1:'+server.address().port};
 }
-module.exports={start};if(require.main===module)start().then(({url})=>console.log('Laboratorio sintético (sin persistencia): '+url));
+module.exports={start};if(require.main===module)start().then(({url})=>console.log('Laboratorio sintético aislado: '+url));

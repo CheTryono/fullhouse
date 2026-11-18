@@ -1,5 +1,11 @@
 # BUG-05 fase 4A · integración y persistencia simuladas
 
+> Avance 4B.2 (experimental): diario opcional, adopción explícita y sesión con
+> IndexedDB aislado descritos en [compatibilidad del legado](HISTORY_V2_LEGACY_COMPAT.md).
+> Las afirmaciones anteriores sobre ausencia de adopción/edición corresponden a
+> fases previas. No hay activación pública; borrado físico y paridad React completa
+> siguen bloqueando producción.
+
 > Actualización 4B.1: la recomendación vigente es IndexedDB completo, todavía
 > experimental. El protocolo localStorage de este documento corresponde al diseño
 > anterior de 4A; no debe interpretarse como decisión actual de activación. Véase

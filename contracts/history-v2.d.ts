@@ -3,7 +3,7 @@
  */
 export type Frozen<T> = T extends readonly unknown[] ? ReadonlyArray<Frozen<T[number]>> :
   T extends object ? { readonly [K in keyof T]: Frozen<T[K]> } : T;
-export type CaptureReason = 'complete' | 'step' | 'choice' | 'note' | 'evidence';
+export type CaptureReason = 'adopt' | 'complete' | 'step' | 'choice' | 'note' | 'evidence';
 export type Provenance = 'recorded' | 'adopted-current';
 export interface RecipeRevision {
   readonly id: string;
@@ -28,6 +28,7 @@ export interface ExecutionCapture {
   readonly captureReason: CaptureReason;
   readonly provenance: Provenance;
   readonly recipeRevisionId: string | null;
+  readonly adoption?: {readonly legacyKey:string};
   readonly plan: {
     readonly title: string;
     readonly description: string;
@@ -83,8 +84,14 @@ export interface History {
   continuations: { recordedAt: string; localDate: string; timezoneOffsetMinutes: number }[];
   corrections: Correction[];
 }
-export type LegacyLog = RecordLog & { history?: never };
-export type CapturedLog = RecordLog & { history: History };
+export interface EditFacts extends Omit<RecordLog,'evidences'> { evidenceIds?: string[] }
+export interface RecordEdits {
+  format:1; original:EditFacts;
+  entries:{id:string;at:string;reason:string;type:'step'|'complete'|'reopen'|'note'|'choice'|'evidence'|'visibility'|'adopt'|'native';before:EditFacts;after:EditFacts;hiddenBefore:string[];hiddenAfter:string[]}[];
+  adoption?:{executionId:string;logKey:string;recordedAt:string;sourceRoutineId:string;recipeRevisionId:string};
+}
+export type LegacyLog = RecordLog & { history?: never; recordEdits?:RecordEdits };
+export type CapturedLog = RecordLog & { history: History; recordEdits?:RecordEdits };
 export type LogV2 = LegacyLog | CapturedLog;
 export type EventV2 = EventItem & { seriesId?: string; recipeRevisionId?: string };
 export type DocumentV2 = Omit<Data, 'version' | 'events' | 'logs'> & {
@@ -96,5 +103,5 @@ export type DocumentV2 = Omit<Data, 'version' | 'events' | 'logs'> & {
 /** DTO de lectura no persistido: jamás se convierte en captura verificable. */
 export type LegacyView = { kind: 'legacy'; confidence: 'unknown'; facts: RecordLog } |
   { kind: 'estimate'; confidence: 'estimated'; label: string; source: 'current-template'; generatedAt: string };
-export type Transition = 'progress' | 'complete' | 'correct-choice' | 'continue' |
+export type Transition = 'annotate' | 'progress' | 'complete' | 'correct-choice' | 'continue' |
   'close-partial' | 'reopen' | 'edit-template' | 'delete-template' | 'reprogram';

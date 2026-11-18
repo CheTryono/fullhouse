@@ -34,7 +34,7 @@ function validateMetadata(doc,legacy){
   for(const [key,log] of Object.entries(doc.logs)){
     let revisions={};if(log.history!==undefined){const c=log.history?.capture;requireValue(c,'Captura incompleta');const pair=canonical([c.seriesId,c.scheduledDate]);requireValue(!executions.has(c.executionId)&&!occurrences.has(pair),'Identidad histórica duplicada');executions.add(c.executionId);occurrences.add(pair);
       if(c.recipeRevisionId!==null){const r=doc.recipeRevisions[c.recipeRevisionId];requireValue(r,'Referencia histórica inexistente');revisions={[c.recipeRevisionId]:r};}}
-    requireValue(validateV2({...empty,logs:{[key]:log},recipeRevisions:revisions},legacy).length===0,'Registro inválido: '+key);
+    requireValue(validateV2({...empty,logs:{[key]:log,...(log.history?.capture.adoption?{[log.history.capture.adoption.legacyKey]:doc.logs[log.history.capture.adoption.legacyKey]}:{}),...(log.recordEdits?.adoption?{[log.recordEdits.adoption.logKey]:doc.logs[log.recordEdits.adoption.logKey]}:{})},recipeRevisions:{...revisions,...(log.recordEdits?.adoption?{[log.recordEdits.adoption.recipeRevisionId]:doc.recipeRevisions[log.recordEdits.adoption.recipeRevisionId]}:{})}},legacy).length===0,'Registro inválido: '+key);
   }
   for(const g of doc.goals)requireValue(validateV2({...empty,goals:[g]},legacy).length===0,'Meta inválida');
   for(const r of doc.routines)requireValue(validateV2({...empty,routines:[r]},legacy).length===0,'Rutina inválida');
@@ -99,8 +99,9 @@ function retainHistory(oldTables,next){
   const map=t=>new Map(next.tables[t].map(r=>[r.key,r]));
   const revisions=map('revisions'),evidence=map('evidence'),owners=new Map(next.tables.executions.map(r=>[r.value.owner,r]));
   for(const r of oldTables.revisions)requireValue(same(r.value,revisions.get(r.key)?.value),'No se cambia ni elimina una revisión histórica');
-  for(const row of oldTables.executions){const current=owners.get(row.value.owner);requireValue(current,'No se elimina un registro histórico/legado');const before=row.value.log,after=current.value.log;
-    if(before.history){requireValue(same(before.history.capture,after.history?.capture),'Captura inmutable');requireValue(same(before.history.corrections,after.history.corrections.slice(0,before.history.corrections.length)),'No se reescribe auditoría');requireValue(same(before.history.continuations,after.history.continuations.slice(0,before.history.continuations.length)),'No se reescribe continuidad');if(same(before.choices || {},after.choices || {}))requireValue(same(before.history.resolution,after.history.resolution),'No se recalcula resolución sin elección');}else requireValue(same(row.value,current.value),'Adopción/edición de legado no implementada');
+  for(const row of oldTables.executions){const current=owners.get(row.value.owner);requireValue(current,'No se elimina un registro histórico/legado');const projected=(row,tables)=>({...row.value.log,...(row.value.hasEvidences?{evidences:row.value.evidenceKeys.map(k=>tables.evidence.find(e=>e.key===k).value)}:{})});const before=projected(row,oldTables),after=projected(current,next.tables);
+    if(before.recordEdits)requireValue(require('./record-journal.cjs').retained(before,after),'Diario histórico reescrito');
+    if(before.history){requireValue(same(before.history.capture,after.history?.capture),'Captura inmutable');requireValue(same(before.history.corrections,after.history.corrections.slice(0,before.history.corrections.length)),'No se reescribe auditoría');requireValue(same(before.history.continuations,after.history.continuations.slice(0,before.history.continuations.length)),'No se reescribe continuidad');if(same(before.choices || {},after.choices || {}))requireValue(same(before.history.resolution,after.history.resolution),'No se recalcula resolución sin elección');}else requireValue(same(row.value,current.value) || !!current.value.log.recordEdits && require('./record-journal.cjs').retained(before,after),'Edición de legado sin conservar original');
   }
   for(const row of oldTables.evidence)requireValue(same(row.value,evidence.get(row.key)?.value),'No se elimina ni sustituye evidencia');
 }
