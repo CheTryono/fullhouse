@@ -19,7 +19,7 @@ No es un compromiso de fechas ni autorización de despliegue.
 | ✅ | BUG-05 fase 4A: integración y persistencia simuladas | PR #8 fusionada; main 470212c; sin activación pública |
 | ✅ | BUG-05 fase 4B.1: arquitectura y migración sintética | PR #9 fusionada; main 52dbe4d; IndexedDB aislado, sin activación |
 | ✅ | BUG-05 fase 4B.2: base de compatibilidad experimental | PR #10 fusionada; main 35ca45c. Borrado físico y paridad React completa siguen abiertos |
-| 🔄 | BUG-05 fase 4B.3: preparación de activación | Incremental/Worker, recuperación binaria y capacidad medidos; informe READINESS: no preparado para 4C |
+| 🔄 | BUG-05 fase 4B.3: preparación de activación | Base experimental recuperada y verificada para revisión: incremental/Worker, recuperación y capacidad. Informe READINESS: no preparado para 4C |
 | ⬜ | BUG-05 fase 4B.3b: cerrar bloqueos de preparación | Autoridad persistente de fuentes, planificación por alcance, privacidad aprobada, otros motores/móvil y paridad React |
 | ⬜ | BUG-05 fase 4C: integración y activación por etapas | Solo tras cerrar matriz, previsualización, respaldos/reversión y autorización explícita |
 | ⬜ | Automatizar pruebas en GitHub Actions | Separar pruebas que deben pasar y error conocido explícito; no ocultarlo |

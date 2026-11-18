@@ -95,43 +95,42 @@ externamente, transacción/complete y confirmación posterior separadas.
 
 | Viewport | Acción | Antes preparar | Antes commit+verificar | Después preparar | Después TX | Después confirmar |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1280 | step | 4556.3 | 2421.6 | 11.4 | 3.6 | 2.2 |
-| 1280 | note | 4967.6 | 2492.4 | 11.1 | 3.6 | 2.4 |
-| 1280 | photo | 5078.7 | 2489.3 | 85.9 | 3.9 | 3.5 |
-| 1280 | photo-deduplicated | 5005.5 | 2569.2 | 439.9 | 19.9 | 22.6 |
-| 1280 | first-capture | 5008.1 | 2341.8 | 14.3 | 3.7 | 2.2 |
-| 390 | step | 4785.5 | 2617.3 | 10.8 | 4.4 | 2.4 |
-| 390 | note | 4803.9 | 2468.1 | 11.1 | 4.5 | 2.5 |
-| 390 | photo | 4761.9 | 2480.1 | 81.2 | 4.3 | 3.6 |
-| 390 | photo-deduplicated | 5102.7 | 2606.3 | 442.3 | 4.0 | 2.4 |
-| 390 | first-capture | 5299.8 | 2490.7 | 14.1 | 3.5 | 2.3 |
+| 1280 | step | 4776.7 | 2425.1 | 10.9 | 3.6 | 2.3 |
+| 1280 | note | 4850.1 | 2397.6 | 10.8 | 3.6 | 2.3 |
+| 1280 | photo | 4707.9 | 2372.9 | 84.3 | 4.2 | 5.3 |
+| 1280 | photo-deduplicated | 4835.4 | 2601.1 | 443.3 | 36.1 | 2.8 |
+| 1280 | first-capture | 5286.4 | 2477.4 | 13.7 | 3.8 | 2.3 |
+| 390 | step | 4668.7 | 2323.8 | 10.6 | 3.6 | 2.2 |
+| 390 | note | 4617.7 | 2335.9 | 10.5 | 3.9 | 2.4 |
+| 390 | photo | 4903.1 | 2653.2 | 84.2 | 4.3 | 3.8 |
+| 390 | photo-deduplicated | 5371.1 | 2603.2 | 393.9 | 5.1 | 2.2 |
+| 390 | first-capture | 5054.4 | 2510.5 | 16.0 | 4.3 | 2.2 |
 
 Apertura completa (base ya escrita, no arranque frío de dispositivo): antes
-1048.3/913.4 ms; después
-815.1/860.4 ms. Lectura de ejecución:
-5.2/8.1 ms; estadísticas:
-6.5/5.9 ms; página de 50:
-7.5/7.6 ms. No se hidrataron fotos en esas consultas.
+1055.5/885.9 ms; después
+797.8/844.4 ms. Lectura de ejecución:
+3.9/2.9 ms; estadísticas:
+5.8/4.8 ms; página de 50:
+8.2/10.0 ms. No se hidrataron fotos en esas consultas.
 
 En 100 ediciones, p95 de preparación+TX+confirmación:
-47.0/56.6 ms.
+48.1/48.3 ms.
 Archivo comparable idéntico: 50,299,234 bytes. Exportación antes/después:
-858.7/1202.4 ms en 1280;
-importación 3633.8/3859.5 ms;
-commit de restore 2712.1/1999.3 ms.
+901.1/933.5 ms en 1280;
+importación 3722.0/4183.3 ms;
+commit de restore 2805.9/1980.9 ms.
 El JSON conserva los valores de 390 por separado. Construcción inicial Worker:
-5772.1/5443.3 ms.
+5147.3/5326.1 ms.
 Mayor intervalo observado en el sondeo de UI: antes
-805.4/809.8 ms;
-Worker 123.8/100.7 ms.
+767.9/834.0 ms;
+Worker 140.6/92.8 ms.
 
 El Worker no acelera mágicamente la construcción inicial: incorpora arranque y
 structuredClone. Ejecuta preparación/verificación/importación/exportación fuera del
 hilo de interfaz. El sondeo de intervalos de 16 ms registra pausas, no una auditoría
 completa de long tasks ni un máximo universal. La copia inicial sigue pudiendo
-bloquear perceptiblemente. La apertura IndexedDB aún ejecuta la validación completa
-en el hilo principal; disponer de un comando verify en Worker no implica que esa
-ruta ya esté trasladada. Debe resolverse antes de cumplir la meta de pausas de UI. La exportación nueva es ligeramente más lenta en esta
+bloquear perceptiblemente. La apertura IndexedDB aún valida en el hilo principal;
+el Worker disponible no implica que esa ruta ya esté trasladada. La exportación nueva es ligeramente más lenta en esta
 prueba por snapshot/validación defensiva; no se presenta como mejora de throughput.
 
 Objetivos propuestos, no compromisos: cambios pequeños p95 <100 ms escritorio y
@@ -145,10 +144,10 @@ requieren trabajo de memoria/respuesta y cancelación.
 ## 3. Memoria, diarios y capacidad
 
 Sondeo en ventanas nuevas, sobre la MISMA raíz, conservando cada sesión y solicitando
-GC: sesión Data2 hidratada 65,489,343/
-65,489,187 bytes de heap JS retenido;
-ventana incremental 9,755,603/
-9,755,327. Es un descenso de heap retenido,
+GC: sesión Data2 hidratada 65,489,533/
+65,489,569 bytes de heap JS retenido;
+ventana incremental 9,763,657/
+9,763,753. Es un descenso de heap retenido,
 no memoria total del navegador, RSS ni pico de importación. Los blobs y backing
 stores no se contabilizan necesariamente en esa cifra. El benchmark registra además
 muestras acumulativas de heap: incluyen corpus, copias y archivos simultáneos y NO
@@ -171,7 +170,7 @@ una década de fotos diarias a resolución máxima.
 
 ## 4. Navegadores y dispositivos
 
-Chromium obligatorio: 76 grupos de comprobaciones nuevas de protocolo/rendimiento,
+Chromium obligatorio: 78 grupos de comprobaciones nuevas de protocolo/rendimiento,
 70 de UI (cinco paletas × escritorio/móvil) y 4 de capacidad fotográfica adicional.
 Las suites existentes siguen ejecutándose aparte. Firefox y WebKit no estaban
 instalados; se intentó descargarlos en /tmp, pero los mirrors respondieron
@@ -224,8 +223,7 @@ Artefactos distintos:
   Un esquema de DB desconocido puede requerir un lector de diagnóstico compatible.
 
 La interfaz `/readiness` muestra generación confirmada y pendiente por separado,
-permite descargar/examinar, visualizar una fotografía Blob a demanda, reintentar
-con ID estable, cancelar candidato con diálogo,
+permite descargar/examinar, reintentar con ID estable, cancelar candidato con diálogo,
 restaurar en destino nuevo y olvidar un paquete en memoria. Cancelar no revierte un
 commit que ya tiene recibo. Olvidar memoria no elimina archivos descargados ni bases.
 Un beforeunload ayuda con interacción previa; no rescata cambios en RAM tras crash,
@@ -234,7 +232,9 @@ cierre forzado o descarte móvil. Ni una descarga solicitada acredita que se con
 **Bloqueo deliberado:** no hay todavía autoridad persistente que identifique qué
 fuente/alias sigue vinculada a todos los commits posteriores de una migración.
 No es seguro deducirla de la fecha o de cualquiera de los candidatos. Por eso no se
-habilita incremental sobre fuentes migradas. Hace falta un contrato de linaje,
+habilita incremental sobre fuentes migradas. Cada transacción incremental vuelve
+a comprobar la presencia de fuentes/candidatos: si aparecen después de abrir la
+ventana, también se detiene sin sobrescribir el confirmado. Hace falta un contrato de linaje,
 readSources inyectado, vigilancia antes/después de escritura, cuarentena y barrera
 contra escritores incompatibles. La carrera entre localStorage e IndexedDB no puede
 eliminarse con BroadcastChannel/Web Locks. Mantener fuente v1 intacta y ofrecer
@@ -354,7 +354,7 @@ operaciones multi-entidad. No se presentan métodos existentes como paridad Reac
 | npm run test:regression | 164 aprobadas |
 | npm run test:history-contract | 150 aprobadas, 6 TODO, cero fallos |
 | npm test | 314 aprobadas, 6 TODO, un fallo conocido BUG-05; salida 1 |
-| history-readiness.cjs | 76 grupos nuevos, más registro explícito de navegadores no disponibles |
+| history-readiness.cjs | 78 grupos nuevos, más registro explícito de navegadores no disponibles |
 | history-readiness-ui.cjs | 70 grupos DOM, cinco paletas/escritorio/móvil |
 | history-photo-capacity.cjs | 4 grupos, 379 imágenes reales sintéticas |
 | history-storage.cjs | 65 casos de IndexedDB existentes |
@@ -373,3 +373,24 @@ diagnóstico sin validar y el método real de hitos. No hay dependencias nuevas.
 El fallo conocido BUG-05 permanece intacto en tests/known-bugs.test.cjs. Los seis
 TODO se mantienen, incluidos integración pública y purga histórica no aprobada.
 No se convierten ausencias de navegador o funciones pendientes en pruebas aprobadas.
+
+## Recuperación y cierre de la tarea interrumpida
+
+Se recuperaron la rama local y los 43 archivos de trabajo sin descartar cambios.
+Punto de recuperación: commit `aedfacf`. No había procesos de prueba activos al
+retomar. Se recuperó completa la última ejecución de comparación: 78 grupos,
+posterior al cambio de fuentes/candidatos y al código medido. Sus registros JSON
+terminaron correctamente y los módulos relevantes no habían cambiado después.
+Se sustituyó el informe anterior de 76 grupos; no se mezclan sus cifras como finales.
+La ejecución completa conservada aporta la comparación antes/después; al retomar
+se volvieron a ejecutar las comprobaciones generales y las suites afectadas, sin
+alterar el motor medido. No se reanuda ni autoriza 4C.
+
+Reverificación tras recuperar: check/check:history-contract correctos; 164 regresiones
+y 150 contratos aprobados; npm test conserva 314 aprobados, 6 TODO y únicamente
+BUG-05. Protocolo reducido 58 grupos (incluye aparición tardía de fuentes/candidatos),
+UI 70, IndexedDB 65, lector 120, integración 28, legado 186, guardado público 4 y
+horarios en 2 viewports: aprobados. La comparación completa de 78 grupos y el ensayo
+fotográfico de 4 grupos son ejecuciones completas recuperadas, no nuevas mediciones
+de rendimiento bajo la carga paralela de la reverificación. Firefox/WebKit no
+disponibles y dispositivos físicos no probados se mantienen como limitaciones.

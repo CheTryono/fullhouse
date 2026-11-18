@@ -20,7 +20,7 @@
 - Se prepara toggleMilestone mediante método real extraído; Planner público sigue igual.
 - Check/tipos correctos; regresión 164; contrato 150 aprobadas y 6 TODO. npm test:
   314 aprobadas, 6 TODO y único fallo conocido BUG-05 (salida 1).
-- Chromium: preparación 76, UI 70, fotos 4; suites anteriores 65/28/120/186 y
+- Chromium: preparación 78, UI 70, fotos 4; suites anteriores 65/28/120/186 y
   guardado/horarios públicos aprobados. Firefox/WebKit no disponibles: descarga 403.
 - No preparado para 4C: falta autoridad persistente de fuentes (incremental sobre
   datos migrados bloqueado), planificación multi-entidad escalable, paridad React,
@@ -406,3 +406,10 @@ Check y tipos correctos; regresión 164 aprobadas; contrato 143 aprobadas y 6 TO
 Chromium: 186 casos nuevos de legado/compatibilidad, 65 de IndexedDB,
 28 de integración y 120 combinaciones del lector. Guardado público: 4 combinaciones;
 horarios públicos: escritorio/móvil. Sin errores JS inesperados.
+
+## Cierre tras interrupción por créditos
+
+Se conservaron los 43 archivos mediante checkpoint aedfacf antes de continuar.
+Se recuperó la medición final de 78 grupos, posterior a la protección de fuentes,
+y se reemplazó el informe anterior. Se repitieron las verificaciones generales y
+las suites de navegador afectadas, sin reescribir el motor ni activar 4C.
