@@ -533,7 +533,7 @@ factory anterior; una base vieja sin autoridad queda en recuperación, no se inf
 linaje. El ensayo de cuota usa un perfil persistente desechable; un viewport de
 390 px no acredita Android/iPhone. Firefox/WebKit no están instalados.
 
-97 grupos Chromium: matriz de fuentes, cierre/reapertura, conflictos persistentes,
+101 grupos Chromium: matriz de fuentes, cierre/reapertura, conflictos persistentes,
 dos pestañas, barreras físicas/capacidades, abortos/cuota real, acuse perdido,
 operaciones obsoletas, restauración/fotos y UI. Node añade cuatro contratos reales;
 los seis TODO y BUG-05 público permanecen. El benchmark no mide las operaciones B

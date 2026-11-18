@@ -15,6 +15,9 @@
   501 revisiones y 42.175.847 bytes de fotos; fuentes pequeñas, límites documentados.
 - Producción, app.tsx/app.js, almacenamiento v1 y despliegue permanecen intactos.
   BUG-05 público y seis TODO siguen explícitos. No hay borrado físico nuevo.
+- Verificado: check/tipos, regresión 164, contratos 154 + 6 TODO; npm test 318 y
+  único fallo público BUG-05. Chromium: linaje 101, almacenamiento 65, lector 120,
+  integración 28, legado 186, preparación 78; guardado/horarios públicos correctos.
 - Resultados y condiciones de salida: docs/HISTORY_V2_LINEAGE_SCOPED.md.
 
 # BUG-05 · fase 4B.3: preparación técnica aislada

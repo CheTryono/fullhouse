@@ -96,14 +96,20 @@ const { start } = require('../../scripts/serve-history-lab.cjs');
                 if (!recovery.state.conflict)
                     throw Error('Cuarentena no persistió');
                 db.close();
+                const futureName = 'fullhouse-lab-lineage-future', future = await new Promise((res, rej) => { const r = indexedDB.open(futureName, 3); r.onupgradeneeded = () => r.result.createObjectStore('future'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+                future.close();
+                const incompatible = H.createLineageDatabase({ factory: indexedDB, name: futureName, legacy: L, readSources: () => copies });
+                if ((await incompatible.open()).status !== 'recovery')
+                    throw Error('Versión física futura aceptada');
+                incompatible.close();
                 return { readonly: true, denied, quarantine: true };
             });
             assert.ok(barriers.denied);
-            cases += 3;
+            cases += 4;
             const races = await page.evaluate(async () => {
                 const H = FullhouseHistory, L = H.schedule.validData, raw = note => JSON.stringify({ version: 1, goals: [], routines: [], events: [], logs: { old: { completed: false, checkedSteps: ['lost'], note } } }), initial = raw('Original'), changed = raw('Different');
                 let count = 0;
-                for (const mode of ['before-stage', 'after-commits', 'during-write', 'disappeared', 'unreadable']) {
+                for (const mode of ['before-stage', 'after-stage', 'after-commits', 'during-write', 'disappeared', 'unreadable']) {
                     let copies = { main: initial, alias: null }, unreadable = false;
                     const readSources = () => {
                         if (unreadable)
@@ -127,6 +133,22 @@ const { start } = require('../../scripts/serve-history-lab.cjs');
                         continue;
                     }
                     await db.stageMigration(proposal, { id: 'migration' });
+                    if (mode === 'after-stage') {
+                        copies.main = changed;
+                        let refused = false;
+                        try {
+                            await db.finalizeMigration('migration', { confirm: true });
+                        }
+                        catch {
+                            refused = true;
+                        }
+                        const dump = await db.sourceRecovery();
+                        if (!refused || dump.state.head !== null || !dump.state.conflict || dump.originals.find(s => s.source === 'main').raw !== initial || dump.state.candidates[0].status !== 'staged')
+                            throw Error('Cambio después de preparar activó o perdió el candidato');
+                        db.close();
+                        count++;
+                        continue;
+                    }
                     await db.finalizeMigration('migration', { confirm: true });
                     let token = (await db.incremental.openWindow()).token;
                     for (let i = 0; i < 3; i++) {
@@ -338,18 +360,35 @@ const { start } = require('../../scripts/serve-history-lab.cjs');
             const qp = persistent.pages()[0], cdp = await persistent.newCDPSession(qp);
             await cdp.send('Storage.overrideQuotaForOrigin', { origin: origin.url, quotaSize: 1048576 });
             await qp.goto(origin.url + '/storage');
-            const quota = await qp.evaluate(async () => { const H = FullhouseHistory, L = H.schedule.validData, db = H.createLineageDatabase({ factory: indexedDB, name: 'fullhouse-lab-lineage-quota', legacy: L, schedule: H.schedule, readSources: () => ({ main: null, alias: null }) }), doc = H.scenarios(H).list.find(s => s.id === 'partial').doc; await db.commit(await H.storageModel.prepareDocument(doc, L), { id: 'seed' }); const token = (await db.incremental.openWindow()).token, canvas = document.createElement('canvas'); canvas.width = 1100; canvas.height = 1100; const ctx = canvas.getContext('2d'), pixels = ctx.createImageData(1100, 1100); let seed = 123; for (let i = 0; i < pixels.data.length; i += 4) {
-                seed = (Math.imul(seed, 1664525) + 1013904223) | 0;
-                pixels.data[i] = seed & 255;
-                pixels.data[i + 1] = (seed >>> 8) & 255;
-                pixels.data[i + 2] = (seed >>> 16) & 255;
-                pixels.data[i + 3] = 255;
-            } ctx.putImageData(pixels, 0, 0); const op = await db.incremental.prepareExecution(token, 'e@2030-01-07', { executionId: 'execution', at: '2030-01-07T13:00:00Z', editId: 'quota', operationId: 'quota', reason: 'Quota', action: { type: 'evidence', evidence: { id: 'large', kind: 'image', src: canvas.toDataURL('image/png'), caption: 'Synthetic quota', createdAt: '2030-01-07T13:00:00Z' } } }); let error; try {
-                await db.incremental.commitExecution(op);
-            }
-            catch (e) {
-                error = e.name + ': ' + e.message;
-            } const state = await db.open(); await db.auditLineage(); db.close(); return { error, generation: state.head.generation, authority: state.authority.tip.generation, images: state.storedImages }; });
+            const quota = await qp.evaluate(async () => {
+                const H = FullhouseHistory, L = H.schedule.validData, db = H.createLineageDatabase({ factory: indexedDB, name: 'fullhouse-lab-lineage-quota', legacy: L, schedule: H.schedule, readSources: () => ({ main: null, alias: null }) }), doc = H.scenarios(H).list.find(s => s.id === 'partial').doc;
+                await db.commit(await H.storageModel.prepareDocument(doc, L), { id: 'seed' });
+                const token = (await db.incremental.openWindow()).token, canvas = document.createElement('canvas');
+                canvas.width = 1100;
+                canvas.height = 1100;
+                const ctx = canvas.getContext('2d'), pixels = ctx.createImageData(1100, 1100);
+                let seed = 123;
+                for (let i = 0; i < pixels.data.length; i += 4) {
+                    seed = (Math.imul(seed, 1664525) + 1013904223) | 0;
+                    pixels.data[i] = seed & 255;
+                    pixels.data[i + 1] = (seed >>> 8) & 255;
+                    pixels.data[i + 2] = (seed >>> 16) & 255;
+                    pixels.data[i + 3] = 255;
+                }
+                ctx.putImageData(pixels, 0, 0);
+                const op = await db.incremental.prepareExecution(token, 'e@2030-01-07', { executionId: 'execution', at: '2030-01-07T13:00:00Z', editId: 'quota', operationId: 'quota', reason: 'Quota', action: { type: 'evidence', evidence: { id: 'large', kind: 'image', src: canvas.toDataURL('image/png'), caption: 'Synthetic quota', createdAt: '2030-01-07T13:00:00Z' } } });
+                let error;
+                try {
+                    await db.incremental.commitExecution(op);
+                }
+                catch (e) {
+                    error = e.name + ': ' + e.message;
+                }
+                const state = await db.open();
+                await db.auditLineage();
+                db.close();
+                return { error, generation: state.head.generation, authority: state.authority.tip.generation, images: state.storedImages };
+            });
             assert.match(quota.error, /QuotaExceeded/);
             assert.equal(quota.generation, 1);
             assert.equal(quota.authority, 1);

@@ -72,7 +72,9 @@ sintéticos; la prueba entre pestañas usa solo claves `fullhouse-lab-lineage-so
 en un origen loopback desechable. Nunca se accede a las claves públicas.
 
 Se consulta al abrir, antes/después de preparar migración y antes/después de cada
-commit; `auditLineage()` permite vigilancia explícita. No hay temporizador global ni
+commit; `auditLineage()` permite vigilancia explícita. La lectura de dos claves tampoco es una instantánea atómica entre ellas: una
+observación híbrida se trata de forma conservadora, sin elegir rama.
+No hay temporizador global ni
 servicio de vigilancia pública en esta fase. Cambios mientras la ventana está cerrada
 se detectan al reabrir. Aparición, desaparición, cambio de bytes y acceso ilegible
 bloquean, incluso si la fuente reaparece después de varios commits v2.
@@ -213,6 +215,8 @@ npm test
 NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-lineage.cjs
 NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-lineage-performance.cjs
 NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-readiness.cjs
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-storage.cjs
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-view.cjs
 NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-integration.cjs
 NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-legacy.cjs
 NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/pending-save.cjs
@@ -225,10 +229,12 @@ NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/day-shifts
 | test:regression | 164 aprobadas |
 | test:history-contract | 154 aprobadas, 6 TODO, cero fallos |
 | npm test | 318 aprobadas, 6 TODO, único fallo conocido BUG-05 (salida 1) |
-| history-lineage | 97 grupos aprobados, 1280/390 px, cuota en perfil desechable |
+| history-lineage | 101 grupos aprobados, 1280/390 px, cuota en perfil desechable |
 | history-lineage-performance | Corpus completo, equivalencia de raíces/fotos, medición adjunta |
 | history-readiness | 78 grupos aprobados; corpus completo, Firefox/WebKit ausentes |
 | history-readiness reducido | 58 grupos aprobados; no sustituye el corpus completo |
+| history-storage | 65 casos aprobados; cuota/crash/denegación reales y nueve respaldos históricos |
+| history-view | 120 combinaciones aprobadas |
 | history-integration | 28 casos aprobados |
 | history-legacy | 186 casos aprobados |
 | pending-save | 4 combinaciones públicas sintéticas aprobadas |
@@ -240,8 +246,15 @@ tras varios commits y mientras cerrado; desaparición, ilegibilidad y reaparici�
 Incluye conflicto persistente después de restaurar bytes/reiniciar; conexiones viejas,
 upgrade bloqueado, manifiesto corrupto, capacidades insuficientes, abortos antes/durante
 TX, cuota inyectada y real, cierre de página, acuse perdido, CAS entre conexiones v2,
-restauración en destino nuevo y lectura de fotografía. El ensayo v1/v2 usa **dos
+restauración en destino nuevo y lectura de fotografía. Se añade comprobación explícita de cambio después de preparar y antes de confirmar
+la migración, y rechazo de una base física futura de versión 3.
+El ensayo v1/v2 usa **dos
 páginas reales**; el CAS entre escritores v2 usa dos conexiones independientes.
+
+La primera ejecución de almacenamiento se interrumpió; el diagnóstico posterior
+con instrumentación temporal agotó 180 segundos. Se repitió la suite original sin
+instrumentación, con margen de 600 segundos y sin otro benchmark grande simultáneo:
+terminó correctamente (65 casos, salida 0). No se modificó ni redujo esa suite.
 
 La primera tentativa de cuota en contexto privado no produjo rechazo y falló la
 aserción: se corrigió el ensayo para usar un perfil persistente desechable, donde
@@ -293,3 +306,11 @@ recibos y preparar B por grupos de entidades. Conservar fallback completo cuando
 el alcance no pueda probarse; rechazar programaciones no verificables. Tras B,
 completar paridad React/privacidad/navegadores y aprobar expresamente integración
 pública, migración y recuperación. **Esta entrega no habilita 4C.**
+
+## Checkpoint de entrega
+
+El commit `d01d33d` del hito A fue subido a origin antes de continuar el cierre
+de documentación y los casos adicionales; B no se inició. La creación de PR en
+borrador mediante `gh pr create` recibió `Post https://api.github.com/graphql: Forbidden`.
+La rama remota está disponible para crear la PR desde ChatGPT. No se fusionó ni
+se publicó. La copia de trabajo final conserva el checkpoint y el commit de cierre.

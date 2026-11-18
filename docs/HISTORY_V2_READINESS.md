@@ -412,6 +412,10 @@ pública, otros motores/dispositivos y decisión de privacidad. Una sonda no eli
 las carreras con pestañas v1. La política de eliminación física no ha cambiado.
 
 Reverificación de 4B.3b: regresión 164; contratos 154 + 6 TODO; npm test 318
-aprobadas + 6 TODO y único fallo público BUG-05. Suite nueva de linaje 97 grupos;
+aprobadas + 6 TODO y único fallo público BUG-05. Suite nueva de linaje 101 grupos;
 comparación con 5.000 ejecuciones/501 revisiones/42.175.847 bytes adjunta. Los seis
 TODO no se eliminan. Resultados y limitaciones detallados en LINEAGE_SCOPED.
+
+También se completaron IndexedDB 65 y lector 120. No quedan procesos de prueba
+activos al cerrar la verificación. El primer intento interrumpido y el diagnóstico
+con timeout se documentan en LINEAGE_SCOPED; la repetición original terminó con salida 0.
