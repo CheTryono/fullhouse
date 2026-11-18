@@ -5,7 +5,7 @@ const {sha256}=require('./persistence.cjs');
 const {proposeMigration,inspectSources,fingerprint:sourceFingerprint}=require('./storage-sources.cjs');
 const STORES=['control',...TABLES,'images','commits','candidates','sources'];
 // Solo nombres de laboratorio y factory explícito: no se abre una DB al importar.
-function createLabDatabase({factory,name,legacy,schedule,physicalVersion=1,protocol=null,readOnly=false}){
+function createLabDatabase({factory,name,legacy,schedule,plannerActions=null,physicalVersion=1,protocol=null,readOnly=false}){
   if(typeof name!=='string' || !name.startsWith('fullhouse-lab-'))throw Error('Solo bases de laboratorio');let connection=null;
   if(![1,2].includes(physicalVersion)||physicalVersion===2&&!protocol)throw Error('Protocolo compatible necesario para base física 2');
   async function connect(){
@@ -102,7 +102,7 @@ function createLabDatabase({factory,name,legacy,schedule,physicalVersion=1,proto
   async function protocolOriginals(){return transaction(['sources'],'readonly',(tx,done,fail)=>fetchAll(tx,['sources'],rows=>done(rows.sources),fail));}
   async function protocolFlag(value){return transaction(['control'],'readwrite',(tx,done,fail)=>{const request=tx.objectStore('control').get('lineage-conflict');request.onerror=()=>fail(request.error);request.onsuccess=()=>{try{if(!request.result)tx.objectStore('control').put(value);done();}catch(e){fail(e);}};},true);}
   function close(){if(connection){connection.close();connection=null;}}
-  const incremental=schedule?require('./storage-incremental.cjs').createIncrementalAccess({open,transaction,legacy,schedule,protocol}):null;
+  const incremental=schedule?require('./storage-incremental.cjs').createIncrementalAccess({open,transaction,legacy,schedule,protocol,plannerActions}):null;
   return Object.freeze({protocolSnapshot,protocolOriginals,protocolFlag,exportDiagnostic,incremental,open,read,commit,stageMigration,verifyCandidate,finalizeMigration,listExecutions,readEvidence,close});
 }
 module.exports={createLabDatabase,STORES};

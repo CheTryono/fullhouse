@@ -20,8 +20,11 @@ No es un compromiso de fechas ni autorización de despliegue.
 | ✅ | BUG-05 fase 4B.1: arquitectura y migración sintética | PR #9 fusionada; main 52dbe4d; IndexedDB aislado, sin activación |
 | ✅ | BUG-05 fase 4B.2: base de compatibilidad experimental | PR #10 fusionada; main 35ca45c. Borrado físico y paridad React completa siguen abiertos |
 | ✅ | BUG-05 fase 4B.3: preparación técnica aislada | PR #11 fusionada, main d1dae11; incremental/Worker, recuperación y capacidad. No preparado para 4C |
-| 🔄 | BUG-05 fase 4B.3b · A: autoridad persistente | Implementada y probada en laboratorio para revisión: manifiesto/cadena, fuentes, cuarentena y barrera física 2. Ver LINEAGE_SCOPED |
-| ⬜ | BUG-05 fase 4B.3b · B: planificación por alcance | Entrega separada después de revisar A; metas/revisiones, rutinas, eventos/series/dependencias y adopción |
+| ✅ | BUG-05 fase 4B.3b · A: autoridad persistente | PR #12 fusionada, main cc1d901; manifiesto/cadena, vigilancia y barrera física 2, solo laboratorio |
+| 🔄 | BUG-05 fase 4B.3b · B.1: metas y revisiones por alcance | Puertos y sesión confirmada implementados para revisión; ver SCOPED_GOALS, sin activación pública |
+| ⬜ | BUG-05 fase 4B.3b · B.2: rutinas por alcance | Versiones y referencias históricas inmutables |
+| ⬜ | BUG-05 fase 4B.3b · B.3: programación por alcance | Series, excepciones, dependencias y límites BUG-04 |
+| ⬜ | BUG-05 fase 4B.3b · B.4: adopción por alcance | Tramo nuevo explícito, conservación de legado y evidencias |
 | ⬜ | Otros bloqueos antes de 4C | Privacidad aprobada, paridad React, fuentes grandes/cadenas largas y otros motores/dispositivos |
 | ⬜ | BUG-05 fase 4C: integración y activación por etapas | Solo tras cerrar matriz, previsualización, respaldos/reversión y autorización explícita |
 | ⬜ | Automatizar pruebas en GitHub Actions | Separar pruebas que deben pasar y error conocido explícito; no ocultarlo |

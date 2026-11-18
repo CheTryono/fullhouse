@@ -20,4 +20,4 @@ export interface LineageDatabase extends Omit<LabDatabase,'open'|'commit'|'final
  sourceRecovery():Promise<{format:'fullhouse-lineage-recovery';version:1;meaning:'sources-and-authority-not-a-complete-data-backup';originals:unknown;current:unknown;memoryConflict:unknown;state:unknown}>;
 }
 export function verifyAuthority(authority:unknown,head:unknown,receipts:readonly unknown[]):Promise<true>;
-export function createLineageDatabase(options:{factory:IDBFactory|null|undefined;name:`fullhouse-lab-${string}`;legacy:(value:unknown)=>boolean;schedule?:unknown;readSources:()=>SourceCopies|Promise<SourceCopies>;writerCapabilities?:readonly string[];readOnly?:boolean}):LineageDatabase;
+export function createLineageDatabase(options:{factory:IDBFactory|null|undefined;name:`fullhouse-lab-${string}`;legacy:(value:unknown)=>boolean;schedule?:unknown;plannerActions?:(document:unknown,context:unknown)=>unknown;readSources:()=>SourceCopies|Promise<SourceCopies>;writerCapabilities?:readonly string[];readOnly?:boolean}):LineageDatabase;

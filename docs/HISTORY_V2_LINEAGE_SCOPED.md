@@ -314,3 +314,12 @@ de documentación y los casos adicionales; B no se inició. La creación de PR e
 borrador mediante `gh pr create` recibió `Post https://api.github.com/graphql: Forbidden`.
 La rama remota está disponible para crear la PR desde ChatGPT. No se fusionó ni
 se publicó. La copia de trabajo final conserva el checkpoint y el commit de cierre.
+
+
+## Avance B.1 sobre cc1d901 (experimental)
+
+[Metas y revisiones por alcance](HISTORY_V2_SCOPED_GOALS.md) incorpora saveGoal,
+saveProgress, toggleMilestone y saveDayReview, con la misma autoridad y formato.
+B.2 (rutinas), B.3 (programación) y B.4 (adopción incremental) siguen pendientes.
+La aplicación pública continúa en v1; esta actualización no habilita 4C ni modifica
+las limitaciones de concurrencia y privacidad del hito A.
