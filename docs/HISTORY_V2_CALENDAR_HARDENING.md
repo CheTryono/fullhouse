@@ -281,3 +281,12 @@ semanal local B.2/B.3a.1 para componentes que cumplen sus supuestos. No amplía 
 verificador general ni sustituye la ruta de rutinas B.2. Sin edición, cortes,
 movimientos ni activación pública. Véase [SCOPED_EVENTS_CREATE](HISTORY_V2_SCOPED_EVENTS_CREATE.md)
 para límites, transacciones, identidades y pruebas nuevas.
+
+
+### Consumidor B.3b.2: edición experimental
+
+[SCOPED_EVENTS_EDIT](HISTORY_V2_SCOPED_EVENTS_EDIT.md) implementa capacidades de edición,
+corte civil y serie persistente con deltas transaccionales. No cambia captura/archivo,
+versiones ni aplicación pública. La identidad original de registros permanece; capturas
+futuras requieren política explícita y los casos ambiguos se bloquean. No habilita
+movimientos, eliminación, adopción incremental ni 4C.

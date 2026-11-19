@@ -333,3 +333,33 @@ Las filas físicas se ordenan por clave; el orden funcional de inserción se con
 mediante header.eventIds. Los tests no suponen que la última fila física es el nuevo ID.
 No hay pruebas en teléfonos físicos ni Firefox/WebKit. Una muestra no es un SLO.
 [Contrato y resultados](../../docs/HISTORY_V2_SCOPED_EVENTS_CREATE.md).
+
+
+## Edición y segmentación experimental · B.3b.2
+
+```sh
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-events-edit.cjs
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-events-edit-calendar.cjs
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-events-edit-faults.cjs
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-events-edit-performance.cjs
+```
+
+- edit: 1280/390 px, metadatos, marca de capacidad distinta de creación, aborto,
+  recuperación y acuse perdido/reintento, identidad e historial conservados.
+- calendar: UTC + México/Nueva York/Madrid/Apia; corte con captura futura congelada,
+  timeline sin segunda pendiente, rechazo de segunda captura y archive portable.
+  Mensual/anual/every finitos y bloqueo de indefinidos locales no demostrados.
+- faults: cuota real configurada antes de usar el origen y presión binaria sintética,
+  lectura fallida, dos páginas, rechazo de replay obsoleto, aborto de dos filas,
+  paquete recuperado, cierre en TX, fuente v1 antes/durante, corrupción de captura
+  futura y cambio de zona antes/después por CDP. Perfil temporal propio.
+- performance: corpus idéntico 5000/501/65/42175847 bytes. Reconstrucción física
+  independiente de los tres deltas esperados frente a puerto incremental; la sesión
+  completa anterior puede rechazar por complejidad y no cuenta como escritura lenta.
+  Archivo/pendiente grandes, comparación por clave/hash, todos los blobs y heap de
+  ventana separada. No mide RSS/pico ni demuestra reducción de memoria.
+
+No son teléfonos físicos, Firefox ni WebKit. Storage público bloqueado en laboratorio;
+puertos readSources solo devuelven copias sintéticas. Las regresiones públicas usan
+otro origen loopback desechable. No se publica este laboratorio en Pages.
+[Contrato, casos bloqueados y mediciones](../../docs/HISTORY_V2_SCOPED_EVENTS_EDIT.md).

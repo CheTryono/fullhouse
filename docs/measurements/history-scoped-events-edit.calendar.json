@@ -1,0 +1,103 @@
+{
+  "base": "c61e6ac",
+  "browser": "156.0.8078.79",
+  "scope": "Synthetic IndexedDB; 390 px viewport, no physical phone",
+  "results": [
+    {
+      "zone": "UTC",
+      "split": true,
+      "historyHashesEqual": true,
+      "futureCaptureRetained": true,
+      "duplicatePending": false,
+      "duplicateCaptureRejected": true,
+      "finite": [
+        "monthly",
+        "yearly",
+        "every"
+      ],
+      "blockedIndefinite": [],
+      "photoBytesHydrated": 0,
+      "noJavaScriptErrors": true
+    },
+    {
+      "zone": "America/Mexico_City",
+      "split": true,
+      "historyHashesEqual": true,
+      "futureCaptureRetained": true,
+      "duplicatePending": false,
+      "duplicateCaptureRejected": true,
+      "finite": [
+        "monthly",
+        "yearly",
+        "every"
+      ],
+      "blockedIndefinite": [
+        "monthly",
+        "yearly",
+        "every"
+      ],
+      "photoBytesHydrated": 0,
+      "noJavaScriptErrors": true
+    },
+    {
+      "zone": "America/New_York",
+      "split": true,
+      "historyHashesEqual": true,
+      "futureCaptureRetained": true,
+      "duplicatePending": false,
+      "duplicateCaptureRejected": true,
+      "finite": [
+        "monthly",
+        "yearly",
+        "every"
+      ],
+      "blockedIndefinite": [
+        "monthly",
+        "yearly",
+        "every"
+      ],
+      "photoBytesHydrated": 0,
+      "noJavaScriptErrors": true
+    },
+    {
+      "zone": "Europe/Madrid",
+      "split": true,
+      "historyHashesEqual": true,
+      "futureCaptureRetained": true,
+      "duplicatePending": false,
+      "duplicateCaptureRejected": true,
+      "finite": [
+        "monthly",
+        "yearly",
+        "every"
+      ],
+      "blockedIndefinite": [
+        "monthly",
+        "yearly",
+        "every"
+      ],
+      "photoBytesHydrated": 0,
+      "noJavaScriptErrors": true
+    },
+    {
+      "zone": "Pacific/Apia",
+      "split": true,
+      "historyHashesEqual": true,
+      "futureCaptureRetained": true,
+      "duplicatePending": false,
+      "duplicateCaptureRejected": true,
+      "finite": [
+        "monthly",
+        "yearly",
+        "every"
+      ],
+      "blockedIndefinite": [
+        "monthly",
+        "yearly",
+        "every"
+      ],
+      "photoBytesHydrated": 0,
+      "noJavaScriptErrors": true
+    }
+  ]
+}

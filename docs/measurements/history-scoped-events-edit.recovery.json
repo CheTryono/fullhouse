@@ -1,0 +1,61 @@
+{
+  "base": "c61e6ac",
+  "browser": "156.0.8078.79",
+  "quota": {
+    "error": "No se confirmó el guardado (QuotaExceededError). Conserva el candidato y reintenta.",
+    "generation": 1,
+    "twoRowQuota": {
+      "error": "QuotaExceededError: ",
+      "rootUnchanged": true,
+      "rows": 1
+    }
+  },
+  "retry": {
+    "generation": 2,
+    "id": "quota"
+  },
+  "readFailure": {
+    "pendingKept": true,
+    "generation": 3
+  },
+  "tabs": {
+    "staleBlocked": true,
+    "candidateExportable": true,
+    "resumeBlocked": true
+  },
+  "split": {
+    "twoRowAtomic": true,
+    "recovery": true,
+    "receipt": "persisted-receipt",
+    "generation": 5
+  },
+  "reopened": {
+    "generation": 1,
+    "rows": 1
+  },
+  "sources": [
+    {
+      "duringTransaction": false,
+      "status": "recovery",
+      "generation": 1
+    },
+    {
+      "duringTransaction": true,
+      "status": "recovery",
+      "generation": 2
+    }
+  ],
+  "corruption": {
+    "blocked": true,
+    "status": "recovery",
+    "generation": 1,
+    "candidateExportable": true
+  },
+  "zoneBefore": "Calendario indeterminado: cambió la zona desde la preparación; conserva y vuelve a validar el candidato",
+  "zoneAfter": {
+    "error": "La zona cambió tras escribir: el commit puede estar confirmado; conserva el candidato y examina el recibo",
+    "receipt": "persisted-receipt"
+  },
+  "historicalHashesEqual": true,
+  "noJavaScriptErrors": true
+}

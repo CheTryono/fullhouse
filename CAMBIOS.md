@@ -1,3 +1,28 @@
+# BUG-05 · B.3b.2: edición incremental y segmentos históricos (aislada)
+
+- Base c61e6ac (PR #17), rama feature/history-scoped-events-edit-v2. A c5dd206,
+  B 215498f: capacidades de edición separadas de creación, IDs de segmento estables,
+  serie conservada, prefijo en su lugar y futuro anexado en una TX con linaje.
+- Metadatos admitidos title/note; color propio/desc no existen en el codec de eventos
+  y se bloquean. No se amplía el esquema ni se reutilizan IDs de captura.
+- Comparación completa incluye minutos, rutina, meta, overrides y demás campos que
+  scheduleChanged omite. Reproducción real del traslado de logs v1; el puerto no lo usa.
+- Corte civil, fase semanal/mensual/anual y every demostrada. Búsqueda acotada sin
+  aceptar prefijos; prueba completa antes/después de componentes y dependencias.
+- Capturas futuras permanecen en su clave/identidad original con consentimiento
+  retain-frozen; lector evita segunda pendiente por serie/fecha y motor rechaza
+  duplicación. Bloquea legado ambiguo y overrides de fechas capturadas, entre otros.
+- Reintento, exportación binaria/replay, dos pestañas, aborto multi-fila, cuota real,
+  cierre dentro de TX, acuse/lectura perdidos, corrupción futura, fuentes y zona.
+- Corpus 5000/501/65/42175847 bytes: raíz igual a reconstrucción completa, hashes por
+  clave y todos los blobs restaurados. Preparación 31–72 ms frente a 7,9–8,6 s;
+  no es latencia total, muestra única de escritorio y sin reducción de memoria probada.
+- Verificado: check/tipos correctos; 164 regresiones; 291 contratos + 6 TODO; npm
+  test 455 aprobadas + 6 TODO y único fallo público BUG-05. 20 suites Chromium;
+  sin Firefox/WebKit ni teléfonos físicos. Informe y mediciones: SCOPED_EVENTS_EDIT.
+- app.tsx, app.js, workflow y v1 intactos. Sin migración, activación, borrado físico,
+  publicación ni comienzo automático de B.3c/B.4/4C.
+
 # BUG-05 · B.3b.1: creación incremental de eventos (aislada)
 
 - Base 13ee9d1 (PR #16), rama feature/history-scoped-events-create-v2; checkpoints
