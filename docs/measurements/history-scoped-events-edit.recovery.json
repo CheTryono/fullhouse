@@ -3,7 +3,12 @@
   "browser": "156.0.8078.79",
   "quota": {
     "error": "No se confirmó el guardado (QuotaExceededError). Conserva el candidato y reintenta.",
-    "generation": 1
+    "generation": 1,
+    "twoRowQuota": {
+      "error": "QuotaExceededError: ",
+      "rootUnchanged": true,
+      "rows": 1
+    }
   },
   "retry": {
     "generation": 2,

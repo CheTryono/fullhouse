@@ -653,3 +653,13 @@ recurrencias, alternativas, legado/adopción y zonas locales. Se incluyen en
 `npm run test:history-contract`; no modifican la suite pública ni resuelven BUG-05.
 Véanse [las suites de navegador](browser/README.md) y
 [el informe](../docs/HISTORY_V2_SCOPED_EVENTS_CREATE.md). Permanecen los seis TODO.
+
+
+## B.3b.2 · edición experimental por alcance
+
+39 escenarios Node de clasificación, identidades, cortes, capturas futuras, fases,
+excepciones, dependencias y zonas; pruebas de IndexedDB/recuperación/capacidad en
+[Chromium](browser/README.md). Reproducen los efectos inseguros del saveEvent real sin
+modificarlo; las diferencias v2 se verifican separadamente. Un caso no representable
+se prueba como bloqueo, no como una implementación aprobada. Los seis TODO y el
+BUG-05 público permanecen. [Informe](../docs/HISTORY_V2_SCOPED_EVENTS_EDIT.md).

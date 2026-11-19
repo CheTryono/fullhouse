@@ -513,3 +513,25 @@ La raíz recorre descriptores y la autoridad conserva costes de recibos/fuentes;
 se promete coste constante. Apertura, recuperación y restauración grandes siguen
 requiriendo trabajo global. El siguiente alcance es diseñar B.3b.2 con corte histórico
 seguro, sin reutilizar la antigua reasignación de logs de Planner. No se inicia aquí.
+
+
+## Avance B.3b.2 sobre c61e6ac (experimental)
+
+[Edición por alcance](HISTORY_V2_SCOPED_EVENTS_EDIT.md): metadatos, corte civil,
+serie estable y capturas futuras congeladas explícitamente, sin traslado de logs.
+Se comprueban componentes antes/después y todos los efectos de retirar el tramo viejo.
+
+| Requisito | Estado |
+| --- | --- |
+| Edición incremental, prefijo/futuro y transacción multi-fila | Implementado y verificado en laboratorio |
+| Captura de hoy/futura sin nueva pendiente | Verificado en lector/motor con consentimiento, sin overrides ambiguos |
+| Legado, overrides de fechas capturadas y series ambiguas | Bloqueados; no hay conversiones automáticas |
+| Calendario completo y fases | Dominios B.3a/B.3a.1; presupuesto agotado bloquea |
+| Corpus grande, root/hashes/bytes | Verificados; preparación no es confirmación ni latencia total |
+| shiftEvent/deleteEvent y adopción incremental | No implementados; B.3c/B.4 pendientes |
+| React, privacidad, motores/dispositivos y activación | Pendientes; 4C NO preparada ni autorizada |
+
+La siguiente revisión debe fijar el contrato de desplazamiento/eliminación y el
+tratamiento explícito de capturas y dependencias. No se inicia aquí. Los experimentos
+anteriores que comparten versión física 2 aún necesitan una barrera de capacidades
+antes de activación; no se promete aislamiento perfecto de todos esos escritores.

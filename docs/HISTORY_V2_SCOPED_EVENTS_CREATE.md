@@ -307,3 +307,12 @@ No se inicia ninguna automáticamente.
 **4C no está preparada ni autorizada.** Faltan esas operaciones, B.4, paridad de controles
 React, revisión de privacidad, recuperación de usuario y cobertura de motores/dispositivos,
 además de autorización explícita y pruebas de activación/migración separadas.
+
+
+### Consumidor B.3b.2: edición experimental
+
+[SCOPED_EVENTS_EDIT](HISTORY_V2_SCOPED_EVENTS_EDIT.md) implementa capacidades de edición,
+corte civil y serie persistente con deltas transaccionales. No cambia captura/archivo,
+versiones ni aplicación pública. La identidad original de registros permanece; capturas
+futuras requieren política explícita y los casos ambiguos se bloquean. No habilita
+movimientos, eliminación, adopción incremental ni 4C.

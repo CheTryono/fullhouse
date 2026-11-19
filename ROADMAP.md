@@ -25,8 +25,9 @@ No es un compromiso de fechas ni autorización de despliegue.
 | ✅ | BUG-05 fase 4B.3b · B.2: rutinas por alcance | PR #14 fusionada, main 33bd80a; creación/edición/eliminación aisladas. Límites conservadores; centinela corregido en B.3a.1 y límites de captura documentados en CALENDAR_HARDENING |
 | ✅ | BUG-05 fase 4B.3b · B.3a: demostración del calendario | PR #15 fusionada, main beff908; motor puro, sin activación pública |
 | ✅ | BUG-05 B.3a.1: alternativas y garantías locales | PR #16 fusionada, main 13ee9d1; catálogo seguro, cobertura semanal local y guardas de captura/zona |
-| 🔄 | BUG-05 B.3b.1: creación por alcance | Checkpoints 6333314/1da0af5; creación y calendario experimental, recuperación y capacidad verificadas. Pendiente revisión; ver SCOPED_EVENTS_CREATE |
-| ⬜ | BUG-05 B.3b.2/B.3c: edición y movimientos | Cortes históricos, series, desplazamiento y eliminación; no iniciados ni autorizados |
+| ✅ | BUG-05 B.3b.1: creación por alcance | PR #17 fusionada, main c61e6ac; calendario, recuperación y capacidad aislados |
+| 🔄 | BUG-05 B.3b.2: edición y segmentación por alcance | Checkpoints c5dd206/215498f; cortes civiles, capturas congeladas y recuperación experimental. Pendiente revisión; ver SCOPED_EVENTS_EDIT |
+| ⬜ | BUG-05 B.3c: desplazamiento y eliminación | Contrato de cancelación/dependencias y confirmaciones; no iniciado ni autorizado |
 | ⬜ | BUG-05 fase 4B.3b · B.4: adopción por alcance | Tramo nuevo explícito, conservación de legado y evidencias |
 | ⬜ | Otros bloqueos antes de 4C | Privacidad aprobada, paridad React, fuentes grandes/cadenas largas y otros motores/dispositivos |
 | ⬜ | BUG-05 fase 4C: integración y activación por etapas | Solo tras cerrar matriz, previsualización, respaldos/reversión y autorización explícita |

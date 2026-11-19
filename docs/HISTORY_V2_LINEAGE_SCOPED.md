@@ -332,3 +332,12 @@ creación/edición, eliminación y recuperación por componente de planificació
 los formatos/autoridad y filas históricas. Calendarios no demostrables se bloquean,
 sin usar ocho ocurrencias como garantía. B.3, B.4 y 4C permanecen pendientes; no hay
 activación ni cambios de Planner público.
+
+
+### Consumidor B.3b.2: edición experimental
+
+[SCOPED_EVENTS_EDIT](HISTORY_V2_SCOPED_EVENTS_EDIT.md) implementa capacidades de edición,
+corte civil y serie persistente con deltas transaccionales. No cambia captura/archivo,
+versiones ni aplicación pública. La identidad original de registros permanece; capturas
+futuras requieren política explícita y los casos ambiguos se bloquean. No habilita
+movimientos, eliminación, adopción incremental ni 4C.

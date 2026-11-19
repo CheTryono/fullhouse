@@ -1,0 +1,188 @@
+{
+  "base": "c61e6acebb6326faf050502b4533e1e589d0ab3e",
+  "checkpoints": [
+    "c5dd206",
+    "215498f",
+    "dd14d65"
+  ],
+  "commands": [
+    {
+      "command": "npm run check",
+      "exit": 0
+    },
+    {
+      "command": "npm run check:history-contract",
+      "exit": 0
+    },
+    {
+      "command": "npm run test:regression",
+      "exit": 0,
+      "tests": 164,
+      "pass": 164,
+      "fail": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "command": "npm run test:history-contract",
+      "exit": 0,
+      "tests": 297,
+      "pass": 291,
+      "fail": 0,
+      "skipped": 0,
+      "todo": 6
+    },
+    {
+      "command": "npm test",
+      "exit": 1,
+      "tests": 462,
+      "pass": 455,
+      "fail": 1,
+      "skipped": 0,
+      "todo": 6
+    }
+  ],
+  "newNodeScenarios": 39,
+  "chromiumSuites": [
+    {
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-events-edit.cjs",
+      "exit": 0,
+      "seconds": 5.342
+    },
+    {
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-events-edit-calendar.cjs",
+      "exit": 0,
+      "seconds": 52.715
+    },
+    {
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-events-edit-faults.cjs",
+      "exit": 0,
+      "seconds": 14.583
+    },
+    {
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-events-create.cjs",
+      "exit": 0,
+      "seconds": 6.298
+    },
+    {
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-events-calendar.cjs",
+      "exit": 0,
+      "seconds": 18.714
+    },
+    {
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-events-faults.cjs",
+      "exit": 0,
+      "seconds": 16.861
+    },
+    {
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-routines.cjs",
+      "exit": 0,
+      "seconds": 4.935
+    },
+    {
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-routines-faults.cjs",
+      "exit": 0,
+      "seconds": 3.427
+    },
+    {
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-goals.cjs",
+      "exit": 0,
+      "seconds": 5.606
+    },
+    {
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-calendar-proof.cjs",
+      "exit": 0,
+      "seconds": 12.487
+    },
+    {
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-alternative-safety.cjs",
+      "exit": 0,
+      "seconds": 3.797
+    },
+    {
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-calendar-local.cjs",
+      "exit": 0,
+      "seconds": 3.371
+    },
+    {
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-storage.cjs",
+      "exit": 0,
+      "seconds": 217.959
+    },
+    {
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-lineage.cjs",
+      "exit": 0,
+      "seconds": 28.008
+    },
+    {
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-integration.cjs",
+      "exit": 0,
+      "seconds": 76.577
+    },
+    {
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-legacy.cjs",
+      "exit": 0,
+      "seconds": 58.719
+    },
+    {
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-readiness.cjs",
+      "exit": 0,
+      "seconds": 343.334
+    },
+    {
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/pending-save.cjs",
+      "exit": 0,
+      "seconds": 14.868
+    },
+    {
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/day-shifts.cjs",
+      "exit": 0,
+      "seconds": 7.317
+    },
+    {
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-events-edit-performance.cjs",
+      "exit": 0,
+      "measurements": "history-scoped-events-edit.capacity.json"
+    }
+  ],
+  "unavailableBrowsers": [
+    {
+      "browser": "firefox",
+      "available": false,
+      "error": "browserType.launch: Executable doesn't exist at /home/agent/.cache/ms-playwright/firefox-1495/firefox/firefox\n\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557\n\u2551 Looks like Playwright Test or Playwright was just installed or updated. \u2551\n\u2551 Please run the following command to download new browsers:              \u2551\n\u2551                                                                         \u2551\n\u2551     npx playwright install                                              \u2551\n\u2551                                                                         \u2551\n\u2551 <3 Playwright Team                                                      \u2551\n\u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d"
+    },
+    {
+      "browser": "webkit",
+      "available": false,
+      "error": "browserType.launch: Executable doesn't exist at /home/agent/.cache/ms-playwright/webkit-2215/pw_run.sh\n\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557\n\u2551 Looks like Playwright Test or Playwright was just installed or updated. \u2551\n\u2551 Please run the following command to download new browsers:              \u2551\n\u2551                                                                         \u2551\n\u2551     npx playwright install                                              \u2551\n\u2551                                                                         \u2551\n\u2551 <3 Playwright Team                                                      \u2551\n\u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d"
+    }
+  ],
+  "physicalDevicesTested": false,
+  "knownFailure": "BUG-05 public: routine edit reinterprets old steps",
+  "todos": 6,
+  "productionFilesUnchanged": [
+    "app.tsx",
+    "app.js",
+    ".github/workflows/pages.yml"
+  ],
+  "sourceSHA256": {
+    "history/storage-events-edit.cjs": "471c9a65e01d7a5b88335ef4abda31f8b274ae2d025ba0d087ee708d9755b44d",
+    "history/storage-events.cjs": "2ced57e6d1a9f2ccb76029821d4518c5bba411fe449d22b83a7867e2a602278a",
+    "history/events-session.cjs": "f7d05323c23e46c5017ccb6e99f1314ab9359d346dc3fe9162e77d806ffe3c98",
+    "history/storage-incremental.cjs": "374b2ad9b07a8bf0a72e77bed4cefc34fdf20eb5020fd8eb55bc958c38b3910e",
+    "history/storage-lineage.cjs": "6e853e8ee156884b2d50e4b2365239f90bc513acd302eb84deb665f293a3c707",
+    "history/storage-routines.cjs": "f8dfe1bfef826424969724d13e275cb3cb59d4c17ba73d3fd08163fbffd437b5",
+    "history/calendar-proof.cjs": "4028e70f076131c2b0817055592e0fd65d9e2961d34201f63905ac56584c1484",
+    "scripts/planner-actions.cjs": "86a9950c46c8fd2b4530952c56a8117069e2081777e1891410566d8fe40cfc04",
+    "tests/browser/history-scoped-events-edit-performance.cjs": "0d6c4bb1b8320201f7d96621c8a44c62490c8f59c71543758832589a46fdc4d7",
+    "app.tsx": "c1c622ea83ce685a68d8668a93dc41c376036f971c04e83fa2ff41a39eb908c6",
+    "app.js": "c9fa939da305d7bff29b5475c9baf834db6da3539b5dbd74e3c902a8bbe79d0a"
+  },
+  "testHarnessCorrections": [
+    "Use a recurring fixture for ongoing edit scope; a completed point after its last date correctly returns NO_FUTURE.",
+    "assert.rejects validation callbacks return boolean, not the nonempty eventId string.",
+    "Finite yearly examples must contain an actual yearly occurrence after the cut; normalized first occurrence in Apia blocks instead of being silently skipped."
+  ],
+  "publicV1Finding": "scheduleChanged omits minutes/overrides and other fields; real reproduction still exists in app.tsx. Only isolated v2 edits use complete comparison and never move log keys.",
+  "additionalBrowserVerification": "Repeated the edit faults suite after adding real quota exhaustion during a two-row split; process exit 0. Retry confirms both rows and history hashes remain equal. Other suites were unchanged."
+}

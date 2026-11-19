@@ -13,7 +13,7 @@ const { chromium } = require('playwright'), assert = require('node:assert/strict
         await cdp.send('Storage.overrideQuotaForOrigin', { origin: url, quotaSize: 3145728 });
         await cdp.send('Emulation.setTimezoneOverride', { timezoneId: 'UTC' });
         await page.goto(url + '/storage');
-        await page.evaluate(async () => { const H = FullhouseHistory; window.opts = { factory: indexedDB, name: 'fullhouse-lab-edit-faults', legacy: H.schedule.validData, schedule: H.schedule, plannerActions: H.plannerActions, readSources: () => ({ main: null, alias: null }) }; window.doc = JSON.parse(JSON.stringify(H.scenarios(H).list.find(s => s.id === 'partial').doc)); window.db = H.createLineageDatabase(opts); window.initial = await H.storageModel.prepareDocument(doc, H.schedule.validData); await db.commit(initial, { id: 'seed' }); window.session = H.createEventsSession(db.incremental); await session.open(); window.ctx = id => ({ operationId: id, today: '2030-01-08', at: '2030-01-08T12:00:00Z', confirm: true }); window.payload = extra => ({ ...doc.events[0], title: 'Synthetic edit', ...extra }); window.prepare = async (access, t, id, extra = {}) => access.prepareEventEdit(t, await access.reserveEventEdit(t, 'e', id), { ...(await access.readEventEdit(t, 'e')).event, ...extra }, ctx(id)); });
+        await page.evaluate(async () => { const H = FullhouseHistory; window.opts = { factory: indexedDB, name: 'fullhouse-lab-edit-faults', legacy: H.schedule.validData, schedule: H.schedule, plannerActions: H.plannerActions, readSources: () => ({ main: null, alias: null }) }; window.doc = JSON.parse(JSON.stringify(H.scenarios(H).list.find(s => s.id === 'partial').doc)); window.db = H.createLineageDatabase(opts); window.initial = await H.storageModel.prepareDocument(doc, H.schedule.validData); await db.commit(initial, { id: 'seed' }); window.quotaTwo = H.createLineageDatabase({ ...opts, name: 'fullhouse-lab-edit-quota-two' }); await quotaTwo.commit(initial, { id: 'seed' }); window.session = H.createEventsSession(db.incremental); await session.open(); window.ctx = id => ({ operationId: id, today: '2030-01-08', at: '2030-01-08T12:00:00Z', confirm: true }); window.payload = extra => ({ ...doc.events[0], title: 'Synthetic edit', ...extra }); window.prepare = async (access, t, id, extra = {}) => access.prepareEventEdit(t, await access.reserveEventEdit(t, 'e', id), { ...(await access.readEventEdit(t, 'e')).event, ...extra }, ctx(id)); });
         const quota = await page.evaluate(async () => {
             const pressure = await new Promise((res, rej) => { const r = indexedDB.open('fullhouse-lab-edit-pressure'); r.onupgradeneeded = () => r.result.createObjectStore('pressure'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
             let full = false;
@@ -48,13 +48,19 @@ const { chromium } = require('playwright'), assert = require('node:assert/strict
             const read = await db.open();
             if (read.head.generation !== 1 || read.authority.tip.generation !== 1 || read.plan.rootHash !== initial.rootHash)
                 throw Error('Partial quota edit');
-            return { error: state.pending.error, generation: read.head.generation };
+            const access=quotaTwo.incremental,token=(await access.openWindow()).token,reservation=await access.reserveEventEdit(token,'e','quota-two');
+            window.quotaTwoOp=await access.prepareEventEdit(token,reservation,payload({note,time:'10:00',applyFrom:'2030-01-20'}),ctx('quota-two'));
+            let splitError;try{await access.commitEventEdit(quotaTwoOp);}catch(e){splitError=e.name+': '+e.message;}
+            const unchanged=await quotaTwo.open();
+            if(!/QuotaExceeded/.test(splitError||'')||unchanged.head.generation!==1||unchanged.authority.tip.generation!==1||unchanged.plan.rootHash!==initial.rootHash||unchanged.plan.tables.events.length!==1)throw Error('Quota partially persisted two-row edit');
+            return { error: state.pending.error, generation: read.head.generation, twoRowQuota:{error:splitError,rootUnchanged:true,rows:1} };
         });
         assert.match(quota.error, /QuotaExceeded/);
         await cdp.send('Storage.overrideQuotaForOrigin', { origin: url });
         const retry = await page.evaluate(async () => { const state = await session.retry(); if (state.pending)
             throw Error(state.pending.error); const read = await db.open(); if (read.head.id !== 'quota' || read.head.generation !== 2 || read.plan.tables.events.find(r => r.key === 'e').value.note !== note)
             throw Error('Quota retry changed facts'); return { generation: read.head.generation, id: read.head.id }; });
+        await page.evaluate(async()=>{const saved=await quotaTwo.incremental.commitEventEdit(quotaTwoOp),read=await quotaTwo.open();if(saved.status!=='confirmed'||read.head.generation!==2||read.plan.tables.events.length!==2)throw Error('Two-row quota retry failed');for(const table of ['executions','revisions','evidence'])if(JSON.stringify(read.plan.tables[table])!==JSON.stringify(initial.tables[table]))throw Error('Quota retry changed history');quotaTwo.close();});
         const readFailure = await page.evaluate(async () => { const before = session.state().confirmed, state = await session.save('editEvent', payload({ title: 'Read failure' }), ctx('read-failure'), { fault: tx => { const target = tx.db, original = target.transaction; target.transaction = function (names, mode, ...rest) { if (mode === 'readonly') {
                 target.transaction = original;
                 throw new DOMException('Injected read denied', 'SecurityError');
