@@ -21,7 +21,7 @@ function historyIdentities(plan) {
         const source = c?.sourceEventId || (at > 0 ? row.key.slice(0, at) : row.key);
         if (!byEvent.has(source))
             byEvent.set(source, []);
-        const descriptor = { key: row.key, executionId: c?.executionId || null, seriesId: c?.seriesId || null, legacy: !c, day: row.day || null, hash: row.hash };
+        const descriptor = { key: row.key, executionId: c?.executionId || null, seriesId: c?.seriesId || null, legacy: !c, day: row.day || null, hash: row.hash, sourceEventId:source };
         byEvent.get(source).push(descriptor);
         if (c) {
             if (!bySeries.has(c.seriesId))

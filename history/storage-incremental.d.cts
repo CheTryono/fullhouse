@@ -5,6 +5,11 @@ declare const verifiedWindow:unique symbol,preparedDelta:unique symbol;
 export interface VerifiedWindow {readonly [verifiedWindow]:true;readonly format:'verified-history-window';readonly generation:number;readonly rootHash:string}
 export interface PreparedDelta {readonly [preparedDelta]:true;readonly format:'prepared-history-delta';readonly id:string;readonly prepareMs:number;readonly changedRows:number;readonly newImages:number}
 export interface IncrementalAccess {
+ reserveEventShift(token:VerifiedWindow,request:import('./storage-events-shift.cjs').EventShiftRequest,context:import('./storage-events-shift.cjs').EventShiftContext):Promise<import('./storage-events-shift.cjs').EventShiftReservation>;
+ prepareEventShift(token:VerifiedWindow,reservation:import('./storage-events-shift.cjs').EventShiftReservation):Promise<PreparedDelta>;
+ commitEventShift:IncrementalAccess['commitExecution'];
+ eventShiftMetrics(operation:PreparedDelta):import('./storage-events-shift.cjs').EventShiftMetrics|null;
+ readEventShift(token:VerifiedWindow,request:import('./storage-events-shift.cjs').EventShiftRequest,context:import('./storage-events-shift.cjs').EventShiftContext):Promise<{readonly event:Readonly<import('../contracts/history-v2').EventV2>;readonly segments:readonly Readonly<import('../contracts/history-v2').EventV2>[];readonly component:readonly string[];readonly date:string;readonly seriesId:string;readonly recorded:false;readonly photoBytesHydrated:0;readonly readMs:number}>;
  reserveEventEdit(token:VerifiedWindow,sourceEventId:string,operationId:string,expectedIds?:{sourceEventId:string;eventId:string;seriesId:string}):Promise<import('./storage-events-edit.cjs').EventEditReservation>;
  prepareEventEdit(token:VerifiedWindow,reservation:import('./storage-events-edit.cjs').EventEditReservation,payload:import('./storage-events-edit.cjs').EventDraftEdit,context:import('./storage-events-edit.cjs').EventEditContext):Promise<PreparedDelta>;
  commitEventEdit:IncrementalAccess['commitExecution'];

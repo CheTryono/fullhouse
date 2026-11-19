@@ -1,0 +1,6 @@
+import type {EventContext,EventMetrics} from './storage-events.cjs';
+declare const shiftReservation:unique symbol;
+export interface EventShiftRequest {eventId:string;seriesId:string;date:string;deltaMinutes:number}
+export interface EventShiftContext extends EventContext {confirm:true}
+export interface EventShiftReservation {readonly [shiftReservation]:true;readonly format:'event-shift-reservation-v1';readonly operationId:string;readonly eventId:string;readonly seriesId:string;readonly date:string;readonly deltaMinutes:number;readonly commandHash:string;readonly zone:string;readonly generation:number;readonly parentReceiptHash:string}
+export interface EventShiftMetrics {readonly scopeReadMs:number;readonly rootMs:number;readonly componentMs:number;readonly calculationMs:number;readonly validationMs:number;readonly constructionMs:number;readonly proof:{readonly status:'valid';readonly proofHash:string;readonly certificate:{readonly format:'fullhouse-occurrence-shift-proof';readonly version:1;readonly date:string;readonly zone:string;readonly eventIds:readonly string[];readonly noOtherDates:'single-time-override-pointwise-v1'}};readonly before:EventMetrics['proof'];readonly after:EventMetrics['proof']}

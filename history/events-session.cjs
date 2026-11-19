@@ -8,8 +8,9 @@ function createEventsSession(access) {
                 return access.prepareEvent(t, await access.reserveEvent(t, ctx.operationId), draft, ctx);
             if (method === 'editEvent')
                 return access.prepareEventEdit(t, await access.reserveEventEdit(t, draft.id, ctx.operationId), draft, ctx);
-            throw Error('Solo creación o edición de eventos; movimientos pendientes');
+            if(method==='shiftEventOccurrence')return access.prepareEventShift(t,await access.reserveEventShift(t,draft,ctx));
+            throw Error('Operación de programación no admitida');
         }, commitPlanning: access.commitEvent });
-    return Object.freeze({ ...base, readEventEdit: id => access.readEventEdit(base.state().confirmed, id), readEvent: (id, options) => access.readEvent(base.state().confirmed, id, options) });
+    return Object.freeze({ ...base,readEventShift:(request,context)=>access.readEventShift(base.state().confirmed,request,context), readEventEdit: id => access.readEventEdit(base.state().confirmed, id), readEvent: (id, options) => access.readEvent(base.state().confirmed, id, options) });
 }
 module.exports = { createEventsSession };

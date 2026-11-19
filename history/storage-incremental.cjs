@@ -14,7 +14,7 @@ function freezeShared(value) {
 const clock = () => globalThis.performance?.now() ?? Date.now();
 function createIncrementalAccess({ open, transaction, legacy, schedule, protocol=null, plannerActions=null }) {
     let integrityBlocked = false;
-    const tokens = new WeakMap(), reservations = new WeakMap(), editReservations = new WeakMap(), operations = new WeakMap(), engine = createEngine(legacy), adapter = createAdapter(schedule), compat = createLegacyCompat({ legacy, engine, adapter });
+    const tokens = new WeakMap(), reservations = new WeakMap(), editReservations = new WeakMap(), shiftReservations = new WeakMap(), shiftClaims = new Map(), operations = new WeakMap(), engine = createEngine(legacy), adapter = createAdapter(schedule), compat = createLegacyCompat({ legacy, engine, adapter });
     const fail = s => { throw Error(s); };
     function token(plan, head, previousGoalIds=null,previousRoutineIndex=null,previousIdentities=null) { const t = Object.freeze({ format: 'verified-history-window', generation: head.generation, rootHash: head.rootHash }); tokens.set(t, { plan, head, historicalIdentities:previousIdentities||require('./storage-events.cjs').historyIdentities(plan), routineIndex:previousRoutineIndex||require('./storage-routines.cjs').index(plan), historicalGoalIds:previousGoalIds||new Set(plan.tables.executions.flatMap(r=>(r.value.log.history?.capture.plan.goals||[]).map(g=>g.id))), maps: Object.fromEntries(TABLES.map(n => [n, new Map(plan.tables[n].map(r => [r.key, r]))])), assets: new Map(plan.images.map(i => [i.hash, i])) }); return t; }
     const base = t => integrityBlocked ? fail('Verificación completa falló: recuperación explícita necesaria') : tokens.get(t) || fail('Ventana no verificada o de otra conexión');
@@ -235,6 +235,37 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
         operations.get(operation).nextRoutineIndex=index;
         operations.get(operation).calendarZone=zone;operations.get(operation).metrics={scopeReadMs,rootMs,...built.metrics,proof:built.proof};return operation;
     }
+    async function reserveEventShift(t,request,context) {
+        if(!protocol)fail('El desplazamiento requiere autoridad persistente');
+        const b=base(t),library=require('./storage-events-shift.cjs'),zone=require('./storage-routines.cjs').calendarZone(),scope=library.selectScope(b.plan,request,context,b.historicalIdentities,schedule);
+        await library.assertSemantics(schedule);
+        const hash=await library.commandHash(scope.request,scope.context,zone),key=b.head.receiptHash+':'+scope.context.operationId,previousClaim=shiftClaims.get(key);
+        if(previousClaim&&previousClaim!==hash)fail('ID de operación reservado para otro comando');
+        if(!previousClaim&&shiftClaims.size>=4096)fail('Presupuesto de reservas agotado: conserva pendientes y reabre');
+        await checkHead(b);
+        const previous=await transaction(['commits'],'readonly',(tx,done,abort)=>fetch(tx,[['receipt','commits',scope.context.operationId]],v=>done(v.receipt),abort));
+        if(previous)fail('ID de operación ya confirmado: inspecciona el recibo');
+        if(zone!==require('./storage-routines.cjs').calendarZone())fail('La zona cambió al reservar el desplazamiento');
+        const reservation=freeze({format:'event-shift-reservation-v1',operationId:scope.context.operationId,eventId:scope.request.eventId,seriesId:scope.request.seriesId,date:scope.request.date,deltaMinutes:scope.request.deltaMinutes,commandHash:hash,zone,generation:b.head.generation,parentReceiptHash:b.head.receiptHash});
+        shiftClaims.set(key,hash);shiftReservations.set(reservation,{base:b,scope,zone});return reservation;
+    }
+    async function readEventShift(t,request,context) {
+        const b=base(t),library=require('./storage-events-shift.cjs'),started=clock();await library.assertSemantics(schedule);
+        const scope=library.selectScope(b.plan,request,context,b.historicalIdentities,schedule);await verifyRows(b,scope.rows);
+        return freeze({event:copy(scope.old),segments:copy(scope.family),component:scope.events.map(e=>e.id),date:scope.request.date,seriesId:scope.request.seriesId,recorded:false,photoBytesHydrated:0,readMs:clock()-started});
+    }
+    async function prepareEventShift(t,reservation) {
+        if(!protocol)fail('El desplazamiento requiere autoridad persistente');
+        const started=clock(),b=base(t),value=shiftReservations.get(reservation),library=require('./storage-events-shift.cjs');
+        if(!value||value.base!==b)fail('Reserva de desplazamiento ajena u obsoleta');
+        if(value.zone!==require('./storage-routines.cjs').calendarZone())fail('La zona cambió desde la reserva del desplazamiento');
+        const {scope}=value,readAt=clock();await verifyRows(b,scope.rows);const scopeReadMs=clock()-readAt;
+        const built=await library.buildShift(scope,{legacy,schedule,plannerActions}),partial=await model.prepareDocument({version:2,goals:[],routines:[],events:[built.event],logs:{},recipeRevisions:Object.fromEntries(scope.rows.filter(r=>r.store==='revisions').map(r=>[r.row.key,r.row.value]))},legacy),row=partial.tables.events[0],tables={...b.plan.tables,events:b.plan.tables.events.map(r=>r.key===row.key?row:r)},plan={...b.plan,tables},rootAt=clock();
+        plan.rootHash=await model.rootHash(plan);const rootMs=clock()-rootAt;
+        const operation=await seal(b,plan,[{store:'events',row}],[],scope.context.operationId,scope.rows,started,{kind:'event-shift',request:scope.request,context:scope.context,zone:value.zone,commandHash:reservation.commandHash});
+        if(built.zone!==value.zone||value.zone!==require('./storage-routines.cjs').calendarZone())fail('La zona cambió durante la preparación del desplazamiento');
+        operations.get(operation).calendarZone=value.zone;operations.get(operation).metrics={scopeReadMs,rootMs,...built.metrics,proof:built.proof};return operation;
+    }
     async function reserveEventEdit(t,sourceEventId,operationId,expectedIds=null) {
         if(!protocol)fail('La edición requiere autoridad persistente');
         const b=base(t),library=require('./storage-events-edit.cjs'),r=library.issue(b.plan,b.head,sourceEventId,operationId,b.historicalIdentities);
@@ -317,7 +348,7 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
         const order = (a, b) => a < b ? -1 : a > b ? 1 : 0;
         changed.sort((a, b) => order(a.store, b.store) || order(a.row.key, b.row.key));
         images.sort((a, b) => order(a.hash, b.hash));
-        const operationHash = await sha256(canonical({ id, base: b.head, rootHash: plan.rootHash, changes: changed.map(c => [c.store, c.row.key, c.row.hash,...(c.deleted?[true]:[])]), images: images.map(i => [i.hash, i.size]) }));
+        const operationHash = await sha256(canonical({ id, base: b.head, rootHash: plan.rootHash, changes: changed.map(c => [c.store, c.row.key, c.row.hash,...(c.deleted?[true]:[])]), images: images.map(i => [i.hash, i.size]),...(command?.kind==='event-shift'?{commandHash:command.commandHash}:{}) }));
         const frozenPlan = freezeShared(plan), frozenChanges = freezeShared(changed), frozenImages = freezeShared(images);
         const op = Object.freeze({ format: 'prepared-history-delta', id, prepareMs: clock() - started, changedRows: changed.length, newImages: images.length });
         operations.set(op, { base: b, plan: frozenPlan, changed: frozenChanges, images: frozenImages, operationHash, scopeRows, command });
@@ -328,12 +359,21 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
         if (packet.meaning !== 'pending-not-confirmed' || metadata.meaning !== 'pending-not-confirmed' || metadata.candidateRoot !== candidate.rootHash || typeof metadata.id !== 'string' || !metadata.id.trim())
             fail('Pendiente obsoleto: conservar para reconciliación o restaurar aparte');
         await model.verifyPlan(candidate, legacy);
+        const shift=metadata.operation?.kind==='event-shift';
+        if(shift)await require('./storage-events-shift.cjs').validateCommand(metadata.operation,metadata.id,schedule);
         if (metadata.id === b.head.id && candidate.rootHash === b.head.rootHash) {
             await checkHead(b);
+            if(shift){const expected=await require('./storage-events-shift.cjs').candidateOperationHash(metadata.id,metadata.base,candidate,metadata.operation),receipt=await transaction(['commits'],'readonly',(tx,done,abort)=>fetch(tx,[['receipt','commits',metadata.id]],v=>done(v.receipt),abort));if(receipt?.operationHash!==expected)fail('El recibo corresponde a otro comando, aunque la raíz coincida');}
             return Object.freeze({ status: 'already-confirmed', id: metadata.id, token: t });
         }
         if (!same(metadata.base, b.head))
             fail('Pendiente obsoleto: preservar para reconciliar o restaurar aparte');
+        if(shift){
+            const cmd=copy(metadata.operation),reservation=await reserveEventShift(t,cmd.request,cmd.context);
+            if(reservation.commandHash!==cmd.commandHash)fail('El comando recuperado no corresponde a su huella');
+            const rebuilt=await prepareEventShift(t,reservation),value=operations.get(rebuilt),expected=await require('./storage-events-shift.cjs').candidateOperationHash(metadata.id,metadata.base,candidate,cmd);
+            if(rebuilt.id!==metadata.id||value.plan.rootHash!==candidate.rootHash||value.operationHash!==expected||!same(value.plan.sourceBackups,candidate.sourceBackups))fail('El comando no reproduce el desplazamiento íntegro');return rebuilt;
+        }
         if(metadata.operation?.kind==='event-edit') {
             const cmd=copy(metadata.operation),reservation=await reserveEventEdit(t,cmd.identities.sourceEventId,metadata.id,cmd.identities),rebuilt=await prepareEventEdit(t,reservation,cmd.payload,cmd.context),value=operations.get(rebuilt);
             if(rebuilt.id!==metadata.id||value.plan.rootHash!==candidate.rootHash||!same(value.plan.sourceBackups,candidate.sourceBackups))fail('El comando no reproduce la edición íntegra');return rebuilt;
@@ -496,7 +536,7 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
         }
         const checkedAt=clock();if(protocol)await protocol.confirmed(context,snapshot);const lineageAfterMs=clock()-checkedAt;
         checkCalendarZone(op,true);
-        return { status: 'confirmed', receipt, token: token(op.plan, freeze(snapshot.head),['planning','routine','event-create','event-edit'].includes(op.command?.kind)?b.historicalGoalIds:null,['planning','routine','event-create','event-edit'].includes(op.command?.kind)?(op.nextRoutineIndex||b.routineIndex):null,['planning','routine','event-create','event-edit'].includes(op.command?.kind)?b.historicalIdentities:null), writeMs, transactionMs, lineagePrepareMs, lineageAfterMs, confirmationMs: clock() - readAt };
+        return { status: 'confirmed', receipt, token: token(op.plan, freeze(snapshot.head),['planning','routine','event-create','event-edit','event-shift'].includes(op.command?.kind)?b.historicalGoalIds:null,['planning','routine','event-create','event-edit','event-shift'].includes(op.command?.kind)?(op.nextRoutineIndex||b.routineIndex):null,['planning','routine','event-create','event-edit','event-shift'].includes(op.command?.kind)?b.historicalIdentities:null), writeMs, transactionMs, lineagePrepareMs, lineageAfterMs, confirmationMs: clock() - readAt };
     }
     async function page(t, { after = null, limit = 50, date = null } = {}) {
         const b = base(t);
@@ -605,13 +645,13 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
         if (!op)
             fail('Delta ajeno');
         let command = op.command ? copy(op.command) : null;
-        if (command && !['planning','routine','event-create','event-edit'].includes(command.kind)) {
+        if (command && !['planning','routine','event-create','event-edit','event-shift'].includes(command.kind)) {
             const action = command.command.action?.type === 'annotate' ? command.command.action.action : command.command.action;
             if (action?.type === 'evidence')
                 delete action.evidence.src;
         }
         return require('./recovery-binary.cjs').exportRecovery({ id: operation.id, base: op.base.head, candidate: op.plan, drafts: copy(drafts), operation: command }, legacy);
     }
-    return Object.freeze({ reserveEventEdit,readEventEdit,prepareEventEdit,commitEventEdit:commitExecution,eventEditMetrics:operation=>copy(operations.get(operation)?.metrics||null), reserveEvent,readEvent,prepareEvent,commitEvent:commitExecution,eventMetrics:operation=>copy(operations.get(operation)?.metrics||null),readRoutine,prepareRoutine,commitRoutine:commitExecution,routineMetrics:operation=>copy(operations.get(operation)?.metrics||null),readGoal,readDayReview,preparePlanning,commitPlanning:commitExecution,resumePending, inspectOperation, exportPending, openWindow, prepareExecution, commitExecution, page, readExecution, readPhoto, statistics });
+    return Object.freeze({reserveEventShift,readEventShift,prepareEventShift,commitEventShift:commitExecution,eventShiftMetrics:operation=>copy(operations.get(operation)?.metrics||null), reserveEventEdit,readEventEdit,prepareEventEdit,commitEventEdit:commitExecution,eventEditMetrics:operation=>copy(operations.get(operation)?.metrics||null), reserveEvent,readEvent,prepareEvent,commitEvent:commitExecution,eventMetrics:operation=>copy(operations.get(operation)?.metrics||null),readRoutine,prepareRoutine,commitRoutine:commitExecution,routineMetrics:operation=>copy(operations.get(operation)?.metrics||null),readGoal,readDayReview,preparePlanning,commitPlanning:commitExecution,resumePending, inspectOperation, exportPending, openWindow, prepareExecution, commitExecution, page, readExecution, readPhoto, statistics });
 }
 module.exports = { createIncrementalAccess };
