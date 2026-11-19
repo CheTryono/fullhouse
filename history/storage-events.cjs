@@ -7,7 +7,7 @@ const clock = () => performance.now();
 const { sha256 } = require('./persistence.cjs');
 function stop(code, message, status = 'invalid', counterexample = null) { const e = Error(message); Object.assign(e, { code, status, counterexample }); throw e; }
 function historyIdentities(plan) {
-    const events = new Set(), series = new Set(), byEvent = new Map();
+    const events = new Set(), series = new Set(), byEvent = new Map(), bySeries = new Map();
     for (const row of plan.tables.executions) {
         const c = row.value.log.history?.capture;
         events.add(row.key);
@@ -21,11 +21,13 @@ function historyIdentities(plan) {
         const source = c?.sourceEventId || (at > 0 ? row.key.slice(0, at) : row.key);
         if (!byEvent.has(source))
             byEvent.set(source, []);
-        byEvent.get(source).push({ key: row.key, executionId: c?.executionId || null, seriesId: c?.seriesId || null, legacy: !c });
+        const descriptor={ key: row.key, executionId: c?.executionId || null, seriesId: c?.seriesId || null, legacy: !c, day:row.day || null, hash:row.hash };
+        byEvent.get(source).push(descriptor);
+        if(c){if(!bySeries.has(c.seriesId))bySeries.set(c.seriesId,[]);bySeries.get(c.seriesId).push(descriptor);}
     }
     for (const rows of byEvent.values())
         rows.sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
-    return { events, series, byEvent };
+    return { events, series, byEvent, bySeries };
 }
 function issue(head, operationId) {
     if (typeof operationId !== 'string' || !/^[A-Za-z0-9_.:-]{1,128}$/.test(operationId) || !Number.isSafeInteger(head.generation + 1) || !/^[a-f0-9]{64}$/.test(head.receiptHash || ''))
@@ -195,7 +197,7 @@ async function proveCalendar(events, routines, event, context, schedule) {
         stop('CALENDAR_' + result.status.toUpperCase(), 'No se pudo demostrar el calendario: ' + result.certificate.reason, result.status, result.certificate.counterexample);
     return result;
 }
-async function buildChange(scope, { legacy, schedule, plannerActions }) {
+async function normalizeChange(scope, { legacy, schedule, plannerActions }) {
     const started = clock(), { payload, context, reservation } = scope, zone = R.calendarZone();
     await calendar.assertCalendarSemantics(schedule);
     if (!schedule.validData({ version: 1, goals: [], routines: [], events: [{ ...payload, minutes: typeof payload.minutes === 'number' ? Math.max(1, payload.minutes) : payload.minutes, id: reservation.eventId, seriesId: reservation.seriesId }], logs: {} }))
@@ -237,13 +239,17 @@ async function buildChange(scope, { legacy, schedule, plannerActions }) {
     const event = candidate.events.find(e => e.id === reservation.eventId);
     if (!event || event.seriesId !== reservation.seriesId || candidate.events.length !== before.events.length + 1 || !same(candidate.events.slice(0, -1), before.events) || !same(candidate.routines, before.routines) || !same(candidate.goals, before.goals) || !same(candidate.recipeRevisions, before.recipeRevisions) || Object.keys(candidate.logs).length)
         stop('SCOPE_CHANGED', 'La creación intentó modificar otras entidades');
-    const componentEvents = component(candidate.events, event.id), rid = new Set(componentEvents.map(e => e.routineId).filter(Boolean)), routines = before.routines.filter(r => rid.has(r.id));
-    const calendarAt = clock(), proof = await proveCalendar(componentEvents, routines, event, context, schedule), calendarMs = clock() - calendarAt;
+    return {before,event,zone,metrics:{componentMs:scope.componentMs,normalizationMs,normalizationTotalMs:clock()-started}};
+}
+async function buildChange(scope, ports) {
+    const started=clock(),{before,event,zone,metrics}=await normalizeChange(scope,ports),{legacy,schedule}=ports;
+    const componentEvents = component([...before.events,event], event.id), rid = new Set(componentEvents.map(e => e.routineId).filter(Boolean)), routines = before.routines.filter(r => rid.has(r.id));
+    const calendarAt = clock(), proof = await proveCalendar(componentEvents, routines, event, scope.context, schedule), calendarMs = clock() - calendarAt;
     if (Object.hasOwn(event, 'recipeRevisionId'))
         stop('SCOPE_CHANGED', 'Programar no crea una revisión histórica');
     const partial = await model.prepareDocument({ version: 2, goals: [], routines: [], events: [event], logs: {}, recipeRevisions: {} }, legacy);
     if (R.calendarZone() !== zone)
         stop('ZONE_CHANGED', 'La zona cambió durante la preparación', 'indeterminate');
-    return { row: partial.tables.events[0], event: freeze(copy(event)), proof, zone, metrics: { componentMs: scope.componentMs, normalizationMs, calendarMs, constructionMs: clock() - started } };
+    return { row: partial.tables.events[0], event: freeze(copy(event)), proof, zone, metrics: { ...metrics, calendarMs, constructionMs: clock() - started } };
 }
-module.exports = { LIMITS, historyIdentities, issue, checkIdentity, component, selectScope, buildChange, effectEnd, memoFrames, canonicalLocal, proveCalendar, localWeekdayProof };
+module.exports = { LIMITS, historyIdentities, issue, checkIdentity, component, selectScope, buildChange, effectEnd, memoFrames, canonicalLocal, proveCalendar, localWeekdayProof, normalizeChange };

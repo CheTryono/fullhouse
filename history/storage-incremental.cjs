@@ -14,7 +14,7 @@ function freezeShared(value) {
 const clock = () => globalThis.performance?.now() ?? Date.now();
 function createIncrementalAccess({ open, transaction, legacy, schedule, protocol=null, plannerActions=null }) {
     let integrityBlocked = false;
-    const tokens = new WeakMap(), reservations = new WeakMap(), operations = new WeakMap(), engine = createEngine(legacy), adapter = createAdapter(schedule), compat = createLegacyCompat({ legacy, engine, adapter });
+    const tokens = new WeakMap(), reservations = new WeakMap(), editReservations = new WeakMap(), operations = new WeakMap(), engine = createEngine(legacy), adapter = createAdapter(schedule), compat = createLegacyCompat({ legacy, engine, adapter });
     const fail = s => { throw Error(s); };
     function token(plan, head, previousGoalIds=null,previousRoutineIndex=null,previousIdentities=null) { const t = Object.freeze({ format: 'verified-history-window', generation: head.generation, rootHash: head.rootHash }); tokens.set(t, { plan, head, historicalIdentities:previousIdentities||require('./storage-events.cjs').historyIdentities(plan), routineIndex:previousRoutineIndex||require('./storage-routines.cjs').index(plan), historicalGoalIds:previousGoalIds||new Set(plan.tables.executions.flatMap(r=>(r.value.log.history?.capture.plan.goals||[]).map(g=>g.id))), maps: Object.fromEntries(TABLES.map(n => [n, new Map(plan.tables[n].map(r => [r.key, r]))])), assets: new Map(plan.images.map(i => [i.hash, i])) }); return t; }
     const base = t => integrityBlocked ? fail('Verificación completa falló: recuperación explícita necesaria') : tokens.get(t) || fail('Ventana no verificada o de otra conexión');
@@ -235,6 +235,38 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
         operations.get(operation).nextRoutineIndex=index;
         operations.get(operation).calendarZone=zone;operations.get(operation).metrics={scopeReadMs,rootMs,...built.metrics,proof:built.proof};return operation;
     }
+    async function reserveEventEdit(t,sourceEventId,operationId,expectedIds=null) {
+        if(!protocol)fail('La edición requiere autoridad persistente');
+        const b=base(t),library=require('./storage-events-edit.cjs'),r=library.issue(b.plan,b.head,sourceEventId,operationId,b.historicalIdentities);
+        if(expectedIds && !same(expectedIds,{sourceEventId:r.sourceEventId,eventId:r.eventId,seriesId:r.seriesId}))fail('Los IDs no corresponden a la edición reservada');
+        await checkHead(b);
+        const previous=await transaction(['commits'],'readonly',(tx,done,abort)=>fetch(tx,[['receipt','commits',operationId]],v=>done(v.receipt),abort));
+        if(previous)fail('ID de operación ya confirmado: inspecciona el recibo');
+        const reservation=freeze(copy(r));editReservations.set(reservation,b);return reservation;
+    }
+    async function readEventEdit(t,id) {
+        const started=clock(),b=base(t),event=b.maps.events.get(id)?.value;
+        if(!event)fail('El evento ya no existe');
+        const own=b.historicalIdentities.byEvent.get(id)||[],seriesId=event.seriesId||own.find(r=>r.seriesId)?.seriesId,
+            records=seriesId?b.historicalIdentities.bySeries.get(seriesId)||own:own,
+            segments=b.plan.header.eventIds.map(k=>b.maps.events.get(k)).filter(r=>r.key===id||seriesId&&r.value.seriesId===seriesId);
+        await verifyRows(b,segments.map(row=>({store:'events',row})));
+        return freeze({event:copy(event),segments:segments.map(r=>copy(r.value)),captures:copy(records),readMs:clock()-started,photoBytesHydrated:0});
+    }
+    async function prepareEventEdit(t,reservation,payload,context) {
+        if(!protocol)fail('La edición requiere autoridad persistente');
+        const started=clock(),b=base(t),library=require('./storage-events-edit.cjs'),zone=require('./storage-routines.cjs').calendarZone();
+        if(editReservations.get(reservation)!==b)fail('Reserva de edición ajena u obsoleta');
+        const scope=library.selectScope(b.plan,reservation,payload,context,b.historicalIdentities,schedule),readAt=clock();
+        await verifyRows(b,scope.rows);const scopeReadMs=clock()-readAt;
+        const built=await library.buildEdit(scope,{legacy,schedule,plannerActions}),partial=await model.prepareDocument({version:2,goals:[],routines:[],events:built.events,logs:{},recipeRevisions:Object.fromEntries(scope.rows.filter(r=>r.store==='revisions').map(r=>[r.row.key,r.row.value]))},legacy),changed=partial.tables.events.filter(row=>!same(row,b.maps.events.get(row.key))).map(row=>({store:'events',row}));
+        if(!changed.length)fail('No hay cambios');
+        const replacements=new Map(changed.map(c=>[c.row.key,c.row])),newRows=changed.filter(c=>!b.maps.events.has(c.row.key)),tables={...b.plan.tables,events:b.plan.tables.events.map(r=>replacements.get(r.key)||r).concat(newRows.map(c=>c.row))},header={...b.plan.header,eventIds:[...b.plan.header.eventIds,...newRows.map(c=>c.row.key)]},plan={...b.plan,tables,header},rootAt=clock();
+        plan.rootHash=await model.rootHash(plan);const rootMs=clock()-rootAt;
+        const operation=await seal(b,plan,changed,[],scope.context.operationId,scope.rows,started,{kind:'event-edit',payload:scope.payload,context:scope.context,identities:{sourceEventId:reservation.sourceEventId,eventId:reservation.eventId,seriesId:reservation.seriesId}});
+        if(zone!==built.zone||zone!==require('./storage-routines.cjs').calendarZone())fail('Calendario indeterminado: zona cambiada al preparar edición');
+        operations.get(operation).calendarZone=zone;operations.get(operation).metrics={scopeReadMs,rootMs,...built.metrics,proof:built.proof,split:built.split};return operation;
+    }
     async function prepareRoutine(t,method,payload,context) {
         if(!protocol)fail('Las rutinas incrementales requieren autoridad persistente');
         const started=clock(),b=base(t),library=require('./storage-routines.cjs'),calendarZone=library.calendarZone(),scope=library.selectScope(b.plan,method,payload,context);
@@ -302,6 +334,10 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
         }
         if (!same(metadata.base, b.head))
             fail('Pendiente obsoleto: preservar para reconciliar o restaurar aparte');
+        if(metadata.operation?.kind==='event-edit') {
+            const cmd=copy(metadata.operation),reservation=await reserveEventEdit(t,cmd.identities.sourceEventId,metadata.id,cmd.identities),rebuilt=await prepareEventEdit(t,reservation,cmd.payload,cmd.context),value=operations.get(rebuilt);
+            if(rebuilt.id!==metadata.id||value.plan.rootHash!==candidate.rootHash||!same(value.plan.sourceBackups,candidate.sourceBackups))fail('El comando no reproduce la edición íntegra');return rebuilt;
+        }
         if(metadata.operation?.kind==='event-create') {
             const cmd=copy(metadata.operation),reservation=await reserveEvent(t,metadata.id,cmd.identities),rebuilt=await prepareEvent(t,reservation,cmd.payload,cmd.context),value=operations.get(rebuilt);
             if(rebuilt.id!==metadata.id||value.plan.rootHash!==candidate.rootHash||!same(value.plan.sourceBackups,candidate.sourceBackups))fail('El comando no reproduce el candidato íntegro');return rebuilt;
@@ -460,7 +496,7 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
         }
         const checkedAt=clock();if(protocol)await protocol.confirmed(context,snapshot);const lineageAfterMs=clock()-checkedAt;
         checkCalendarZone(op,true);
-        return { status: 'confirmed', receipt, token: token(op.plan, freeze(snapshot.head),['planning','routine','event-create'].includes(op.command?.kind)?b.historicalGoalIds:null,['planning','routine','event-create'].includes(op.command?.kind)?(op.nextRoutineIndex||b.routineIndex):null,['planning','routine','event-create'].includes(op.command?.kind)?b.historicalIdentities:null), writeMs, transactionMs, lineagePrepareMs, lineageAfterMs, confirmationMs: clock() - readAt };
+        return { status: 'confirmed', receipt, token: token(op.plan, freeze(snapshot.head),['planning','routine','event-create','event-edit'].includes(op.command?.kind)?b.historicalGoalIds:null,['planning','routine','event-create','event-edit'].includes(op.command?.kind)?(op.nextRoutineIndex||b.routineIndex):null,['planning','routine','event-create','event-edit'].includes(op.command?.kind)?b.historicalIdentities:null), writeMs, transactionMs, lineagePrepareMs, lineageAfterMs, confirmationMs: clock() - readAt };
     }
     async function page(t, { after = null, limit = 50, date = null } = {}) {
         const b = base(t);
@@ -569,13 +605,13 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
         if (!op)
             fail('Delta ajeno');
         let command = op.command ? copy(op.command) : null;
-        if (command && !['planning','routine','event-create'].includes(command.kind)) {
+        if (command && !['planning','routine','event-create','event-edit'].includes(command.kind)) {
             const action = command.command.action?.type === 'annotate' ? command.command.action.action : command.command.action;
             if (action?.type === 'evidence')
                 delete action.evidence.src;
         }
         return require('./recovery-binary.cjs').exportRecovery({ id: operation.id, base: op.base.head, candidate: op.plan, drafts: copy(drafts), operation: command }, legacy);
     }
-    return Object.freeze({ reserveEvent,readEvent,prepareEvent,commitEvent:commitExecution,eventMetrics:operation=>copy(operations.get(operation)?.metrics||null),readRoutine,prepareRoutine,commitRoutine:commitExecution,routineMetrics:operation=>copy(operations.get(operation)?.metrics||null),readGoal,readDayReview,preparePlanning,commitPlanning:commitExecution,resumePending, inspectOperation, exportPending, openWindow, prepareExecution, commitExecution, page, readExecution, readPhoto, statistics });
+    return Object.freeze({ reserveEventEdit,readEventEdit,prepareEventEdit,commitEventEdit:commitExecution,eventEditMetrics:operation=>copy(operations.get(operation)?.metrics||null), reserveEvent,readEvent,prepareEvent,commitEvent:commitExecution,eventMetrics:operation=>copy(operations.get(operation)?.metrics||null),readRoutine,prepareRoutine,commitRoutine:commitExecution,routineMetrics:operation=>copy(operations.get(operation)?.metrics||null),readGoal,readDayReview,preparePlanning,commitPlanning:commitExecution,resumePending, inspectOperation, exportPending, openWindow, prepareExecution, commitExecution, page, readExecution, readPhoto, statistics });
 }
 module.exports = { createIncrementalAccess };

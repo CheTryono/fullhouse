@@ -5,6 +5,11 @@ declare const verifiedWindow:unique symbol,preparedDelta:unique symbol;
 export interface VerifiedWindow {readonly [verifiedWindow]:true;readonly format:'verified-history-window';readonly generation:number;readonly rootHash:string}
 export interface PreparedDelta {readonly [preparedDelta]:true;readonly format:'prepared-history-delta';readonly id:string;readonly prepareMs:number;readonly changedRows:number;readonly newImages:number}
 export interface IncrementalAccess {
+ reserveEventEdit(token:VerifiedWindow,sourceEventId:string,operationId:string,expectedIds?:{sourceEventId:string;eventId:string;seriesId:string}):Promise<import('./storage-events-edit.cjs').EventEditReservation>;
+ prepareEventEdit(token:VerifiedWindow,reservation:import('./storage-events-edit.cjs').EventEditReservation,payload:import('./storage-events-edit.cjs').EventDraftEdit,context:import('./storage-events-edit.cjs').EventEditContext):Promise<PreparedDelta>;
+ commitEventEdit:IncrementalAccess['commitExecution'];
+ eventEditMetrics(operation:PreparedDelta):import('./storage-events-edit.cjs').EventEditMetrics|null;
+ readEventEdit(token:VerifiedWindow,id:string):Promise<{readonly event:Readonly<import('../contracts/history-v2').EventV2>;readonly segments:readonly Readonly<import('../contracts/history-v2').EventV2>[];readonly captures:readonly {key:string;executionId:string|null;seriesId:string|null;day:string|null;legacy:boolean;hash:string}[];readonly readMs:number;readonly photoBytesHydrated:0}>;
  reserveEvent(token:VerifiedWindow,operationId:string,expectedIds?:{eventId:string;seriesId:string}):Promise<import('./storage-events.cjs').EventReservation>;
  prepareEvent(token:VerifiedWindow,reservation:import('./storage-events.cjs').EventReservation,payload:import('./storage-events.cjs').EventDraftCreate,context:import('./storage-events.cjs').EventContext):Promise<PreparedDelta>;
  commitEvent:IncrementalAccess['commitExecution'];
