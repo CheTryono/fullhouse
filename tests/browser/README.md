@@ -363,3 +363,20 @@ No son teléfonos físicos, Firefox ni WebKit. Storage público bloqueado en lab
 puertos readSources solo devuelven copias sintéticas. Las regresiones públicas usan
 otro origen loopback desechable. No se publica este laboratorio en Pages.
 [Contrato, casos bloqueados y mediciones](../../docs/HISTORY_V2_SCOPED_EVENTS_EDIT.md).
+
+
+## Comercial · guardas públicas v1
+
+```sh
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/commercial-history.cjs
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/pending-save.cjs
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/day-shifts.cjs
+```
+
+commercial-history usa app.js/React/DOM reales en origen loopback desechable, 1280 y
+390 px, cinco paletas y America/Mexico_City. Verifica bloqueo con borrador intacto,
+copia con IDs nuevos, guardado y programación independientes, conservación de foto/
+notas/marcas y rechazo de traslado de registros futuros. La reprogramación se confirma
+con el modal propio antes de comprobar el rechazo; el driver no se salta ese diálogo.
+También comprueba foco de teclado y ausencia de errores JS. Sin servicios remotos ni
+datos personales. No son teléfonos físicos ni pruebas Firefox/WebKit.

@@ -1,3 +1,23 @@
+# Comercial · PR 1: guardas públicas de historial v1
+
+- Base 721ce2d, rama fix/commercial-v1-history-guardrails. No incorpora B.3c.1/v2.
+- Guarda antes de escribir: conserva claves/hechos, plantilla, propietario, fecha,
+  intervalo y selección de límites de actividades registradas, incluidas futuras.
+  Bloquea edición/eliminación/reprogramación que los reinterpretaría. Sin cierres
+  silenciosos de formularios bloqueados. Cambios sin registros afectados permitidos.
+- «Crear copia» independiente desde tarjeta o borrador: nuevos IDs de rutina/pasos/
+  variantes, estructura y contenido conservados, sin fotos/logs/programación heredados.
+  La copia queda pendiente de guardar; no cancela ni reasigna el origen.
+- Corrección de alternativas con confirmación cuando corresponda; deja de borrar
+  marcas anteriores y conserva notas/fotos. Sin nuevo esquema de auditoría.
+- BUG-01/02/03/04 y respaldos v1 conservados. Importación/reset siguen siendo reemplazos
+  confirmados. No recupera contexto ya perdido ni resuelve toda la arquitectura BUG-05.
+- Reproducción original BUG-05 intacta, ahora pasa por bloqueo. Regresión 194;
+  contratos 291 + seis TODO; npm test 486 + seis TODO, sin fallos; check/tipos correctos.
+  Chromium: cinco paletas, 1280/390 px, interfaz y regresiones públicas pendientes/horario.
+- Documento de alcance/límites: docs/COMMERCIAL_V1_HISTORY_GUARDRAILS.md.
+  app.tsx/app.js sincronizados. Sin Firebase/Stripe, migraciones, merge ni despliegue.
+
 # BUG-05 · B.3b.2: edición incremental y segmentos históricos (aislada)
 
 - Base c61e6ac (PR #17), rama feature/history-scoped-events-edit-v2. A c5dd206,

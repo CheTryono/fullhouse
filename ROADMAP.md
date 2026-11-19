@@ -4,6 +4,17 @@ Documento vivo. Actualizar al cerrar cada etapa con PR y comprobaciones realizad
 Estados: ✅ completado comprobado · 🔄 en curso · ⬜ pendiente.
 No es un compromiso de fechas ni autorización de despliegue.
 
+## Preparación comercial inicial · objetivo 3 diciembre 2026
+
+| Estado | Trabajo | Evidencia / siguiente paso |
+| --- | --- | --- |
+| 🔄 | PR comercial 1: protección mínima del historial v1 | Implementada y probada en rama fix/commercial-v1-history-guardrails; pendiente de revisión, sin despliegue |
+| ⬜ | Cuentas, persistencia remota y fotografías privadas | Siguiente PR tras aprobación; sin servicios configurados |
+| ⬜ | Suscripciones, información pública y validación de lanzamiento | Condicionado a aislamiento, recuperación y decisiones comerciales |
+
+B.3c.1 permanece pausada en feature/history-scoped-events-shift-v2, commit 773c2d2.
+No se utiliza como base comercial y no se autoriza B.3c.2/B.4/4C.
+
 ## Etapa A · desarrollo seguro
 
 | Estado | Trabajo | Evidencia / siguiente paso |
@@ -26,8 +37,8 @@ No es un compromiso de fechas ni autorización de despliegue.
 | ✅ | BUG-05 fase 4B.3b · B.3a: demostración del calendario | PR #15 fusionada, main beff908; motor puro, sin activación pública |
 | ✅ | BUG-05 B.3a.1: alternativas y garantías locales | PR #16 fusionada, main 13ee9d1; catálogo seguro, cobertura semanal local y guardas de captura/zona |
 | ✅ | BUG-05 B.3b.1: creación por alcance | PR #17 fusionada, main c61e6ac; calendario, recuperación y capacidad aislados |
-| 🔄 | BUG-05 B.3b.2: edición y segmentación por alcance | Checkpoints c5dd206/215498f; cortes civiles, capturas congeladas y recuperación experimental. Pendiente revisión; ver SCOPED_EVENTS_EDIT |
-| ⬜ | BUG-05 B.3c: desplazamiento y eliminación | Contrato de cancelación/dependencias y confirmaciones; no iniciado ni autorizado |
+| ✅ | BUG-05 B.3b.2: edición y segmentación por alcance | PR #18 fusionada, main 721ce2d; solo infraestructura experimental |
+| 🔄 | BUG-05 B.3c.1: desplazamiento experimental | Pausado y conservado en 773c2d2, rama independiente; sin integración comercial |
 | ⬜ | BUG-05 fase 4B.3b · B.4: adopción por alcance | Tramo nuevo explícito, conservación de legado y evidencias |
 | ⬜ | Otros bloqueos antes de 4C | Privacidad aprobada, paridad React, fuentes grandes/cadenas largas y otros motores/dispositivos |
 | ⬜ | BUG-05 fase 4C: integración y activación por etapas | Solo tras cerrar matriz, previsualización, respaldos/reversión y autorización explícita |

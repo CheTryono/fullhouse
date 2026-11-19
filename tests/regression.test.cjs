@@ -87,23 +87,18 @@ test('routine scheduling creates an occurrence and rejects a second future sched
   assert.equal(a.controller.state.data.events.length, 1);
   assert.match(a.controller.state.toast, /programación futura|ya está programada/);
 });
-test('reprogramming splits past/future and transfers only future execution logs', async () => {
+test('reprogramming with future records is blocked without moving any execution log', async () => {
   const old = event('old', { date: '2030-01-01', repeat: 'daily', routineId: 'routine' });
   const past = { completed: true, checkedSteps: ['step'], note: 'Synthetic historical note' };
   const future = { completed: false, checkedSteps: [], choices: { step: 'choice' } };
-  const a = app({ data: { ...emptyData(), routines: [routine()], events: [old], logs: { 'old@2030-01-06': past, 'old@2030-01-08': future } } });
-  a.controller.state.eventDraft = { ...old, time: '11:00', applyFrom: DAY };
-  await a.controller.saveEvent();
-  const data = a.controller.state.data;
-  assert.equal(data.events.length, 2);
-  assert.equal(data.events.find(e => e.id === 'old').endDate, '2030-01-06');
-  const next = data.events.find(e => e.id !== 'old');
-  assert.equal(next.date, DAY);
-  assert.deepEqual(plain(data.logs['old@2030-01-06']), past);
-  assert.deepEqual(plain(data.logs[`${next.id}@2030-01-08`]), future);
-  assert.equal(data.logs['old@2030-01-08'], undefined);
-  assert.equal(a.call('eventsOn', data, '2030-01-06')[0].time, '09:00');
-  assert.equal(a.call('eventsOn', data, DAY)[0].time, '11:00');
+  const before={ ...emptyData(), routines: [routine()], events: [old], logs: { 'old@2030-01-06': past, 'old@2030-01-08': future } };
+  const bytes=JSON.stringify(before),a=app({data:before,stored:{'fullhouse-v01':bytes}});
+  a.controller.state.modal='event';a.controller.state.eventDraft={...old,time:'11:00',applyFrom:DAY};
+  const draft=plain(a.controller.state.eventDraft);await a.controller.saveEvent();
+  assert.deepEqual(plain(a.controller.state.data),before);
+  assert.equal(a.storage.get('fullhouse-v01'),bytes);
+  assert.equal(a.controller.state.modal,'event');assert.deepEqual(plain(a.controller.state.eventDraft),draft);
+  assert.match(a.controller.state.toast,/registros/);
 });
 
 function dependencies() {
@@ -170,12 +165,13 @@ test('manual alternatives are required before completing a routine', () => {
   assert.equal(a.controller.state.data.logs[`event@${DAY}`].completed, true);
   assert.equal(a.controller.state.data.logs['event@2030-01-08'], undefined);
 });
-test('changing an alternative resets current checks but preserves other days', () => {
+test('confirmed alternative correction keeps current checks and preserves other days', async () => {
   const old = { completed: true, checkedSteps: ['old'], note: 'Synthetic note' };
   const a = app({ data: { ...emptyData(), logs: { [`event@${DAY}`]: old, 'event@2030-01-06': old } } });
-  a.controller.selectVariant(event(), DAY, 'choice', 'new');
+  await a.controller.selectVariant(event(), DAY, 'choice', 'new');
   const log = a.controller.state.data.logs[`event@${DAY}`];
-  assert.deepEqual(plain(log.checkedSteps), []);
+  assert.deepEqual(plain(log.checkedSteps), old.checkedSteps);
+  assert.equal(a.confirmations.length,1);
   assert.equal(log.completed, false);
   assert.equal(log.note, old.note);
   assert.deepEqual(plain(a.controller.state.data.logs['event@2030-01-06']), old);
@@ -448,9 +444,10 @@ test('BUG-01: failed persistence must not leave an apparently saved in-memory re
   assert.deepEqual(plain(a.controller.state.data), before, 'Until explicit unsaved-state recovery exists, preserve the last saved state');
 });
 
+function safePendingCandidate(){const d=legacyBackup();d.logs[Object.keys(d.logs)[0]].note='Synthetic pending update';d.goals[0].current+=1;return d;}
 for (const writeError of ['QuotaExceededError', 'SecurityError']) {
   test(`${writeError}: retry preserves saved state until an atomic successful write`, () => {
-    const before = legacyBackup(), bytes = JSON.stringify(before, null, 2), candidate = modernBackup();
+    const before = legacyBackup(), bytes = JSON.stringify(before, null, 2), candidate = safePendingCandidate();
     const a = app({ data: before, stored: { 'fullhouse-v01': bytes }, failWrite: true, writeError });
     assert.equal(a.controller.save(candidate, 'Synthetic success'), false);
     const pending = plain(a.controller.state.pending);
@@ -494,7 +491,7 @@ test('invalid or unserializable ordinary saves cannot replace saved data', () =>
 test('pending state blocks second saves, navigation, reload of local data, import and reset', async () => {
   const before = legacyBackup(), bytes = JSON.stringify(before);
   const a = app({ data: before, stored: { 'fullhouse-v01': bytes }, failWrite: true });
-  a.controller.state.page = 'ajustes'; a.controller.save(modernBackup());
+  a.controller.state.page = 'ajustes'; a.controller.save(safePendingCandidate());
   const pending = plain(a.controller.state.pending);
   a.setWriteFailure(false);
   assert.equal(a.controller.save(emptyData()), false);
@@ -509,7 +506,7 @@ test('pending state blocks second saves, navigation, reload of local data, impor
 test('pending export downloads the attempted snapshot and remains dirty; it can be restored after reload', async () => {
   const before = legacyBackup(), bytes = JSON.stringify(before);
   const a = app({ data: before, stored: { 'fullhouse-v01': bytes }, failWrite: true });
-  a.controller.save(modernBackup()); const pending = plain(a.controller.state.pending);
+  a.controller.save(safePendingCandidate()); const pending = plain(a.controller.state.pending);
   a.controller.exportData();
   assert.equal(await a.downloads[0].blob.text(), pending.raw);
   assert.match(a.downloads[0].name, /pendientes.*\.json$/);
@@ -518,7 +515,7 @@ test('pending export downloads the attempted snapshot and remains dirty; it can 
   const reloaded = app({ stored: { 'fullhouse-v01': bytes }, useLoadedData: true });
   assert.deepEqual(plain(reloaded.controller.state.data), before);
   await reloaded.importBackup(await a.downloads[0].blob.text());
-  assert.deepEqual(plain(reloaded.controller.state.data), modernBackup());
+  assert.deepEqual(plain(reloaded.controller.state.data), safePendingCandidate());
 });
 test('invalid serializable pending data can be exported for inspection without being labelled a backup', async () => {
   const a = app(); a.controller.save({ ...emptyData(), goals: [null] }); a.controller.exportPending();
@@ -529,7 +526,7 @@ test('invalid serializable pending data can be exported for inspection without b
 test('discarding pending data needs explicit confirmation and keeps stored bytes', async () => {
   const before = legacyBackup(), bytes = JSON.stringify(before);
   const a = app({ data: before, stored: { 'fullhouse-v01': bytes }, failWrite: true });
-  a.controller.save(modernBackup());
+  a.controller.save(safePendingCandidate());
   a.controller.askConfirm = async () => false; await a.controller.discardPending();
   assert.ok(a.controller.state.pending);
   a.controller.askConfirm = async () => true; await a.controller.discardPending();
@@ -562,7 +559,7 @@ for (const [name, action, check] of [
   ['goal deletion', async a => a.controller.deleteGoal(a.controller.state.data.goals[0]), data => assert.equal(data.goals.length, 0)],
 ]) {
   test(`failed ${name} retains the complete attempted action for retry and export`, async () => {
-    const before = legacyBackup(), bytes = JSON.stringify(before);
+    const before = legacyBackup();if(name==='goal deletion')before.events.forEach(e=>e.goalId='');const bytes = JSON.stringify(before);
     const a = app({ data: before, stored: { 'fullhouse-v01': bytes }, failWrite: true });
     await action(a);
     assert.equal(a.controller.state.pending?.valid, true);
@@ -577,7 +574,7 @@ test('an in-flight import stops if a save becomes pending before FileReader comp
   const before = legacyBackup(), bytes = JSON.stringify(before);
   const a = app({ data: before, stored: { 'fullhouse-v01': bytes } });
   await a.controller.importData({ target: { files: [{ text: JSON.stringify(emptyData()) }], value: 'synthetic.json' } });
-  a.setWriteFailure(true); a.controller.save(modernBackup());
+  a.setWriteFailure(true); a.controller.save(safePendingCandidate());
   a.setWriteFailure(false); await new Promise(resolve => setImmediate(resolve));
   assert.ok(a.controller.state.pending);
   assert.deepEqual(plain(a.controller.state.data), before);
@@ -669,9 +666,9 @@ test('failed event completion does not play a success sound or change completion
   assert.equal(a.controller.state.data.logs[`event@${DAY}`].completed, false);
   assert.equal(JSON.parse(a.controller.state.pending.raw).logs[`event@${DAY}`].completed, true);
 });
-test('failed manual alternative choice and milestone updates remain recoverable', () => {
+test('failed manual alternative choice and milestone updates remain recoverable', async () => {
   const before = modernBackup(), a = app({ data: before, failWrite: true });
-  a.controller.selectVariant(a.controller.state.data.events[0], DAY, 'parent', '__base');
+  await a.controller.selectVariant(a.controller.state.data.events[0], DAY, 'parent', '__base');
   assert.equal(a.controller.state.data.logs[`event@${DAY}`].choices.parent, 'alternative');
   assert.equal(JSON.parse(a.controller.state.pending.raw).logs[`event@${DAY}`].choices.parent, '__base');
   a.setWriteFailure(false); a.controller.retryPending();
@@ -707,8 +704,8 @@ test('unsubmitted schedule remains dirty while editing its routine and after ret
   assert.equal(a.controller.state.eventDraft.title, 'Synthetic schedule draft');
   assert.equal(a.controller.dirtyDraft(), true);
 });
-test('retrying a routine save does not lose the unsubmitted schedule it was editing', () => {
-  const a = app({ data: legacyBackup(), failWrite: true });
+test('retrying an unused routine save does not lose the unsubmitted schedule it was editing', () => {
+  const before=legacyBackup();before.logs={};const a = app({ data: before, failWrite: true });
   a.controller.openEvent(); a.controller.updateEventDraft({ title: 'Synthetic schedule draft', routineId: 'routine' });
   a.controller.editRoutineFromSchedule();
   a.controller.updateRoutineDraft({ title: 'Synthetic pending routine update' });
@@ -915,3 +912,5 @@ for (const time of ['23:00', '22:45']) {
     }
   });
 }
+
+require('./commercial-history.cjs');
