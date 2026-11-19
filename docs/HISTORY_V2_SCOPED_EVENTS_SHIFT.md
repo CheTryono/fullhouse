@@ -74,3 +74,17 @@ El driver inicial tenía una expectativa 08:15 incorrecta para un fixture 09:00;
 se corrigió para usar su horario efectivo, y se repitió con éxito.
 Este checkpoint rechaza todavía componentes de más de un evento. La ampliación
 de dependencias y los escenarios de capacidad no se presentan como terminados.
+
+### Checkpoint B verificado
+
+27 pruebas nuevas de desplazamiento (22 funcionales + 5 zonas) y 39 de edición
+B.3b.2: 66 aprobadas. Chromium: UTC, México, Nueva York, Madrid y Apia verifican
+transacción de una fila, componente de cinco eventos, reajuste de between, bloqueo
+de capturas y calendario inválido, y otras fechas sin cambios. Casos mensuales,
+anuales y every indefinidos se prueban solo para el día exacto del desplazamiento;
+no se amplía el dominio de prueba de toda la recurrencia. Apia 2011-12-30 bloqueado.
+La rutina principal con variante real __base permanece bloqueada por compatibilidad
+de futuras capturas. En límites relacionados se evalúan base y variante real sin
+confundir sus IDs, conservando la reparación B.3a.1. Las primeras expectativas de
+fixtures B se corrigieron al aplicar routineBalance real: un bloque fijo con tiempo
+sobrante es inválido, y el min flexible no es un mínimo duro de asignación.

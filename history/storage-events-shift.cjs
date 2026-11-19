@@ -48,9 +48,13 @@ function selectScope(plan,request,context,historical,schedule){
  }
  for(const id of sourceIds)for(const r of historical.byEvent.get(id)||[])if(!r.day||r.day===p.date)records.set(r.key,r);
  if(records.size){const record=records.values().next().value;stop(record.legacy?'LEGACY_RECORDED':'CAPTURED_OCCURRENCE','La aparición o una dependencia afectada ya tiene un registro; se conserva el historial','indeterminate',{date:p.date,eventId:old.id,record:copy(record)});}
+ const targetRoutine=plan.tables.routines.find(r=>r.key===old.routineId)?.value;
+ function ambiguous(steps){return steps.some(s=>(s.variants||[]).some(v=>v.id==='__base'||ambiguous(v.children||[]))||ambiguous(s.children||[]));}
+ if(targetRoutine&&ambiguous(targetRoutine.steps))stop('ROUTINE_NOT_CAPTURABLE','La rutina principal tiene una variante __base todavía ambigua para capturas; no se mueve como actividad ejecutable');
  const ids=new Set([...events,...family].map(e=>e.id)),rows=all.filter(e=>ids.has(e.id)).map(e=>({store:'events',row:maps.events.get(e.id)})),rids=new Set(events.flatMap(e=>[e.routineId,e.afterRoutineId,e.beforeRoutineId]).filter(Boolean));
  for(const id of plan.header.routineIds.filter(id=>rids.has(id)))rows.push({store:'routines',row:maps.routines.get(id)});
  for(const id of rids)if(!maps.routines.has(id))stop('ROUTINE_MISSING','Falta una rutina del componente');
+ for(const id of new Set(events.map(e=>e.goalId).filter(Boolean))){const row=plan.tables.goals.find(r=>r.key===id);if(row)rows.push({store:'goals',row});}
  for(const id of new Set(events.map(e=>e.recipeRevisionId).filter(Boolean))){const row=maps.revisions.get(id);if(!row)stop('REVISION_MISSING','Falta una revisión referenciada');rows.push({store:'revisions',row});}
  return {request:p,context:c,old,events,family,rows,baseRoot:plan.rootHash,componentMs:now()-start};
 }
@@ -62,7 +66,6 @@ function exactDelta(old,next,date,time){
 }
 async function buildShift(scope,{schedule,plannerActions}){
  const started=now(),{request:p,context:c,old,events}=scope,zone=R.calendarZone();await assertSemantics(schedule);
- if(events.length!==1)stop('CHECKPOINT_A_ONLY','Dependencias pendientes del checkpoint B');
  const routines=scope.rows.filter(r=>r.store==='routines').map(r=>r.row.value),state=C.stateFrames(events,routines,p.date,{},schedule),frame=state.frame(old);
  if(!frame)stop('BASE_FRAME','El intervalo actual no es válido; no se usa una hora de respaldo para repararlo');
  if(!Number.isSafeInteger(frame.start)||schedule.minutes(schedule.eventTime(old,p.date,state.data))!==frame.start)stop('TIME_PRECISION','El horario efectivo no es representable en minutos enteros');
