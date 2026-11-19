@@ -17,6 +17,8 @@ function plannerSource(){
   for(const [name,n] of needed)if(/\b(getPreference|localStorage|sessionStorage|document|window|fetch|navigator)\b/.test(n.getText(ast)))throw Error('Dependencia con efectos: '+name);
   const source=`module.exports=function controllerFor(doc,options){let candidate=null;const NativeDate=globalThis.Date,Date=class extends NativeDate{constructor(...args){super(...(args.length?args:options.at?[options.at]:[]));}static now(){return options.at?NativeDate.parse(options.at):NativeDate.now();}};const messages=[],ids=options.ids.slice();const uid=()=>{if(!ids.length)throw Error('Falta identificador explícito');return ids.shift();},today=()=>options.today;
 ${helpers}
+// Puerto opcional experimental; por defecto conserva los helpers originales.
+if(options.resolveFrame)eventFrame=options.resolveFrame;
 const controller={state:{data:doc,guideOpen:false,returnToSchedule:false,selectedDate:options.today,...options.state,data:doc},playCheckSound(){},pendingSchedule:null,save(next){candidate=JSON.parse(JSON.stringify(next));return true;},notice(text){messages.push(text);},setState(patch){Object.assign(this.state,patch);if(patch.toast)messages.push(patch.toast);},askConfirm:async()=>options.confirm===true,close(){},editRoutineFromSchedule(){messages.push('Se requiere ajustar rutina');}};
 ${selected.map(([name,node])=>'controller.'+name+'=(function(){return '+node.getText(ast)+';}).call(controller);').join('\n')}
 return {controller,result:()=>({candidate,messages})};};`;

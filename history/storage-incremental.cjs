@@ -14,9 +14,9 @@ function freezeShared(value) {
 const clock = () => globalThis.performance?.now() ?? Date.now();
 function createIncrementalAccess({ open, transaction, legacy, schedule, protocol=null, plannerActions=null }) {
     let integrityBlocked = false;
-    const tokens = new WeakMap(), operations = new WeakMap(), engine = createEngine(legacy), adapter = createAdapter(schedule), compat = createLegacyCompat({ legacy, engine, adapter });
+    const tokens = new WeakMap(), reservations = new WeakMap(), operations = new WeakMap(), engine = createEngine(legacy), adapter = createAdapter(schedule), compat = createLegacyCompat({ legacy, engine, adapter });
     const fail = s => { throw Error(s); };
-    function token(plan, head, previousGoalIds=null,previousRoutineIndex=null) { const t = Object.freeze({ format: 'verified-history-window', generation: head.generation, rootHash: head.rootHash }); tokens.set(t, { plan, head, routineIndex:previousRoutineIndex||require('./storage-routines.cjs').index(plan), historicalGoalIds:previousGoalIds||new Set(plan.tables.executions.flatMap(r=>(r.value.log.history?.capture.plan.goals||[]).map(g=>g.id))), maps: Object.fromEntries(TABLES.map(n => [n, new Map(plan.tables[n].map(r => [r.key, r]))])), assets: new Map(plan.images.map(i => [i.hash, i])) }); return t; }
+    function token(plan, head, previousGoalIds=null,previousRoutineIndex=null,previousIdentities=null) { const t = Object.freeze({ format: 'verified-history-window', generation: head.generation, rootHash: head.rootHash }); tokens.set(t, { plan, head, historicalIdentities:previousIdentities||require('./storage-events.cjs').historyIdentities(plan), routineIndex:previousRoutineIndex||require('./storage-routines.cjs').index(plan), historicalGoalIds:previousGoalIds||new Set(plan.tables.executions.flatMap(r=>(r.value.log.history?.capture.plan.goals||[]).map(g=>g.id))), maps: Object.fromEntries(TABLES.map(n => [n, new Map(plan.tables[n].map(r => [r.key, r]))])), assets: new Map(plan.images.map(i => [i.hash, i])) }); return t; }
     const base = t => integrityBlocked ? fail('Verificación completa falló: recuperación explícita necesaria') : tokens.get(t) || fail('Ventana no verificada o de otra conexión');
     async function quarantine(reason) {
         integrityBlocked = true;
@@ -199,6 +199,42 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
         await verifyRows(b,records);
         return freeze({routine:copy(b.maps.routines.get(id)?.value||null),related:records.filter(r=>r.store!=='executions').map(r=>({store:r.store,key:r.row.key,value:copy(r.row.value)})),revisionCount:refs.revisions.length,revisionCatalog:refs.revisions.map(key=>({key,hash:b.maps.revisions.get(key).hash})),captureCount:refs.executions.length,captures:copy(captures),next:captures.length===limit?captures.at(-1).key:null,photoBytesHydrated:0,readMs:clock()-started});
     }
+    async function reserveEvent(t, operationId, expectedIds=null) {
+        if(!protocol)fail('La creación requiere autoridad persistente');
+        const b=base(t),library=require('./storage-events.cjs'),issued=library.issue(b.head,operationId);
+        expectedIds=expectedIds===null?null:copy(expectedIds);
+        library.checkIdentity(b.plan,issued,b.historicalIdentities);
+        if(expectedIds)library.checkIdentity(b.plan,expectedIds,b.historicalIdentities);
+        if(expectedIds&&(expectedIds.eventId!==issued.eventId||expectedIds.seriesId!==issued.seriesId))fail('Los IDs no corresponden a esta reserva y base');
+        await checkHead(b);
+        const previous=await transaction(['commits'],'readonly',(tx,done,abort)=>fetch(tx,[['receipt','commits',operationId]],v=>done(v.receipt),abort));
+        if(previous)fail('ID de operación ya confirmado: inspecciona el recibo');
+        const reservation=freeze(copy(issued));reservations.set(reservation,b);return reservation;
+    }
+    async function readEvent(t,id,{after=null,limit=50}={}) {
+        if(!Number.isSafeInteger(limit)||limit<1||limit>1000)fail('Página fuera del presupuesto');
+        const b=base(t),library=require('./storage-events.cjs'),started=clock(),event=b.maps.events.get(id)?.value||null;
+        const related=event?library.component(b.plan.header.eventIds.map(k=>b.maps.events.get(k).value),id):[],ids=new Set(related.map(e=>e.id)),rids=new Set(related.flatMap(e=>[e.routineId,e.afterRoutineId,e.beforeRoutineId]).filter(Boolean));
+        const rows=[...b.plan.tables.events.filter(r=>ids.has(r.key)).map(row=>({store:'events',row})),...b.plan.tables.routines.filter(r=>rids.has(r.key)).map(row=>({store:'routines',row}))];
+        const goals=new Set(related.map(e=>e.goalId).filter(Boolean)),revisions=new Set(related.map(e=>e.recipeRevisionId).filter(Boolean));
+        for(const id of goals){const row=b.maps.goals.get(id);if(row)rows.push({store:'goals',row});}
+        for(const id of revisions){const row=b.maps.revisions.get(id);if(!row)fail('Revisión histórica referenciada inexistente');rows.push({store:'revisions',row});}
+        await verifyRows(b,rows);const records=b.historicalIdentities.byEvent.get(id)||[],page=records.filter(r=>!after||r.key>after).slice(0,limit);
+        return freeze({records:copy(page),recordCount:records.length,next:page.length===limit?page.at(-1).key:null,event:copy(event),related:rows.map(r=>({store:r.store,key:r.row.key,value:copy(r.row.value)})),historicalIdentityKnown:b.historicalIdentities.events.has(id),photoBytesHydrated:0,readMs:clock()-started});
+    }
+    async function prepareEvent(t,reservation,payload,context) {
+        if(!protocol)fail('La creación requiere autoridad persistente');
+        const started=clock(),b=base(t),library=require('./storage-events.cjs'),zone=require('./storage-routines.cjs').calendarZone();
+        if(reservations.get(reservation)!==b)fail('Reserva ajena u obsoleta');
+        const scope=library.selectScope(b.plan,reservation,payload,context,b.historicalIdentities),readAt=clock();await verifyRows(b,scope.rows);const scopeReadMs=clock()-readAt;
+        const built=await library.buildChange(scope,{legacy,schedule,plannerActions}),row=built.row,tables={...b.plan.tables,events:[...b.plan.tables.events,row]},header={...b.plan.header,eventIds:[...b.plan.header.eventIds,row.key]},plan={...b.plan,tables,header},rootAt=clock();
+        plan.rootHash=await model.rootHash(plan);const rootMs=clock()-rootAt;
+        const operation=await seal(b,plan,[{store:'events',row}],[],scope.context.operationId,scope.rows,started,{kind:'event-create',payload:scope.payload,context:scope.context,identities:{eventId:reservation.eventId,seriesId:reservation.seriesId}});
+        if(zone!==built.zone||zone!==require('./storage-routines.cjs').calendarZone())fail('Calendario indeterminado: zona cambiada al preparar');
+        const index=new Map(b.routineIndex);for(const id of [row.value.routineId,row.value.afterRoutineId,row.value.beforeRoutineId].filter(Boolean))if(!index.has(id))index.set(id,{revisions:[],executions:[]});
+        operations.get(operation).nextRoutineIndex=index;
+        operations.get(operation).calendarZone=zone;operations.get(operation).metrics={scopeReadMs,rootMs,...built.metrics,proof:built.proof};return operation;
+    }
     async function prepareRoutine(t,method,payload,context) {
         if(!protocol)fail('Las rutinas incrementales requieren autoridad persistente');
         const started=clock(),b=base(t),library=require('./storage-routines.cjs'),calendarZone=library.calendarZone(),scope=library.selectScope(b.plan,method,payload,context);
@@ -266,6 +302,10 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
         }
         if (!same(metadata.base, b.head))
             fail('Pendiente obsoleto: preservar para reconciliar o restaurar aparte');
+        if(metadata.operation?.kind==='event-create') {
+            const cmd=copy(metadata.operation),reservation=await reserveEvent(t,metadata.id,cmd.identities),rebuilt=await prepareEvent(t,reservation,cmd.payload,cmd.context),value=operations.get(rebuilt);
+            if(rebuilt.id!==metadata.id||value.plan.rootHash!==candidate.rootHash||!same(value.plan.sourceBackups,candidate.sourceBackups))fail('El comando no reproduce el candidato íntegro');return rebuilt;
+        }
         if (metadata.operation?.kind==='routine') {
             const command=copy(metadata.operation),rebuilt=await prepareRoutine(t,command.method,command.payload,command.context),value=operations.get(rebuilt);
             if(rebuilt.id!==metadata.id||value.plan.rootHash!==candidate.rootHash||!same(value.plan.sourceBackups,candidate.sourceBackups))fail('El comando no reproduce el candidato íntegro');return rebuilt;
@@ -420,7 +460,7 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
         }
         const checkedAt=clock();if(protocol)await protocol.confirmed(context,snapshot);const lineageAfterMs=clock()-checkedAt;
         checkCalendarZone(op,true);
-        return { status: 'confirmed', receipt, token: token(op.plan, freeze(snapshot.head),['planning','routine'].includes(op.command?.kind)?b.historicalGoalIds:null,['planning','routine'].includes(op.command?.kind)?b.routineIndex:null), writeMs, transactionMs, lineagePrepareMs, lineageAfterMs, confirmationMs: clock() - readAt };
+        return { status: 'confirmed', receipt, token: token(op.plan, freeze(snapshot.head),['planning','routine','event-create'].includes(op.command?.kind)?b.historicalGoalIds:null,['planning','routine','event-create'].includes(op.command?.kind)?(op.nextRoutineIndex||b.routineIndex):null,['planning','routine','event-create'].includes(op.command?.kind)?b.historicalIdentities:null), writeMs, transactionMs, lineagePrepareMs, lineageAfterMs, confirmationMs: clock() - readAt };
     }
     async function page(t, { after = null, limit = 50, date = null } = {}) {
         const b = base(t);
@@ -529,13 +569,13 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
         if (!op)
             fail('Delta ajeno');
         let command = op.command ? copy(op.command) : null;
-        if (command && !['planning','routine'].includes(command.kind)) {
+        if (command && !['planning','routine','event-create'].includes(command.kind)) {
             const action = command.command.action?.type === 'annotate' ? command.command.action.action : command.command.action;
             if (action?.type === 'evidence')
                 delete action.evidence.src;
         }
         return require('./recovery-binary.cjs').exportRecovery({ id: operation.id, base: op.base.head, candidate: op.plan, drafts: copy(drafts), operation: command }, legacy);
     }
-    return Object.freeze({ readRoutine,prepareRoutine,commitRoutine:commitExecution,routineMetrics:operation=>copy(operations.get(operation)?.metrics||null),readGoal,readDayReview,preparePlanning,commitPlanning:commitExecution,resumePending, inspectOperation, exportPending, openWindow, prepareExecution, commitExecution, page, readExecution, readPhoto, statistics });
+    return Object.freeze({ reserveEvent,readEvent,prepareEvent,commitEvent:commitExecution,eventMetrics:operation=>copy(operations.get(operation)?.metrics||null),readRoutine,prepareRoutine,commitRoutine:commitExecution,routineMetrics:operation=>copy(operations.get(operation)?.metrics||null),readGoal,readDayReview,preparePlanning,commitPlanning:commitExecution,resumePending, inspectOperation, exportPending, openWindow, prepareExecution, commitExecution, page, readExecution, readPhoto, statistics });
 }
 module.exports = { createIncrementalAccess };

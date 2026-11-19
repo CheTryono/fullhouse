@@ -1,0 +1,112 @@
+{
+  "base": "13ee9d1",
+  "browser": "156.0.8078.79",
+  "scope": "Synthetic IndexedDB; responsive Chromium viewport, not a phone",
+  "results": [
+    {
+      "timezoneId": "UTC",
+      "zone": "UTC",
+      "proofFormat": "fullhouse-calendar-proof",
+      "counts": {
+        "states": 8,
+        "checks": 24,
+        "work": 576,
+        "segments": 2
+      },
+      "finite": [
+        "monthly",
+        "yearly",
+        "every"
+      ],
+      "blockedIndefinite": 0,
+      "previewCollisionFixed": true,
+      "historyUnchanged": true,
+      "noCapturesCreated": true,
+      "noJavaScriptErrors": true
+    },
+    {
+      "timezoneId": "America/Mexico_City",
+      "zone": "America/Mexico_City",
+      "proofFormat": "fullhouse-local-event-calendar-proof",
+      "counts": {
+        "states": 8,
+        "checks": 24,
+        "work": 576,
+        "profiles": 1
+      },
+      "finite": [
+        "monthly",
+        "yearly",
+        "every"
+      ],
+      "blockedIndefinite": 3,
+      "previewCollisionFixed": true,
+      "historyUnchanged": true,
+      "noCapturesCreated": true,
+      "noJavaScriptErrors": true
+    },
+    {
+      "timezoneId": "America/New_York",
+      "zone": "America/New_York",
+      "proofFormat": "fullhouse-local-event-calendar-proof",
+      "counts": {
+        "states": 8,
+        "checks": 24,
+        "work": 576,
+        "profiles": 1
+      },
+      "finite": [
+        "monthly",
+        "yearly",
+        "every"
+      ],
+      "blockedIndefinite": 3,
+      "previewCollisionFixed": true,
+      "historyUnchanged": true,
+      "noCapturesCreated": true,
+      "noJavaScriptErrors": true
+    },
+    {
+      "timezoneId": "Europe/Madrid",
+      "zone": "Europe/Madrid",
+      "proofFormat": "fullhouse-local-event-calendar-proof",
+      "counts": {
+        "states": 8,
+        "checks": 24,
+        "work": 576,
+        "profiles": 1
+      },
+      "finite": [
+        "monthly",
+        "yearly",
+        "every"
+      ],
+      "blockedIndefinite": 3,
+      "previewCollisionFixed": true,
+      "historyUnchanged": true,
+      "noCapturesCreated": true,
+      "noJavaScriptErrors": true
+    },
+    {
+      "timezoneId": "Pacific/Apia",
+      "zone": "Pacific/Apia",
+      "proofFormat": "fullhouse-local-event-calendar-proof",
+      "counts": {
+        "states": 9,
+        "checks": 27,
+        "work": 648,
+        "profiles": 1
+      },
+      "finite": [
+        "monthly",
+        "yearly",
+        "every"
+      ],
+      "blockedIndefinite": 3,
+      "previewCollisionFixed": true,
+      "historyUnchanged": true,
+      "noCapturesCreated": true,
+      "noJavaScriptErrors": true
+    }
+  ]
+}

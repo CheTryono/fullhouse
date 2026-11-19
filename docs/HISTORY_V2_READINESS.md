@@ -488,3 +488,28 @@ incluye cuatro zonas y corpus 5000/501/42,2 MB; no otros motores ni dispositivos
 B.3b solo puede proponerse con dominio seguro explícito y pruebas de efectos por alcance.
 4C continúa NO preparada: capturas ambiguas, cortes/fechas inexistentes, capacidades de
 escritores viejos, privacidad, React y compatibilidad de dispositivos siguen pendientes.
+
+
+## Avance B.3b.1 sobre 13ee9d1 (creación experimental)
+
+[Contrato y resultados](HISTORY_V2_SCOPED_EVENTS_CREATE.md). A/B conservados en
+6333314/1da0af5; el checkpoint C añade capacidad y fallos. No cambia la evaluación
+principal: **NO preparado ni autorizado para 4C**.
+
+| Requisito | Estado actual |
+| --- | --- |
+| Crear eventos nuevos por alcance, IDs estables y transacción con linaje | Aprobado en laboratorio; pruebas Node/Chromium |
+| Efectos finitos, UTC periódico y cobertura semanal local compatible | Aprobado dentro de dominios/presupuestos; indeterminado bloquea |
+| Rutina `__base` inequívoca para nuevas capturas | No implementado; nueva programación bloqueada |
+| Calendario indefinido monthly/yearly/every no UTC | No demostrado; bloqueado |
+| Edición de eventos, cortes, shift/delete y adopción incremental | No implementado, siguientes hitos separados |
+| Guardado confirmado, fallos, recuperación binaria y fuentes divergentes | Verificados en Chromium; permanece carrera inevitable con escritores v1 |
+| Capacidad 5000/501/42,2 MB y preservación de hashes/fotos | Verificada; una muestra de escritorio, sin SLO móvil |
+| Paridad completa de controles React | No implementada; Planner público continúa v1 |
+| Privacidad/borrado físico | Bloqueado por política pendiente, sin cambios |
+| Otros motores/dispositivos, activación, migración pública | Pendientes de pruebas y autorización |
+
+La raíz recorre descriptores y la autoridad conserva costes de recibos/fuentes; no
+se promete coste constante. Apertura, recuperación y restauración grandes siguen
+requiriendo trabajo global. El siguiente alcance es diseñar B.3b.2 con corte histórico
+seguro, sin reutilizar la antigua reasignación de logs de Planner. No se inicia aquí.

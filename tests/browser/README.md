@@ -302,3 +302,34 @@ fotos y recibos cero imágenes nuevas; archivo completo restaurable. Una muestra
 SLO físico móvil, pico de memoria ni atribución de mejora al cambio de centinela.
 
 [Garantías y restricciones](../../docs/HISTORY_V2_CALENDAR_HARDENING.md).
+
+
+## Creación incremental de eventos · B.3b.1
+
+```sh
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-events-create.cjs
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-events-calendar.cjs
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-events-faults.cjs
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-events-performance.cjs
+```
+
+Origen loopback y bases fullhouse-lab-*. Storage público prohibido desde los tests;
+fuentes v1 inyectadas. `faults` usa un perfil temporal propio, presión binaria y cuota
+CDP configurada antes del primer acceso al origen: una modificación posterior puede
+no invalidar reservas de cuota ya concedidas. Sus bytes solo son sintéticos.
+
+- `create`: 1280/390 px, aborto, paquete pendiente, acuse perdido y reintento estable.
+- `calendar`: UTC y cuatro zonas locales; colisión preview, between, recurrencias
+  finitas y bloqueo de indefinidos no demostrados. No usa un certificado UTC localmente.
+- `faults`: cuota real, lectura tras commit, cierre dentro de TX, dos pestañas,
+  formulario reservado antes de await, corrupción, fuentes v1 y cambio de zona por CDP.
+  Si cambia tras escribir, inspecciona el recibo: no asume ausencia de commit.
+- `performance`: mismo corpus 5000/501/42175847 bytes de B.2, creación puntual/ocasión/
+  diaria con rutina, comparación de raíces, hashes por clave, archivo y recuperación
+  binaria grandes, restauración de todos los blobs y heap de una ventana separada.
+  La sesión anterior puede rechazar por complejidad: se informa como rechazo.
+
+Las filas físicas se ordenan por clave; el orden funcional de inserción se consulta
+mediante header.eventIds. Los tests no suponen que la última fila física es el nuevo ID.
+No hay pruebas en teléfonos físicos ni Firefox/WebKit. Una muestra no es un SLO.
+[Contrato y resultados](../../docs/HISTORY_V2_SCOPED_EVENTS_CREATE.md).
