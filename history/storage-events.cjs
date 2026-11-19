@@ -21,9 +21,13 @@ function historyIdentities(plan) {
         const source = c?.sourceEventId || (at > 0 ? row.key.slice(0, at) : row.key);
         if (!byEvent.has(source))
             byEvent.set(source, []);
-        const descriptor={ key: row.key, executionId: c?.executionId || null, seriesId: c?.seriesId || null, legacy: !c, day:row.day || null, hash:row.hash };
+        const descriptor = { key: row.key, executionId: c?.executionId || null, seriesId: c?.seriesId || null, legacy: !c, day: row.day || null, hash: row.hash };
         byEvent.get(source).push(descriptor);
-        if(c){if(!bySeries.has(c.seriesId))bySeries.set(c.seriesId,[]);bySeries.get(c.seriesId).push(descriptor);}
+        if (c) {
+            if (!bySeries.has(c.seriesId))
+                bySeries.set(c.seriesId, []);
+            bySeries.get(c.seriesId).push(descriptor);
+        }
     }
     for (const rows of byEvent.values())
         rows.sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
@@ -212,15 +216,17 @@ async function normalizeChange(scope, { legacy, schedule, plannerActions }) {
         const r = before.routines.find(r => r.id === payload.routineId), id = reservation.seriesId + ':definition-validation';
         if (payload.allDay)
             stop('ALLDAY_ROUTINE_UNSUPPORTED', 'Día completo con rutina requiere demostrar paridad de asignación histórica; no se admite todavía', 'indeterminate');
-        const compatible = steps => { for (const step of steps) {
-            if (!step.mode && (step.variants || []).length)
-                stop('IMPLICIT_ALTERNATIVES', 'La rutina necesita modo de alternativas explícito para garantizar su captura', 'indeterminate');
-            if (['__proto__', 'constructor', 'prototype'].includes(step.id))
-                stop('STEP_ID_UNSUPPORTED', 'El ID de paso no es compatible con las operaciones históricas de diccionario', 'indeterminate');
-            compatible(step.children || []);
-            for (const v of step.variants || [])
-                compatible(v.children || []);
-        } };
+        const compatible = steps => {
+            for (const step of steps) {
+                if (!step.mode && (step.variants || []).length)
+                    stop('IMPLICIT_ALTERNATIVES', 'La rutina necesita modo de alternativas explícito para garantizar su captura', 'indeterminate');
+                if (['__proto__', 'constructor', 'prototype'].includes(step.id))
+                    stop('STEP_ID_UNSUPPORTED', 'El ID de paso no es compatible con las operaciones históricas de diccionario', 'indeterminate');
+                compatible(step.children || []);
+                for (const v of step.variants || [])
+                    compatible(v.children || []);
+            }
+        };
         compatible(r.steps);
         const errors = codec.validateV2({ version: 2, goals: [], routines: [], events: [], logs: {}, recipeRevisions: { [id]: { id, sourceRoutineId: r.id, createdAt: context.at, definition: r } } }, legacy);
         if (errors.length)
@@ -239,11 +245,11 @@ async function normalizeChange(scope, { legacy, schedule, plannerActions }) {
     const event = candidate.events.find(e => e.id === reservation.eventId);
     if (!event || event.seriesId !== reservation.seriesId || candidate.events.length !== before.events.length + 1 || !same(candidate.events.slice(0, -1), before.events) || !same(candidate.routines, before.routines) || !same(candidate.goals, before.goals) || !same(candidate.recipeRevisions, before.recipeRevisions) || Object.keys(candidate.logs).length)
         stop('SCOPE_CHANGED', 'La creación intentó modificar otras entidades');
-    return {before,event,zone,metrics:{componentMs:scope.componentMs,normalizationMs,normalizationTotalMs:clock()-started}};
+    return { before, event, zone, metrics: { componentMs: scope.componentMs, normalizationMs, normalizationTotalMs: clock() - started } };
 }
 async function buildChange(scope, ports) {
-    const started=clock(),{before,event,zone,metrics}=await normalizeChange(scope,ports),{legacy,schedule}=ports;
-    const componentEvents = component([...before.events,event], event.id), rid = new Set(componentEvents.map(e => e.routineId).filter(Boolean)), routines = before.routines.filter(r => rid.has(r.id));
+    const started = clock(), { before, event, zone, metrics } = await normalizeChange(scope, ports), { legacy, schedule } = ports;
+    const componentEvents = component([...before.events, event], event.id), rid = new Set(componentEvents.map(e => e.routineId).filter(Boolean)), routines = before.routines.filter(r => rid.has(r.id));
     const calendarAt = clock(), proof = await proveCalendar(componentEvents, routines, event, scope.context, schedule), calendarMs = clock() - calendarAt;
     if (Object.hasOwn(event, 'recipeRevisionId'))
         stop('SCOPE_CHANGED', 'Programar no crea una revisión histórica');

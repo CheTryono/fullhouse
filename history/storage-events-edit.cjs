@@ -5,143 +5,230 @@ const E = require('./storage-events.cjs'), C = require('./calendar-proof.cjs'), 
 const clock = () => performance.now();
 const META = new Set(['title', 'note']);
 const OWNED = new Set(['id', 'seriesId', 'recipeRevisionId', 'applyFrom']);
-const FIELDS = new Set(['date','endDate','time','minutes','goalId','routineId','repeat','repeatDays','everyDays','specificDates','kind','allDay','anchor','endTime','afterRoutineId','beforeRoutineId','overlapMode','requestEvidence','overrides']);
+const FIELDS = new Set(['date', 'endDate', 'time', 'minutes', 'goalId', 'routineId', 'repeat', 'repeatDays', 'everyDays', 'specificDates', 'kind', 'allDay', 'anchor', 'endTime', 'afterRoutineId', 'beforeRoutineId', 'overlapMode', 'requestEvidence', 'overrides']);
 function stop(code, message, status = 'indeterminate', counterexample = null) { const e = Error(message); Object.assign(e, { code, status, counterexample }); throw e; }
 function projection(e) {
     const p = Object.fromEntries(Object.entries(e).filter(([k]) => !META.has(k) && !OWNED.has(k)));
-    Object.assign(p, { kind:e.kind || 'activity', allDay:!!e.allDay, anchor:e.anchor || 'start', overlapMode:e.overlapMode || 'keep', requestEvidence:!!e.requestEvidence,
-        endDate:e.endDate || '', endTime:e.endTime || '', afterRoutineId:e.afterRoutineId || '', beforeRoutineId:e.beforeRoutineId || '',
-        specificDates:[...new Set(e.specificDates || [])].sort(), repeatDays:[...new Set(e.repeatDays || [])].sort(), overrides:e.overrides || {} });
+    Object.assign(p, { kind: e.kind || 'activity', allDay: !!e.allDay, anchor: e.anchor || 'start', overlapMode: e.overlapMode || 'keep', requestEvidence: !!e.requestEvidence,
+        endDate: e.endDate || '', endTime: e.endTime || '', afterRoutineId: e.afterRoutineId || '', beforeRoutineId: e.beforeRoutineId || '',
+        specificDates: [...new Set(e.specificDates || [])].sort(), repeatDays: [...new Set(e.repeatDays || [])].sort(), overrides: e.overrides || {} });
     return p;
 }
 function classify(old, draft) {
-    const changed = [...new Set([...Object.keys(old), ...Object.keys(draft)])].filter(k => !OWNED.has(k) && !same(old[k],draft[k]));
-    if(changed.some(k => !META.has(k) && !FIELDS.has(k))) stop('UNKNOWN_FIELD','Campo modificado sin contrato: '+changed.filter(k=>!META.has(k)&&!FIELDS.has(k)).join(', '));
-    for(const k of META) if(Object.hasOwn(draft,k) && typeof draft[k] !== 'string') stop('METADATA','Los metadatos deben ser texto','invalid');
-    return {category:same(projection(old),projection(draft))?'metadata':'planning',changed};
+    const changed = [...new Set([...Object.keys(old), ...Object.keys(draft)])].filter(k => !OWNED.has(k) && !same(old[k], draft[k]));
+    if (changed.some(k => !META.has(k) && !FIELDS.has(k)))
+        stop('UNKNOWN_FIELD', 'Campo modificado sin contrato: ' + changed.filter(k => !META.has(k) && !FIELDS.has(k)).join(', '));
+    for (const k of META)
+        if (Object.hasOwn(draft, k) && typeof draft[k] !== 'string')
+            stop('METADATA', 'Los metadatos deben ser texto', 'invalid');
+    return { category: same(projection(old), projection(draft)) ? 'metadata' : 'planning', changed };
 }
 function issue(plan, head, sourceEventId, operationId, historical) {
-    const old=plan.tables.events.find(r=>r.key===sourceEventId)?.value;
-    if(!old || old.kind==='review' || sourceEventId.startsWith('review-'))stop('SOURCE','Actividad inexistente o revisión reservada','invalid');
-    const created=E.issue(head,operationId),eventId=created.eventId.replace(/^event-v2:/,'segment-v2:'),records=historical.byEvent.get(sourceEventId)||[],known=[...new Set(records.map(r=>r.seriesId).filter(Boolean))];
-    if(known.length>1 || old.seriesId && known.some(id=>id!==old.seriesId))stop('SERIES_AMBIGUOUS','La actividad tiene identidades históricas de serie incompatibles');
-    const seriesId=old.seriesId || known[0] || created.seriesId;
-    if(historical.events.has(eventId)||plan.tables.events.some(r=>r.key===eventId))stop('EVENT_ID_USED','El nuevo ID de segmento ya está reservado');
-    if(!old.seriesId&&!known.length&&(historical.series.has(seriesId)||plan.tables.events.some(r=>r.value.seriesId===seriesId)))stop('SERIES_ID_USED','La serie nueva ya está reservada');
-    return freeze({...created,format:'event-edit-reservation-v1',sourceEventId,eventId,seriesId});
+    const old = plan.tables.events.find(r => r.key === sourceEventId)?.value;
+    if (!old || old.kind === 'review' || sourceEventId.startsWith('review-'))
+        stop('SOURCE', 'Actividad inexistente o revisión reservada', 'invalid');
+    const created = E.issue(head, operationId), eventId = created.eventId.replace(/^event-v2:/, 'segment-v2:'), records = historical.byEvent.get(sourceEventId) || [], known = [...new Set(records.map(r => r.seriesId).filter(Boolean))];
+    if (known.length > 1 || old.seriesId && known.some(id => id !== old.seriesId))
+        stop('SERIES_AMBIGUOUS', 'La actividad tiene identidades históricas de serie incompatibles');
+    const seriesId = old.seriesId || known[0] || created.seriesId;
+    if (historical.events.has(eventId) || plan.tables.events.some(r => r.key === eventId))
+        stop('EVENT_ID_USED', 'El nuevo ID de segmento ya está reservado');
+    if (!old.seriesId && !known.length && (historical.series.has(seriesId) || plan.tables.events.some(r => r.value.seriesId === seriesId)))
+        stop('SERIES_ID_USED', 'La serie nueva ya está reservada');
+    return freeze({ ...created, format: 'event-edit-reservation-v1', sourceEventId, eventId, seriesId });
 }
-function selectScope(plan,reservation,payload,context,historical,schedule) {
-    const started=clock(),p=C.snapshotInput(payload),c=C.snapshotInput(context),all=plan.header.eventIds.map(id=>plan.tables.events.find(r=>r.key===id).value),old=all.find(e=>e.id===reservation.sourceEventId);
-    if(!old||!p||p.id!==old.id||reservation.format!=='event-edit-reservation-v1')stop('EDIT_IDENTITY','La reserva no corresponde al evento a editar','invalid');
-    if(!c || Object.keys(c).some(k=>!['operationId','today','at','confirm','capturedFuture','budgets'].includes(k))||c.operationId!==reservation.operationId||typeof c.at!=='string'||!/^\d{4}-\d\d-\d\dT/.test(c.at)||!Number.isFinite(Date.parse(c.at)))stop('CONTEXT','Reserva fecha, instante e identidad exactos','invalid');
-    if(c.confirm!==undefined&&typeof c.confirm!=='boolean'||c.capturedFuture!==undefined&&c.capturedFuture!=='retain-frozen')stop('CONTEXT','Confirmación o política de capturas inválidas','invalid');
-    civil.ordinal(c.today);const cut=p.applyFrom || c.today;E.canonicalLocal(cut,schedule);
-    if(cut<c.today)stop('RETROACTIVE','El corte no puede ser anterior a hoy','invalid');
-    for(const k of ['seriesId','recipeRevisionId'])if(Object.hasOwn(p,k)&&p[k]!==old[k])stop('OWNED_IDENTITY','No se puede cambiar '+k,'invalid');
-    if(p.kind==='review')stop('REVIEW_RESERVED','Las revisiones se editan desde la meta','invalid');
-    const classification=classify(old,p),category=classification.category==='metadata'&&p.applyFrom&&p.applyFrom>c.today?'planning':classification.category;
-    const records=historical.byEvent.get(old.id)||[];
-    if(records.some(r=>r.legacy))stop('LEGACY_CONTEXT','Registro heredado: no se inventa una definición histórica al editar su programación');
-    const family=all.filter(e=>e.id===old.id||e.seriesId===reservation.seriesId||(historical.byEvent.get(e.id)||[]).some(r=>r.seriesId===reservation.seriesId));
-    const seed={...p,id:reservation.eventId},ids=new Set([...E.component(all,old.id),...E.component([...all,seed],seed.id),...family].map(e=>e.id));ids.delete(seed.id);
-    if(ids.size+1>E.LIMITS.componentEvents)stop('COMPONENT_BUDGET','El alcance completo excede el presupuesto');
-    if(p.overlapMode==='move'&&p.repeat==='none'&&!p.allDay&&p.anchor!=='between'){if(all.length>E.LIMITS.moveEvents)stop('MOVE_BUDGET','No se demuestra movimiento fuera del presupuesto');for(const e of all)ids.add(e.id);}
-    const events=all.filter(e=>ids.has(e.id)),rids=new Set([p.routineId,p.afterRoutineId,p.beforeRoutineId,...events.flatMap(e=>[e.routineId,e.afterRoutineId,e.beforeRoutineId])].filter(Boolean));
-    if(all.length>E.LIMITS.planningEvents)stop('PLANNING_BUDGET','Catálogo de planificación excedido');
-    const rows=events.map(e=>({store:'events',row:plan.tables.events.find(r=>r.key===e.id)}));
-    for(const id of plan.header.routineIds.filter(id=>rids.has(id)))rows.push({store:'routines',row:plan.tables.routines.find(r=>r.key===id)});
-    for(const id of new Set([p.goalId,...events.map(e=>e.goalId)].filter(Boolean))){const row=plan.tables.goals.find(r=>r.key===id);if(!row&&id===p.goalId)stop('GOAL_MISSING','La meta seleccionada ya no existe','invalid');if(row)rows.push({store:'goals',row});}
-    for(const id of new Set(events.map(e=>e.recipeRevisionId).filter(Boolean))){const row=plan.tables.revisions.find(r=>r.key===id);if(!row)stop('REVISION_MISSING','Falta definición referenciada');rows.push({store:'revisions',row});}
-    if(p.routineId&&!plan.tables.routines.some(r=>r.key===p.routineId))stop('ROUTINE_MISSING','La rutina seleccionada ya no existe','invalid');
-    const seriesRecords=historical.bySeries.get(reservation.seriesId)||[],future=seriesRecords.filter(r=>!r.day||r.day>=cut);
-    if(category==='planning'){
-        if(c.confirm!==true)stop('CONFIRM_REQUIRED','Confirma el efecto temporal de la reprogramación','invalid');
-        if(future.length && c.capturedFuture!=='retain-frozen')stop('CAPTURE_POLICY','Existen capturas en el corte o futuras: elige conservarlas congeladas');
-        if(future.length>256)stop('CAPTURE_BUDGET','Demasiadas capturas futuras para verificar en esta operación');
-        for(const record of future){
-            if(!record.day||record.legacy)stop('CAPTURE_UNKNOWN','No puede demostrarse la identidad de un registro futuro');
-            E.canonicalLocal(record.day,schedule);
-            if(Object.hasOwn(old.overrides,record.day)||Object.hasOwn(p.overrides||{},record.day))stop('CAPTURED_OVERRIDE','Un override de fecha capturada requiere un contrato independiente; se conserva el borrador');
-            const row=plan.tables.executions.find(r=>r.key===record.key);if(!row||row.hash!==record.hash)stop('CAPTURE_REFERENCE','El catálogo histórico no coincide');rows.push({store:'executions',row});
+function selectScope(plan, reservation, payload, context, historical, schedule) {
+    const started = clock(), p = C.snapshotInput(payload), c = C.snapshotInput(context), all = plan.header.eventIds.map(id => plan.tables.events.find(r => r.key === id).value), old = all.find(e => e.id === reservation.sourceEventId);
+    if (!old || !p || p.id !== old.id || reservation.format !== 'event-edit-reservation-v1')
+        stop('EDIT_IDENTITY', 'La reserva no corresponde al evento a editar', 'invalid');
+    if (!c || Object.keys(c).some(k => !['operationId', 'today', 'at', 'confirm', 'capturedFuture', 'budgets'].includes(k)) || c.operationId !== reservation.operationId || typeof c.at !== 'string' || !/^\d{4}-\d\d-\d\dT/.test(c.at) || !Number.isFinite(Date.parse(c.at)))
+        stop('CONTEXT', 'Reserva fecha, instante e identidad exactos', 'invalid');
+    if (c.confirm !== undefined && typeof c.confirm !== 'boolean' || c.capturedFuture !== undefined && c.capturedFuture !== 'retain-frozen')
+        stop('CONTEXT', 'Confirmación o política de capturas inválidas', 'invalid');
+    civil.ordinal(c.today);
+    const cut = p.applyFrom || c.today;
+    E.canonicalLocal(cut, schedule);
+    if (cut < c.today)
+        stop('RETROACTIVE', 'El corte no puede ser anterior a hoy', 'invalid');
+    for (const k of ['seriesId', 'recipeRevisionId'])
+        if (Object.hasOwn(p, k) && p[k] !== old[k])
+            stop('OWNED_IDENTITY', 'No se puede cambiar ' + k, 'invalid');
+    if (p.kind === 'review')
+        stop('REVIEW_RESERVED', 'Las revisiones se editan desde la meta', 'invalid');
+    const classification = classify(old, p), category = classification.category === 'metadata' && p.applyFrom && p.applyFrom > c.today ? 'planning' : classification.category;
+    const records = historical.byEvent.get(old.id) || [];
+    if (records.some(r => r.legacy))
+        stop('LEGACY_CONTEXT', 'Registro heredado: no se inventa una definición histórica al editar su programación');
+    const family = all.filter(e => e.id === old.id || e.seriesId === reservation.seriesId || (historical.byEvent.get(e.id) || []).some(r => r.seriesId === reservation.seriesId));
+    const seed = { ...p, id: reservation.eventId }, ids = new Set([...E.component(all, old.id), ...E.component([...all, seed], seed.id), ...family].map(e => e.id));
+    ids.delete(seed.id);
+    if (ids.size + 1 > E.LIMITS.componentEvents)
+        stop('COMPONENT_BUDGET', 'El alcance completo excede el presupuesto');
+    if (p.overlapMode === 'move' && p.repeat === 'none' && !p.allDay && p.anchor !== 'between') {
+        if (all.length > E.LIMITS.moveEvents)
+            stop('MOVE_BUDGET', 'No se demuestra movimiento fuera del presupuesto');
+        for (const e of all)
+            ids.add(e.id);
+    }
+    const events = all.filter(e => ids.has(e.id)), rids = new Set([p.routineId, p.afterRoutineId, p.beforeRoutineId, ...events.flatMap(e => [e.routineId, e.afterRoutineId, e.beforeRoutineId])].filter(Boolean));
+    if (all.length > E.LIMITS.planningEvents)
+        stop('PLANNING_BUDGET', 'Catálogo de planificación excedido');
+    const rows = events.map(e => ({ store: 'events', row: plan.tables.events.find(r => r.key === e.id) }));
+    for (const id of plan.header.routineIds.filter(id => rids.has(id)))
+        rows.push({ store: 'routines', row: plan.tables.routines.find(r => r.key === id) });
+    for (const id of new Set([p.goalId, ...events.map(e => e.goalId)].filter(Boolean))) {
+        const row = plan.tables.goals.find(r => r.key === id);
+        if (!row && id === p.goalId)
+            stop('GOAL_MISSING', 'La meta seleccionada ya no existe', 'invalid');
+        if (row)
+            rows.push({ store: 'goals', row });
+    }
+    for (const id of new Set(events.map(e => e.recipeRevisionId).filter(Boolean))) {
+        const row = plan.tables.revisions.find(r => r.key === id);
+        if (!row)
+            stop('REVISION_MISSING', 'Falta definición referenciada');
+        rows.push({ store: 'revisions', row });
+    }
+    if (p.routineId && !plan.tables.routines.some(r => r.key === p.routineId))
+        stop('ROUTINE_MISSING', 'La rutina seleccionada ya no existe', 'invalid');
+    const seriesRecords = historical.bySeries.get(reservation.seriesId) || [], future = seriesRecords.filter(r => !r.day || r.day >= cut);
+    if (category === 'planning') {
+        if (c.confirm !== true)
+            stop('CONFIRM_REQUIRED', 'Confirma el efecto temporal de la reprogramación', 'invalid');
+        if (future.length && c.capturedFuture !== 'retain-frozen')
+            stop('CAPTURE_POLICY', 'Existen capturas en el corte o futuras: elige conservarlas congeladas');
+        if (future.length > 256)
+            stop('CAPTURE_BUDGET', 'Demasiadas capturas futuras para verificar en esta operación');
+        for (const record of future) {
+            if (!record.day || record.legacy)
+                stop('CAPTURE_UNKNOWN', 'No puede demostrarse la identidad de un registro futuro');
+            E.canonicalLocal(record.day, schedule);
+            if (Object.hasOwn(old.overrides, record.day) || Object.hasOwn(p.overrides || {}, record.day))
+                stop('CAPTURED_OVERRIDE', 'Un override de fecha capturada requiere un contrato independiente; se conserva el borrador');
+            const row = plan.tables.executions.find(r => r.key === record.key);
+            if (!row || row.hash !== record.hash)
+                stop('CAPTURE_REFERENCE', 'El catálogo histórico no coincide');
+            rows.push({ store: 'executions', row });
         }
     }
-    return {old,payload:p,context:c,reservation,cut,category,classification,records,seriesRecords,future,family,rows,all,componentMs:clock()-started};
+    return { old, payload: p, context: c, reservation, cut, category, classification, records, seriesRecords, future, family, rows, all, componentMs: clock() - started };
 }
-async function normalize(scope,ports,draft){
-    const {seriesId,eventId}=scope.reservation,p=copy(draft);delete p.seriesId;delete p.recipeRevisionId;delete p.applyFrom;p.id='';
-    const rows=scope.rows.filter(r=>r.store!=='executions' && !(r.store==='events'&&(scope.family.some(e=>e.id===r.row.key)||r.row.value.seriesId===seriesId)));
-    return E.normalizeChange({payload:p,context:{operationId:scope.context.operationId,today:scope.context.today,at:scope.context.at,...(scope.context.budgets?{budgets:scope.context.budgets}:{})},reservation:{eventId,seriesId},rows,componentMs:scope.componentMs},ports);
+async function normalize(scope, ports, draft) {
+    const { seriesId, eventId } = scope.reservation, p = copy(draft);
+    delete p.seriesId;
+    delete p.recipeRevisionId;
+    delete p.applyFrom;
+    p.id = '';
+    const rows = scope.rows.filter(r => r.store !== 'executions' && !(r.store === 'events' && (scope.family.some(e => e.id === r.row.key) || r.row.value.seriesId === seriesId)));
+    return E.normalizeChange({ payload: p, context: { operationId: scope.context.operationId, today: scope.context.today, at: scope.context.at, ...(scope.context.budgets ? { budgets: scope.context.budgets } : {}) }, reservation: { eventId, seriesId }, rows, componentMs: scope.componentMs }, ports);
 }
-async function buildEdit(scope,ports){
-    if(scope.category!=='metadata')return buildPlanning(scope,ports);
-    const normalized=await normalize(scope,ports,scope.payload),event={...copy(scope.old)};
-    for(const key of META)if(Object.hasOwn(scope.payload,key))event[key]=normalized.event[key];else delete event[key];
-    if(!same(projection(event),projection(scope.old)))stop('SCOPE_CHANGED','Los metadatos no pueden alterar la planificación');
-    return {events:[event],split:false,proof:{status:'valid',kind:'metadata-no-calendar-effect'},zone:normalized.zone,metrics:normalized.metrics};
+async function buildEdit(scope, ports) {
+    if (scope.category !== 'metadata')
+        return buildPlanning(scope, ports);
+    const normalized = await normalize(scope, ports, scope.payload), event = { ...copy(scope.old) };
+    for (const key of META)
+        if (Object.hasOwn(scope.payload, key))
+            event[key] = normalized.event[key];
+        else
+            delete event[key];
+    if (!same(projection(event), projection(scope.old)))
+        stop('SCOPE_CHANGED', 'Los metadatos no pueden alterar la planificación');
+    return { events: [event], split: false, proof: { status: 'valid', kind: 'metadata-no-calendar-effect' }, zone: normalized.zone, metrics: normalized.metrics };
 }
 // Bounded search proves existence or exhausts the exact interval; exhaustion of a
 // budget is not evidence of absence. Always use real occurs on civil labels.
-function phaseBudget(){return {checks:0,max:20000};}
-function firstOccurrence(event,from,through,schedule,budget){
-    const lo=civil.ordinal(from>event.date?from:event.date),hi=civil.ordinal(event.endDate&&event.endDate<through?event.endDate:through);
-    const check=day=>{if(++budget.checks>budget.max)stop('PHASE_BUDGET','No se pudo demostrar la fase sin exceder el presupuesto');if(schedule.occurs(event,day)){E.canonicalLocal(day,schedule);return day;}return null;};
-    if(event.repeat==='dates'||event.repeat==='none'&&!(event.kind==='occasion'&&event.endDate)){
-        const candidates=event.repeat==='dates'?[...new Set([event.date,...(event.specificDates||[])])].sort():[event.date];
-        for(const day of candidates)if(civil.ordinal(day)>=lo&&civil.ordinal(day)<=hi){const found=check(day);if(found)return found;}
+function phaseBudget() { return { checks: 0, max: 20000 }; }
+function firstOccurrence(event, from, through, schedule, budget) {
+    const lo = civil.ordinal(from > event.date ? from : event.date), hi = civil.ordinal(event.endDate && event.endDate < through ? event.endDate : through);
+    const check = day => { if (++budget.checks > budget.max)
+        stop('PHASE_BUDGET', 'No se pudo demostrar la fase sin exceder el presupuesto'); if (schedule.occurs(event, day)) {
+        E.canonicalLocal(day, schedule);
+        return day;
+    } return null; };
+    if (event.repeat === 'dates' || event.repeat === 'none' && !(event.kind === 'occasion' && event.endDate)) {
+        const candidates = event.repeat === 'dates' ? [...new Set([event.date, ...(event.specificDates || [])])].sort() : [event.date];
+        for (const day of candidates)
+            if (civil.ordinal(day) >= lo && civil.ordinal(day) <= hi) {
+                const found = check(day);
+                if (found)
+                    return found;
+            }
         return null;
     }
-    for(let n=lo;n<=hi;n++){const found=check(civil.date(n));if(found)return found;}
+    for (let n = lo; n <= hi; n++) {
+        const found = check(civil.date(n));
+        if (found)
+            return found;
+    }
     return null;
 }
-function maximumEnd(a,b){const x=E.effectEnd(a),y=E.effectEnd(b);return x===null||y===null?null:(x>y?x:y);}
-function seriesRanges(events,seriesId,scope){
-    const familyIds=new Set(scope.family.map(e=>e.id));
-    const family=events.filter(e=>e.seriesId===seriesId||familyIds.has(e.id));
-    for(let i=0;i<family.length;i++)for(let j=i+1;j<family.length;j++){
-        const a=family[i],b=family[j];
-        if(a.date<=(E.effectEnd(b)||civil.MAX)&&b.date<=(E.effectEnd(a)||civil.MAX))stop('SERIES_OVERLAP','Los rangos de segmentos de la misma serie son ambiguos');
-    }
+function maximumEnd(a, b) { const x = E.effectEnd(a), y = E.effectEnd(b); return x === null || y === null ? null : (x > y ? x : y); }
+function seriesRanges(events, seriesId, scope) {
+    const familyIds = new Set(scope.family.map(e => e.id));
+    const family = events.filter(e => e.seriesId === seriesId || familyIds.has(e.id));
+    for (let i = 0; i < family.length; i++)
+        for (let j = i + 1; j < family.length; j++) {
+            const a = family[i], b = family[j];
+            if (a.date <= (E.effectEnd(b) || civil.MAX) && b.date <= (E.effectEnd(a) || civil.MAX))
+                stop('SERIES_OVERLAP', 'Los rangos de segmentos de la misma serie son ambiguos');
+        }
 }
-async function buildPlanning(scope,ports){
-    const started=clock(),{old,payload:p,context,cut,reservation}=scope,{schedule}=ports,budget=phaseBudget();
+async function buildPlanning(scope, ports) {
+    const started = clock(), { old, payload: p, context, cut, reservation } = scope, { schedule } = ports, budget = phaseBudget();
     await C.assertCalendarSemantics(schedule);
-    for(const d of [old.date,p.date,p.endDate,...(p.specificDates||[]),...Object.keys(p.overrides||{})].filter(Boolean))E.canonicalLocal(d,schedule);
-    const oldEnd=E.effectEnd(old);
-    if(oldEnd&&oldEnd<cut)stop('NO_FUTURE','El corte es posterior al último efecto; crea otra actividad para una intención nueva');
-    if(p.endDate&&p.endDate<cut)stop('NO_FUTURE','La fecha final propuesta es anterior al corte');
-    if(!firstOccurrence(old,old.date>cut?old.date:cut,oldEnd||civil.MAX,schedule,budget))stop('NO_FUTURE','No quedan ocurrencias originales en el alcance del corte');
-    const oldPast=Object.fromEntries(Object.entries(old.overrides).filter(([d])=>d<cut)),newPast=Object.fromEntries(Object.entries(p.overrides||{}).filter(([d])=>d<cut));
-    if(!same(oldPast,newPast)||!same([...(old.specificDates||[])].filter(d=>d<cut).sort(),[...(p.specificDates||[])].filter(d=>d<cut).sort()))stop('PAST_EXCEPTION','No se editan excepciones ni fechas específicas anteriores al corte');
-    const bound=E.effectEnd(p)||civil.MAX,from=p.date>cut?p.date:cut;
-    if(bound<from)stop('NO_FUTURE','La propuesta no tiene ocurrencias posteriores al corte');
-    const first=firstOccurrence(p,from,bound,schedule,budget);
-    if(!first)stop('NO_FUTURE','La propuesta no tiene ocurrencias posteriores al corte');
-    const draft={...copy(p),date:first,specificDates:(p.specificDates||[]).filter(d=>d>=first),overrides:Object.fromEntries(Object.entries(p.overrides||{}).filter(([d])=>d>=cut))};
+    for (const d of [old.date, p.date, p.endDate, ...(p.specificDates || []), ...Object.keys(p.overrides || {})].filter(Boolean))
+        E.canonicalLocal(d, schedule);
+    const oldEnd = E.effectEnd(old);
+    if (oldEnd && oldEnd < cut)
+        stop('NO_FUTURE', 'El corte es posterior al último efecto; crea otra actividad para una intención nueva');
+    if (p.endDate && p.endDate < cut)
+        stop('NO_FUTURE', 'La fecha final propuesta es anterior al corte');
+    if (!firstOccurrence(old, old.date > cut ? old.date : cut, oldEnd || civil.MAX, schedule, budget))
+        stop('NO_FUTURE', 'No quedan ocurrencias originales en el alcance del corte');
+    const oldPast = Object.fromEntries(Object.entries(old.overrides).filter(([d]) => d < cut)), newPast = Object.fromEntries(Object.entries(p.overrides || {}).filter(([d]) => d < cut));
+    if (!same(oldPast, newPast) || !same([...(old.specificDates || [])].filter(d => d < cut).sort(), [...(p.specificDates || [])].filter(d => d < cut).sort()))
+        stop('PAST_EXCEPTION', 'No se editan excepciones ni fechas específicas anteriores al corte');
+    const bound = E.effectEnd(p) || civil.MAX, from = p.date > cut ? p.date : cut;
+    if (bound < from)
+        stop('NO_FUTURE', 'La propuesta no tiene ocurrencias posteriores al corte');
+    const first = firstOccurrence(p, from, bound, schedule, budget);
+    if (!first)
+        stop('NO_FUTURE', 'La propuesta no tiene ocurrencias posteriores al corte');
+    const draft = { ...copy(p), date: first, specificDates: (p.specificDates || []).filter(d => d >= first), overrides: Object.fromEntries(Object.entries(p.overrides || {}).filter(([d]) => d >= cut)) };
     // Re-anchoring every is algebraic only for integral UTC days; otherwise exhaust
     // the finite domain and compare real occurs. No false periodicity in local time.
-    if(p.repeat==='every' && first!==p.date){
-        const n=Math.max(1,p.everyDays||1),zone=require('./storage-routines.cjs').calendarZone();
-        if(!(zone==='UTC'&&Number.isSafeInteger(n))){
-            const end=E.effectEnd(p);if(!end)stop('PHASE_UNPROVEN','every local o fraccionario indefinido no se rebasa sin demostración');
-            for(let d=civil.ordinal(cut);d<=civil.ordinal(end);d++){
-                if(++budget.checks>budget.max)stop('PHASE_BUDGET','No se acepta equivalencia parcial de fases');
-                const day=civil.date(d);if(schedule.occurs(p,day)!==schedule.occurs(draft,day))stop('PHASE_DIFFERENCE','El formato no puede conservar esta fase al cortar','indeterminate',{date:day,eventId:old.id,rule:'recurrence-origin'});
+    if (p.repeat === 'every' && first !== p.date) {
+        const n = Math.max(1, p.everyDays || 1), zone = require('./storage-routines.cjs').calendarZone();
+        if (!(zone === 'UTC' && Number.isSafeInteger(n))) {
+            const end = E.effectEnd(p);
+            if (!end)
+                stop('PHASE_UNPROVEN', 'every local o fraccionario indefinido no se rebasa sin demostración');
+            for (let d = civil.ordinal(cut); d <= civil.ordinal(end); d++) {
+                if (++budget.checks > budget.max)
+                    stop('PHASE_BUDGET', 'No se acepta equivalencia parcial de fases');
+                const day = civil.date(d);
+                if (schedule.occurs(p, day) !== schedule.occurs(draft, day))
+                    stop('PHASE_DIFFERENCE', 'El formato no puede conservar esta fase al cortar', 'indeterminate', { date: day, eventId: old.id, rule: 'recurrence-origin' });
             }
         }
     }
-    const past=old.date<cut?firstOccurrence(old,old.date,civil.date(civil.ordinal(cut)-1),schedule,budget):null,split=!!past;
-    const normalized=await normalize(scope,ports,draft),future={...normalized.event,id:split?reservation.eventId:old.id,seriesId:reservation.seriesId};
-    if(!split && old.routineId===future.routineId && old.recipeRevisionId)future.recipeRevisionId=old.recipeRevisionId;
-    const events=split?[{...copy(old),seriesId:reservation.seriesId,endDate:old.endDate&&old.endDate<cut?old.endDate:civil.date(civil.ordinal(cut)-1),specificDates:(old.specificDates||[]).filter(d=>d<cut),overrides:oldPast},future]:[future];
-    const replacements=new Map(events.map(e=>[e.id,e])),after=scope.all.map(e=>replacements.get(e.id)||e).concat(split?[future]:[]);
-    seriesRanges(after,reservation.seriesId,scope);
+    const past = old.date < cut ? firstOccurrence(old, old.date, civil.date(civil.ordinal(cut) - 1), schedule, budget) : null, split = !!past;
+    const normalized = await normalize(scope, ports, draft), future = { ...normalized.event, id: split ? reservation.eventId : old.id, seriesId: reservation.seriesId };
+    if (!split && old.routineId === future.routineId && old.recipeRevisionId)
+        future.recipeRevisionId = old.recipeRevisionId;
+    const events = split ? [{ ...copy(old), seriesId: reservation.seriesId, endDate: old.endDate && old.endDate < cut ? old.endDate : civil.date(civil.ordinal(cut) - 1), specificDates: (old.specificDates || []).filter(d => d < cut), overrides: oldPast }, future] : [future];
+    const replacements = new Map(events.map(e => [e.id, e])), after = scope.all.map(e => replacements.get(e.id) || e).concat(split ? [future] : []);
+    seriesRanges(after, reservation.seriesId, scope);
     // Duplicate future routines in other series retain Planner's prohibition.
-    if(future.routineId&&after.some(e=>e.id!==future.id&&!scope.family.some(f=>f.id===e.id)&&e.routineId===future.routineId&&(!e.endDate||e.endDate>=context.today)&&(e.repeat!=='none'||e.date>=context.today)))stop('ROUTINE_DUPLICATE','La rutina ya tiene otra programación futura','invalid');
-    const related=new Set(scope.rows.filter(r=>r.store==='events').map(r=>r.row.key));
-    for(const e of E.component(after,future.id))related.add(e.id);
-    if(related.size>E.LIMITS.componentEvents)stop('COMPONENT_BUDGET','El componente combinado excede el presupuesto');
-    const beforeEvents=scope.all.filter(e=>related.has(e.id)),afterEvents=after.filter(e=>related.has(e.id)||e.id===future.id),routines=scope.rows.filter(r=>r.store==='routines').map(r=>r.row.value),end=maximumEnd(old,future),descriptor={date:cut,repeat:'daily',...(end?{endDate:end}:{})},proofAt=clock();
-    const previous=await E.proveCalendar(beforeEvents,routines,descriptor,context,schedule),proof=await E.proveCalendar(afterEvents,routines,descriptor,context,schedule);
-    return {events,split,zone:normalized.zone,proof,metrics:{...normalized.metrics,calendarMs:clock()-proofAt,previousProof:previous,phaseChecks:budget.checks,cut,firstOccurrence:first,futureCaptures:scope.future.length,constructionMs:clock()-started}};
+    if (future.routineId && after.some(e => e.id !== future.id && !scope.family.some(f => f.id === e.id) && e.routineId === future.routineId && (!e.endDate || e.endDate >= context.today) && (e.repeat !== 'none' || e.date >= context.today)))
+        stop('ROUTINE_DUPLICATE', 'La rutina ya tiene otra programación futura', 'invalid');
+    const related = new Set(scope.rows.filter(r => r.store === 'events').map(r => r.row.key));
+    for (const e of E.component(after, future.id))
+        related.add(e.id);
+    if (related.size > E.LIMITS.componentEvents)
+        stop('COMPONENT_BUDGET', 'El componente combinado excede el presupuesto');
+    const beforeEvents = scope.all.filter(e => related.has(e.id)), afterEvents = after.filter(e => related.has(e.id) || e.id === future.id), routines = scope.rows.filter(r => r.store === 'routines').map(r => r.row.value), end = maximumEnd(old, future), descriptor = { date: cut, repeat: 'daily', ...(end ? { endDate: end } : {}) }, proofAt = clock();
+    const previous = await E.proveCalendar(beforeEvents, routines, descriptor, context, schedule), proof = await E.proveCalendar(afterEvents, routines, descriptor, context, schedule);
+    return { events, split, zone: normalized.zone, proof, metrics: { ...normalized.metrics, calendarMs: clock() - proofAt, previousProof: previous, phaseChecks: budget.checks, cut, firstOccurrence: first, futureCaptures: scope.future.length, constructionMs: clock() - started } };
 }
-module.exports={META,projection,classify,issue,selectScope,normalize,buildEdit,buildPlanning,firstOccurrence,seriesRanges,stop};
+module.exports = { META, projection, classify, issue, selectScope, normalize, buildEdit, buildPlanning, firstOccurrence, seriesRanges, stop };
