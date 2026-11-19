@@ -535,3 +535,31 @@ La siguiente revisión debe fijar el contrato de desplazamiento/eliminación y e
 tratamiento explícito de capturas y dependencias. No se inicia aquí. Los experimentos
 anteriores que comparten versión física 2 aún necesitan una barrera de capacidades
 antes de activación; no se promete aislamiento perfecto de todos esos escritores.
+
+
+## Avance B.3c.1 sobre 721ce2d (experimental)
+
+[Desplazamiento por alcance](HISTORY_V2_SCOPED_EVENTS_SHIFT.md): una aparición no
+registrada, una fila events y controles transaccionales. No se corta la serie.
+
+| Requisito | Estado y límite |
+| --- | --- |
+| Shift de una fecha, clamp y end-anchor | Implementado/verificado con funciones reales; delta entero, cero sin escritura |
+| Componente encadenado y balance de alternativas | Verificado antes/después; reajuste dinámico sin filas de terceros |
+| Capturas actuales/futuras/legado y dependencias registradas | Bloqueadas explícitamente; sin política nueva de corrección histórica |
+| Calendario local | Un día completamente probado; no es autorización de toda una serie indefinida |
+| CAS/linaje/fuentes/TX/recibos/recovery | Verificados; cambio después de escribir puede dejar commit y cuarentena |
+| Corpus y archivos completos | Root/hashes/fotos iguales; lectura y escritura sin hidratar blobs; importación/recovery siguen globales |
+| Eliminación, movimiento físico múltiple y adopción incremental | No implementados aquí; requieren contratos/revisión posteriores |
+| Paridad React pública, privacidad y otros motores/dispositivos | Pendientes, no preparados para 4C |
+
+La reserva en RAM no promete recuperación de un cierre forzado sin exportación.
+El nuevo commandHash no es autenticidad frente a scripts maliciosos ni barrera
+suficiente ante todos los escritores experimentales anteriores de versión física 2.
+Ninguna política de borrado físico ha sido aprobada ni activada. BUG-05 público
+sigue fallando y Planner sigue v1. No se inicia automáticamente B.3c.2/B.4/4C.
+
+
+B.3c.1 queda **pausada por el propietario** para priorizar la preparación comercial.
+El cierre conserva resultados y estado en [RESUME](HISTORY_V2_SCOPED_EVENTS_SHIFT_RESUME.md).
+No cambia la evaluación de 4C ni autoriza activación.

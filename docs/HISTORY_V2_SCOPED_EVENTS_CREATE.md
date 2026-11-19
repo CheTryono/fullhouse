@@ -316,3 +316,11 @@ corte civil y serie persistente con deltas transaccionales. No cambia captura/ar
 versiones ni aplicación pública. La identidad original de registros permanece; capturas
 futuras requieren política explícita y los casos ambiguos se bloquean. No habilita
 movimientos, eliminación, adopción incremental ni 4C.
+
+
+## Continuidad experimental B.3c.1
+
+[Shift puntual](HISTORY_V2_SCOPED_EVENTS_SHIFT.md) reutiliza linaje, catálogo y
+recuperación, pero tiene una reserva distinta y solo cambia override.time de una
+fecha. No corta series ni utiliza retain-frozen para mover fechas capturadas.
+Es una operación aparte; las garantías de B.3b.1 y los controles públicos no cambian.

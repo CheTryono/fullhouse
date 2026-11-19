@@ -663,3 +663,12 @@ excepciones, dependencias y zonas; pruebas de IndexedDB/recuperación/capacidad 
 modificarlo; las diferencias v2 se verifican separadamente. Un caso no representable
 se prueba como bloqueo, no como una implementación aprobada. Los seis TODO y el
 BUG-05 público permanecen. [Informe](../docs/HISTORY_V2_SCOPED_EVENTS_EDIT.md).
+
+## B.3c.1 · desplazamiento puntual experimental
+
+30 pruebas Node nuevas (25 funcionales + cinco zonas) en
+`history-contract.scoped-events-shift*.test.cjs`, incluidas en test:history-contract.
+Exploración diferencial de 25 pares de horarios/deltas, dependencias, capturas,
+legado/adopción, presupuestos e invariancia de otras fechas. Una prueba de un día
+no autoriza toda una recurrencia indefinida. Se conservan seis TODO y BUG-05 público.
+[Contrato y resultados](../docs/HISTORY_V2_SCOPED_EVENTS_SHIFT.md).

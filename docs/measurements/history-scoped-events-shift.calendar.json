@@ -1,0 +1,65 @@
+{
+  "browser": "156.0.8078.79",
+  "results": [
+    {
+      "timezoneId": "UTC",
+      "generation": 2,
+      "oneRow": true,
+      "connectedEvents": 5,
+      "dynamicBetween": true,
+      "capturedBlocked": true,
+      "otherDatesUnchanged": true,
+      "localInfiniteSeriesSingleDateOnly": true,
+      "photoBytesHydrated": 0,
+      "noJavaScriptErrors": true
+    },
+    {
+      "timezoneId": "America/Mexico_City",
+      "generation": 2,
+      "oneRow": true,
+      "connectedEvents": 5,
+      "dynamicBetween": true,
+      "capturedBlocked": true,
+      "otherDatesUnchanged": true,
+      "localInfiniteSeriesSingleDateOnly": true,
+      "photoBytesHydrated": 0,
+      "noJavaScriptErrors": true
+    },
+    {
+      "timezoneId": "America/New_York",
+      "generation": 2,
+      "oneRow": true,
+      "connectedEvents": 5,
+      "dynamicBetween": true,
+      "capturedBlocked": true,
+      "otherDatesUnchanged": true,
+      "localInfiniteSeriesSingleDateOnly": true,
+      "photoBytesHydrated": 0,
+      "noJavaScriptErrors": true
+    },
+    {
+      "timezoneId": "Europe/Madrid",
+      "generation": 2,
+      "oneRow": true,
+      "connectedEvents": 5,
+      "dynamicBetween": true,
+      "capturedBlocked": true,
+      "otherDatesUnchanged": true,
+      "localInfiniteSeriesSingleDateOnly": true,
+      "photoBytesHydrated": 0,
+      "noJavaScriptErrors": true
+    },
+    {
+      "timezoneId": "Pacific/Apia",
+      "generation": 2,
+      "oneRow": true,
+      "connectedEvents": 5,
+      "dynamicBetween": true,
+      "capturedBlocked": true,
+      "otherDatesUnchanged": true,
+      "localInfiniteSeriesSingleDateOnly": true,
+      "photoBytesHydrated": 0,
+      "noJavaScriptErrors": true
+    }
+  ]
+}

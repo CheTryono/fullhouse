@@ -1,3 +1,44 @@
+# Pausa segura de BUG-05 B.3c.1
+
+- Solicitud del propietario: conservar avances y detener desarrollo, sin nueva fase.
+- Checkpoints publicados 2650dc0/88d17dd/0b64885; cambios locales útiles conservados
+  con documentación, fixtures y resultados. Punto exacto: HISTORY_V2_SCOPED_EVENTS_SHIFT_RESUME.
+- Comprobaciones terminadas: check/tipos correctos, regresión 164; contratos 321 +
+  seis TODO; npm test 485 + seis TODO y único fallo público conocido BUG-05.
+  25 suites Chromium aprobadas; corpus grande verificado por separado.
+- Sin procesos de pruebas pendientes, merge, migración, despliegue ni cambios
+  de app.tsx/app.js/workflow. main remoto continúa en 721ce2d; producción sigue v1.
+- B.3c.1 queda pausada para revisión/reanudación explícita. Sin PR nueva ni comienzo
+  de B.3c.2, B.4 o 4C. No se inició desarrollo comercial en esta rama.
+
+# BUG-05 · B.3c.1: desplazamiento puntual incremental (aislado)
+
+- Base 721ce2d (PR #18), rama feature/history-scoped-events-shift-v2. Checkpoints
+  2650dc0 (puerto básico), 88d17dd (dependencias), 0b64885 (robustez/capacidad).
+- Nueva reserva vinculada a base/evento/serie/fecha/delta/contexto/zona. Solo cambia
+  override.time de una fecha, sin cortes, nuevos IDs ni reasignación de logs.
+- Semántica real shiftEvent/eventTime/timeString; clamp inferior, end-anchor y
+  prioridad del override. 24:00 exacto válido. Sin movimientos físicos de terceros:
+  shiftEvent público tampoco llama withOverlap; se conserva su bandera inactiva.
+- Prueba completa del componente antes/después y todas las alternativas; no solo
+  longitud positiva. Argumento estructural de otras fechas inalteradas. Un día local
+  de serie indefinida se prueba como dominio finito, sin certificar toda la serie.
+- Capturas actuales/futuras, legado y dependencias registradas ese día bloquean.
+  Serie desconocida/ambigua, fecha pasada/normalizada, presupuesto o zona cambiante
+  también bloquean. La rutina principal con variante real __base sigue no capturable.
+- Una fila de evento + cabeza/autoridad/recibo en TX. operationHash del nuevo tipo
+  vincula el comando: no se confunden deltas distintos que clampan a la misma raíz.
+  Reintento, inspección de recibo, exportación/replay y borrador separados.
+- 30 pruebas Node nuevas; Chromium escritorio/viewport móvil, cinco zonas, fallos,
+  concurrencia y corpus 5000/501/65/42175847 bytes. Hashes por clave y blobs restaurados
+  iguales. Preparación 19,9–23,8 ms; no equivale a latencia total. Apertura/respaldos
+  siguen globales; heap adicional aislado 43,2 MB, sin reducción demostrada.
+- Informe y mediciones: docs/HISTORY_V2_SCOPED_EVENTS_SHIFT.md y measurements/*shift*.
+  Resultados generales se registran al cerrar verificación. Seis TODO y BUG-05 público
+  se mantienen. Sin pruebas Firefox/WebKit ni teléfonos físicos.
+- app.tsx/app.js/workflow y almacenamiento público v1 intactos. Sin borrado de fotos,
+  migración, despliegue, eliminación de eventos ni inicio B.3c.2/B.4/4C.
+
 # BUG-05 · B.3b.2: edición incremental y segmentos históricos (aislada)
 
 - Base c61e6ac (PR #17), rama feature/history-scoped-events-edit-v2. A c5dd206,

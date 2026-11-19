@@ -1,0 +1,237 @@
+{
+  "status": "paused-on-owner-request",
+  "base": "721ce2dc9597a25b20dff45327f32fbde174061b",
+  "branch": "feature/history-scoped-events-shift-v2",
+  "publishedCheckpoints": [
+    "2650dc0",
+    "88d17dd",
+    "0b64885"
+  ],
+  "commands": [
+    {
+      "command": "npm run check",
+      "exit": 0
+    },
+    {
+      "command": "npm run check:history-contract",
+      "exit": 0
+    },
+    {
+      "command": "npm run test:regression",
+      "exit": 0,
+      "tests": 164,
+      "pass": 164,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "command": "npm run test:history-contract",
+      "exit": 0,
+      "tests": 327,
+      "pass": 321,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 6
+    },
+    {
+      "command": "npm test",
+      "exit": 1,
+      "tests": 492,
+      "pass": 485,
+      "fail": 1,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 6,
+      "knownFailure": "BUG-05 public: editing a routine reinterprets completed historical steps"
+    }
+  ],
+  "chromiumSuites": [
+    {
+      "suite": "history-scoped-events-create",
+      "exit": 0,
+      "elapsedSeconds": 12.1,
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-events-create.cjs"
+    },
+    {
+      "suite": "history-scoped-events-calendar",
+      "exit": 0,
+      "elapsedSeconds": 31.37,
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-events-calendar.cjs"
+    },
+    {
+      "suite": "history-scoped-events-faults",
+      "exit": 0,
+      "elapsedSeconds": 23.59,
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-events-faults.cjs"
+    },
+    {
+      "suite": "history-scoped-events-edit",
+      "exit": 0,
+      "elapsedSeconds": 9.46,
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-events-edit.cjs"
+    },
+    {
+      "suite": "history-scoped-events-edit-calendar",
+      "exit": 0,
+      "elapsedSeconds": 62.28,
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-events-edit-calendar.cjs"
+    },
+    {
+      "suite": "history-scoped-events-edit-faults",
+      "exit": 0,
+      "elapsedSeconds": 25.17,
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-events-edit-faults.cjs"
+    },
+    {
+      "suite": "history-scoped-events-shift",
+      "exit": 0,
+      "elapsedSeconds": 3.36,
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-events-shift.cjs"
+    },
+    {
+      "suite": "history-scoped-events-shift-calendar",
+      "exit": 0,
+      "elapsedSeconds": 6.05,
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-events-shift-calendar.cjs"
+    },
+    {
+      "suite": "history-scoped-events-shift-faults",
+      "exit": 0,
+      "elapsedSeconds": 13.72,
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-events-shift-faults.cjs"
+    },
+    {
+      "suite": "history-scoped-routines",
+      "exit": 0,
+      "elapsedSeconds": 5.03,
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-routines.cjs"
+    },
+    {
+      "suite": "history-scoped-routines-faults",
+      "exit": 0,
+      "elapsedSeconds": 4.73,
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-routines-faults.cjs"
+    },
+    {
+      "suite": "history-scoped-goals",
+      "exit": 0,
+      "elapsedSeconds": 7.44,
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-goals.cjs"
+    },
+    {
+      "suite": "history-scoped-goals-faults",
+      "exit": 0,
+      "elapsedSeconds": 4.62,
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-goals-faults.cjs"
+    },
+    {
+      "suite": "history-calendar-proof",
+      "exit": 0,
+      "elapsedSeconds": 14.65,
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-calendar-proof.cjs"
+    },
+    {
+      "suite": "history-alternative-safety",
+      "exit": 0,
+      "elapsedSeconds": 4.26,
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-alternative-safety.cjs"
+    },
+    {
+      "suite": "history-calendar-local",
+      "exit": 0,
+      "elapsedSeconds": 3.97,
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-calendar-local.cjs"
+    },
+    {
+      "suite": "history-storage",
+      "exit": 0,
+      "elapsedSeconds": 170.15,
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-storage.cjs"
+    },
+    {
+      "suite": "history-lineage",
+      "exit": 0,
+      "elapsedSeconds": 10.65,
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-lineage.cjs"
+    },
+    {
+      "suite": "history-integration",
+      "exit": 0,
+      "elapsedSeconds": 71.19,
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-integration.cjs"
+    },
+    {
+      "suite": "history-legacy",
+      "exit": 0,
+      "elapsedSeconds": 63.15,
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-legacy.cjs"
+    },
+    {
+      "suite": "history-readiness",
+      "exit": 0,
+      "elapsedSeconds": 405.36,
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-readiness.cjs"
+    },
+    {
+      "suite": "history-readiness-ui",
+      "exit": 0,
+      "elapsedSeconds": 84.28,
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-readiness-ui.cjs"
+    },
+    {
+      "suite": "history-view",
+      "exit": 0,
+      "elapsedSeconds": 57.48,
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-view.cjs"
+    },
+    {
+      "suite": "pending-save",
+      "exit": 0,
+      "elapsedSeconds": 18.81,
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/pending-save.cjs"
+    },
+    {
+      "suite": "day-shifts",
+      "exit": 0,
+      "elapsedSeconds": 8.73,
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/day-shifts.cjs"
+    }
+  ],
+  "additionalLastRun": {
+    "suite": "history-scoped-events-shift-faults",
+    "exit": 0,
+    "reason": "Actual boundary routine changed concurrently; unrelated copied revision reference removed from the synthetic boundary fixture before final successful run."
+  },
+  "capacity": "history-scoped-events-shift.capacity.json",
+  "capacityReexecutedAtPause": false,
+  "browsersNotTested": [
+    "Firefox (unavailable)",
+    "WebKit (unavailable)"
+  ],
+  "physicalDevicesTested": false,
+  "activeNodeTestProcessesAtPause": [],
+  "productionFilesUnchanged": [
+    "app.tsx",
+    "app.js",
+    ".github/workflows/pages.yml"
+  ],
+  "mainVerifiedRemote": "721ce2dc9597a25b20dff45327f32fbde174061b",
+  "measuredSources": {
+    "history/storage-events-shift.cjs": "92696e57d9f936cc5901ef7095d36d7aa884bba081e7bc220f2971602c64d48a",
+    "history/storage-incremental.cjs": "99ce6d76f182afedc51aa973e43f94f4fc3e62f97fa31f498a709b0f7ccec47d",
+    "history/storage-events.cjs": "9e6dd5e0e8ef28b268e06595038e0d84a7eaa23b0b68eceda8603ffbe1a1a474",
+    "history/events-session.cjs": "a50739f131422d6940873afeeee939a5ce7605dd41bdfb32eaefaa39614d4d50",
+    "scripts/history-browser.cjs": "259597dc42539150faaf980df8eccf42f237e7e9277ef2431427b3f73431708e",
+    "scripts/planner-actions.cjs": "86a9950c46c8fd2b4530952c56a8117069e2081777e1891410566d8fe40cfc04",
+    "tests/history-contract.scoped-events-shift.test.cjs": "c8ae8c90d4f3fce38b39236b3b9effc59cc6758abd9d94e72d52b6036b548105",
+    "tests/history-contract.scoped-events-shift-local.test.cjs": "fd1c00c50b4763c28f0157f7b0eba967ec72c27101743dedc4993a03a30dacb7",
+    "tests/browser/history-scoped-events-shift-faults.cjs": "60bd053b64ec2125ae40478db2bcf68df5285c7902a3c589e684dcdcb09066f2",
+    "app.tsx": "c1c622ea83ce685a68d8668a93dc41c376036f971c04e83fa2ff41a39eb908c6",
+    "app.js": "c9fa939da305d7bff29b5475c9baf834db6da3539b5dbd74e3c902a8bbe79d0a",
+    ".github/workflows/pages.yml": "add2f57f5118de6be740964d03edc2985c00172b2c67f8e6938cfddc4220075b"
+  },
+  "resume": "../HISTORY_V2_SCOPED_EVENTS_SHIFT_RESUME.md"
+}

@@ -335,3 +335,11 @@ Ni un certificado ni una raíz válidos sustituyen CAS, fuentes y persistencia.
 app.tsx, app.js, workflow y fuentes públicas v1 intactos. Sin migraciones personales,
 publicación de laboratorio, borrado de fotos ni comienzo automático de B.3c/B.4/4C.
 BUG-05 público y los seis TODO siguen vigentes.
+
+
+## Continuidad experimental B.3c.1
+
+[Shift puntual](HISTORY_V2_SCOPED_EVENTS_SHIFT.md) reutiliza linaje, catálogo y
+recuperación, pero tiene una reserva distinta y solo cambia override.time de una
+fecha. No corta series ni utiliza retain-frozen para mover fechas capturadas.
+Es una operación aparte; las garantías de B.3b.2 y los controles públicos no cambian.

@@ -5,7 +5,7 @@
     "noWrite": true
   },
   "quota": {
-    "error": "No se confirmó el guardado (QuotaExceededError). Conserva el candidato y reintenta.",
+    "error": "No se confirm\u00f3 el guardado (QuotaExceededError). Conserva el candidato y reintenta.",
     "generation": 1,
     "mechanism": "Real 3 MiB origin quota; 4 MiB random allocation injected in the participating transaction"
   },
@@ -56,11 +56,11 @@
     "noNewReceipt": true
   },
   "zoneBefore": {
-    "error": "Calendario indeterminado: cambió la zona desde la preparación; conserva y vuelve a validar el candidato",
+    "error": "Calendario indeterminado: cambi\u00f3 la zona desde la preparaci\u00f3n; conserva y vuelve a validar el candidato",
     "resumeBlocked": true
   },
   "zoneAfter": {
-    "error": "La zona cambió tras escribir: el commit puede estar confirmado; conserva el candidato y examina el recibo",
+    "error": "La zona cambi\u00f3 tras escribir: el commit puede estar confirmado; conserva el candidato y examina el recibo",
     "receipt": "persisted-receipt"
   },
   "historicalHashesEqual": true,

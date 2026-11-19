@@ -363,3 +363,31 @@ No son teléfonos físicos, Firefox ni WebKit. Storage público bloqueado en lab
 puertos readSources solo devuelven copias sintéticas. Las regresiones públicas usan
 otro origen loopback desechable. No se publica este laboratorio en Pages.
 [Contrato, casos bloqueados y mediciones](../../docs/HISTORY_V2_SCOPED_EVENTS_EDIT.md).
+
+## Desplazamiento de apariciones · B.3c.1
+
+```sh
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-events-shift.cjs
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-events-shift-calendar.cjs
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-events-shift-faults.cjs
+NODE_PATH=/workspace/.fullhouse-tools/node_modules node tests/browser/history-scoped-events-shift-performance.cjs
+```
+
+- shift: 1280/390 px, reserva específica, una fila, aborto, pendiente, recibo perdido
+  y reintento. Storage público bloqueado; usa únicamente bases fullhouse-lab-*.
+- calendar: UTC/México/Nueva York/Madrid/Apia, cinco eventos conectados, reajuste
+  between, rechazo de cadena inválida/captura, y resto de fechas sin cambios.
+- faults: cuota real CDP con asignación binaria inyectada en la TX, fallos previos/
+  durante/postlectura, borradores, dos páginas, IDs distintos con igual raíz por
+  clamp, replay alterado, cierre de página, rutina concurrente/corrupta, fuentes y
+  zona cambiantes antes/después. No es prueba de apagado físico del equipo.
+- performance: 5000 ejecuciones/501 revisiones/65 imágenes/42175847 bytes. Tres
+  desplazamientos comparados con Planner real y reconstrucción física independiente;
+  igualdad de raíz y hashes, restauración en base nueva con todos los bytes de fotos.
+  Incluye exportación/replay grandes y heap en ventana separada. Ejecutar sin otras
+  mediciones pesadas para obtener una comparación reproducible. No afirma SLO,
+  reducción de memoria ni rendimiento en teléfonos reales.
+
+[Informe](../../docs/HISTORY_V2_SCOPED_EVENTS_SHIFT.md) y datos crudos en
+`docs/measurements/history-scoped-events-shift.*.json`. Ninguna de estas rutas se
+publica ni se importa desde Planner. Firefox/WebKit/dispositivos físicos no probados.

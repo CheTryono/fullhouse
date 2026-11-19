@@ -1,0 +1,26 @@
+{
+  "base": "721ce2d",
+  "browser": "156.0.8078.79",
+  "results": [
+    {
+      "width": 1280,
+      "generation": 2,
+      "stableRetry": true,
+      "wrongBrandRejected": true,
+      "historyHashesEqual": true,
+      "oneOverrideOnly": true,
+      "photoBytesHydrated": 0,
+      "noJavaScriptErrors": true
+    },
+    {
+      "width": 390,
+      "generation": 2,
+      "stableRetry": true,
+      "wrongBrandRejected": true,
+      "historyHashesEqual": true,
+      "oneOverrideOnly": true,
+      "photoBytesHydrated": 0,
+      "noJavaScriptErrors": true
+    }
+  ]
+}
