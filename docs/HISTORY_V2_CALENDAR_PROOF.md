@@ -366,3 +366,12 @@ no se empieza B.3b automáticamente.
 Checkpoints conservados: investigación e8b0659 con corrección del arnés 87786aa;
 motor/contrato y 36 pruebas Node en 38341be; cierre de presupuestos, navegador,
 mediciones y documentación en el commit final de esta rama. No hay despliegue.
+
+
+### Consumidor experimental B.3b.1
+
+La creación de eventos utiliza el motor B.3a para efectos finitos/UTC y la cobertura
+semanal local B.2/B.3a.1 para componentes que cumplen sus supuestos. No amplía el
+verificador general ni sustituye la ruta de rutinas B.2. Sin edición, cortes,
+movimientos ni activación pública. Véase [SCOPED_EVENTS_CREATE](HISTORY_V2_SCOPED_EVENTS_CREATE.md)
+para límites, transacciones, identidades y pruebas nuevas.

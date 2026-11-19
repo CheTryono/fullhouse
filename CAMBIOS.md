@@ -1,3 +1,31 @@
+# BUG-05 · B.3b.1: creación incremental de eventos (aislada)
+
+- Base 13ee9d1 (PR #16), rama feature/history-scoped-events-create-v2; checkpoints
+  A 6333314 y B 1da0af5. Recuperado el trabajo local sin descartar archivos.
+- Puerto storage-events y sesión con identidades reservadas desde recibo padre +
+  operación; serie estable anterior a la captura. Una fila nueva, orden eventIds
+  preservado; no se reconstruyen logs ni se hidratan fotos durante la preparación.
+- Normalización con saveEvent real, sustituyendo solo en el controlador experimental
+  el preview de ocho filas por demostración completa. Reproducción del ID real
+  __fh_preview__; el nuevo ID reservado evita ocultar el límite.
+- Rutinas, metas, ocasiones, días completos sin rutina, anclas inicio/término/between;
+  recurrencias finitas comprobadas por completo, indefinidas UTC bajo dominio B.3a y
+  estados semanales locales bajo B.2/B.3a.1. Sin aumentar horizontes arbitrariamente.
+- Bloquea calendarios indeterminados, movimiento automático real, captura ambigua
+  __base, combinaciones no compatibles y edición/cortes/eliminación fuera de alcance.
+- Transacción con cabeza/autoridad/recibo, reintento estable y recuperación binaria;
+  pruebas de cuota real, cierre, acuse/lectura perdidos, dos pestañas, corrupción,
+  fuentes v1 y cambio de zona antes/después del commit. No promete exclusión de v1.
+- 21 pruebas Node nuevas: regresión 164; contratos 252 + 6 TODO; npm test 416
+  aprobadas + 6 TODO y único fallo público BUG-05. TypeScript/build correctos.
+- Corpus 5000/501/42175847 bytes: preparación incremental 25–45 ms frente a
+  reconstrucción física 7,2–7,9 s, misma raíz y hashes históricos/fotos. Muestra única
+  Chromium; sesión completa anterior rechaza por complejidad, no se cronometra como éxito.
+- Recuperación grande y respaldo completo restaurables. No Firefox/WebKit ni teléfonos
+  físicos probados. Detalles, cobertura y límites: HISTORY_V2_SCOPED_EVENTS_CREATE.md.
+- app.tsx, app.js, workflow, claves y carga/guardado públicos intactos. Sin activación,
+  publicación, migración ni comienzo automático de B.3b.2/B.3c/4C.
+
 # BUG-05 · B.3a.1: alternativas B.2 y garantías locales
 
 - Base beff908 (PR #15), rama fix/history-calendar-alternative-safety-v2; checkpoint

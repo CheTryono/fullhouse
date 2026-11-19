@@ -272,3 +272,12 @@ experimentales antiguos, privacidad/borrado físico aprobados, paridad React, ot
 dispositivos físicos, previsualización y autorización. La versión física 2 no vuelve
 seguros por sí mismos a todos los binarios B.2 anteriores con prueba semanal defectuosa.
 No se elimina la reproducción pública BUG-05 ni se declara resuelto su funcionamiento.
+
+
+### Consumidor experimental B.3b.1
+
+La creación de eventos utiliza el motor B.3a para efectos finitos/UTC y la cobertura
+semanal local B.2/B.3a.1 para componentes que cumplen sus supuestos. No amplía el
+verificador general ni sustituye la ruta de rutinas B.2. Sin edición, cortes,
+movimientos ni activación pública. Véase [SCOPED_EVENTS_CREATE](HISTORY_V2_SCOPED_EVENTS_CREATE.md)
+para límites, transacciones, identidades y pruebas nuevas.

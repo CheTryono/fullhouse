@@ -644,3 +644,12 @@ Firefox/WebKit y dispositivos físicos no probados. El benchmark grande es opcio
 se ejecuta aislado de otras mediciones, con fotografías sintéticas reales.
 
 [Modelo, dominios, límites y resultados](../docs/HISTORY_V2_CALENDAR_HARDENING.md).
+
+
+## B.3b.1 · creación experimental por alcance
+
+21 escenarios Node adicionales de creación, paridad con Planner, identidades, anclas,
+recurrencias, alternativas, legado/adopción y zonas locales. Se incluyen en
+`npm run test:history-contract`; no modifican la suite pública ni resuelven BUG-05.
+Véanse [las suites de navegador](browser/README.md) y
+[el informe](../docs/HISTORY_V2_SCOPED_EVENTS_CREATE.md). Permanecen los seis TODO.

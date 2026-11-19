@@ -299,3 +299,12 @@ Las plantillas actuales pueden contener variante __base válida si todas las opc
 caben; revisiones nuevas con ese ID continúan bloqueadas por ambigüedad del formato.
 No se declara solucionada esa compatibilidad de captura/adopción ni la interfaz React.
 Producción y esquema v1 intactos. B.3b no ha comenzado; 4C continúa bloqueada.
+
+
+### Consumidor experimental B.3b.1
+
+La creación de eventos utiliza el motor B.3a para efectos finitos/UTC y la cobertura
+semanal local B.2/B.3a.1 para componentes que cumplen sus supuestos. No amplía el
+verificador general ni sustituye la ruta de rutinas B.2. Sin edición, cortes,
+movimientos ni activación pública. Véase [SCOPED_EVENTS_CREATE](HISTORY_V2_SCOPED_EVENTS_CREATE.md)
+para límites, transacciones, identidades y pruebas nuevas.
