@@ -1,18 +1,21 @@
 'use strict';
 // Creación exclusivamente experimental: sin DOM, reloj implícito ni almacenamiento.
-const {copy,same,freeze}=require('./json.cjs'),model=require('./storage-model.cjs');
+const {copy,same,freeze,canonical}=require('./json.cjs'),model=require('./storage-model.cjs');
 const civil=require('./calendar-math.cjs'),calendar=require('./calendar-proof.cjs'),R=require('./storage-routines.cjs'),codec=require('./codec.cjs');
 const LIMITS=Object.freeze({planningEvents:2048,componentEvents:32,moveEvents:64});
 const clock=()=>performance.now();
+const {sha256}=require('./persistence.cjs');
 function stop(code,message,status='invalid',counterexample=null){const e=Error(message);Object.assign(e,{code,status,counterexample});throw e;}
 function historyIdentities(plan){
- const events=new Set(),series=new Set();
+ const events=new Set(),series=new Set(),byEvent=new Map();
  for(const row of plan.tables.executions){
   const c=row.value.log.history?.capture;
   events.add(row.key);const at=row.key.lastIndexOf('@');if(at>0)events.add(row.key.slice(0,at));
   if(c){events.add(c.sourceEventId);series.add(c.seriesId);}
+  const source=c?.sourceEventId||(at>0?row.key.slice(0,at):row.key);if(!byEvent.has(source))byEvent.set(source,[]);byEvent.get(source).push({key:row.key,executionId:c?.executionId||null,seriesId:c?.seriesId||null,legacy:!c});
  }
- return {events,series};
+ for(const rows of byEvent.values())rows.sort((a,b)=>a.key<b.key?-1:a.key>b.key?1:0);
+ return {events,series,byEvent};
 }
 function issue(head,operationId){
  if(typeof operationId!=='string'||!/^[A-Za-z0-9_.:-]{1,128}$/.test(operationId)||!Number.isSafeInteger(head.generation+1)||!/^[a-f0-9]{64}$/.test(head.receiptHash||''))stop('IDENTITY','Reserva un ID de operación y una cabeza con linaje');
@@ -74,10 +77,42 @@ function memoFrames(schedule){
   return previous.state.frame(e);
  };
 }
+function budgets(value){
+ if(value!==undefined&&(!value||typeof value!=='object'||Array.isArray(value)))stop('BUDGET','Presupuesto inválido','indeterminate');
+ if(value&&Object.keys(value).some(k=>!Object.hasOwn(calendar.HARD,k)))stop('BUDGET','Presupuesto desconocido','indeterminate');
+ const b={...calendar.DEFAULTS,...value};
+ for(const k of Object.keys(b))if(!Number.isSafeInteger(b[k])||b[k]<1||b[k]>calendar.HARD[k])stop('BUDGET','Presupuesto fuera de límites','indeterminate');
+ return b;
+}
+async function localWeekdayProof(events,routines,event,context,schedule){
+ const start=clock(),limits=budgets(context.budgets),input=calendar.snapshotInput({events,routines,from:event.date,budgets:limits}),zone=R.calendarZone();
+ await calendar.assertCalendarSemantics(schedule);
+ if(!schedule.validData({version:1,goals:[],routines,events,logs:{}}))stop('CALENDAR_MODEL','Modelo de calendario inválido');
+ // calendarDates rechaza meses/años/every indefinidos: no existe autorización por muestra.
+ const catalog=R.calendarDates(events,event.date,schedule.parseDay);
+ if(catalog.segments.length>limits.segments)stop('SEGMENT_BUDGET','Demasiados segmentos','indeterminate');
+ let profiles=[{}];const byRoutine=new Map(routines.map(r=>[r.id,r])),nodes=new Map();
+ function count(steps){return steps.reduce((sum,s)=>sum+1+count(s.children||[])+(s.variants||[]).reduce((n,v)=>n+count(v.children||[]),0),0);}
+ for(const r of routines)nodes.set(r.id,count(r.steps));
+ for(const e of events){const r=byRoutine.get(e.routineId),options=r?R.choices(r):[{}];if(profiles.length*options.length>limits.profiles)stop('PROFILE_BUDGET','Demasiadas alternativas independientes','indeterminate');profiles=profiles.flatMap(p=>options.map(c=>({...p,[e.id]:c})));}
+ const checksLimit=Math.min(limits.checks,R.LIMITS.checks),cost=events.length*(2*events.length+3*routines.length+1)+events.reduce((n,e)=>n+8*(nodes.get(e.routineId)||0),0);
+ let states=0,checks=0,work=0,chunk=0;
+ for(const date of catalog.dates)for(const profile of profiles){
+  if(states>=limits.states||checks+events.length>checksLimit||work+cost>limits.work)stop('CALENDAR_BUDGET','No se acepta una comprobación parcial del calendario local','indeterminate');
+  if(chunk>=4096){await new Promise(r=>setTimeout(r,0));chunk=0;if(R.calendarZone()!==zone)stop('ZONE_CHANGED','La zona cambió durante la prueba','indeterminate');}
+  states++;work+=cost;chunk+=cost;const evaluated=calendar.stateFrames(events,routines,date,profile,schedule);
+  for(const e of events){checks++;if(!evaluated.active.has(e.id))continue;const frame=evaluated.frame(e),r=byRoutine.get(e.routineId),balance=frame&&r?schedule.routineBalance(r,date,frame.length,profile[e.id]):null;
+   if(!frame||!Number.isFinite(frame.start)||!Number.isFinite(frame.end)||frame.start<0||frame.end>1440||frame.end<=frame.start||balance?.error)stop('CALENDAR_INVALID','Calendario inválido: '+e.title+' ('+e.id+') el '+date+(balance?.error?': '+balance.error:': intervalo o dependencia imposible'),'invalid',{date,eventId:e.id,rule:balance?.error?'routine-balance':'day-or-dependency',choices:profile,frame:frame||null,balance,dependencies:evaluated.selections});
+  }
+ }
+ if(R.calendarZone()!==zone)stop('ZONE_CHANGED','La zona cambió durante la prueba','indeterminate');
+ const certificate=freeze({format:'fullhouse-local-event-calendar-proof',version:1,algorithm:'weekday-state-coverage-v1',status:'valid',semanticsHash:calendar.APPROVED,inputHash:await sha256(canonical(input)),zone,domain:catalog.domain,from:event.date,through:civil.MAX,eventIds:events.map(e=>e.id),segments:catalog.segments,counts:{states,checks,work,profiles:profiles.length},limits});
+ return freeze({status:'valid',certificate,proofHash:await sha256(canonical(certificate)),metrics:{elapsedMs:clock()-start}});
+}
 async function proveCalendar(events,routines,event,context,schedule){
- // Checkpoint A admite solo efectos finitos sin rutina. B extiende estos dominios.
- if(event.repeat!=='none'||event.routineId||event.anchor==='between')stop('CHECKPOINT_A_ONLY','Recurrencias y rutinas pendientes del checkpoint B','indeterminate');
- const input={events,routines,from:event.date,through:effectEnd(event),...(context.budgets?{budgets:context.budgets}:{})};
+ const end=effectEnd(event),zone=R.calendarZone();
+ if(zone!=='UTC'&&!end)return localWeekdayProof(events,routines,event,context,schedule);
+ const input={events,routines,from:event.date,...(end?{through:end}:{}),...(context.budgets?{budgets:context.budgets}:{})};
  const result=await calendar.createCalendarProof(schedule).prove(input);
  if(result.status!=='valid')stop('CALENDAR_'+result.status.toUpperCase(),'No se pudo demostrar el calendario: '+result.certificate.reason,result.status,result.certificate.counterexample);
  return result;
@@ -85,12 +120,15 @@ async function proveCalendar(events,routines,event,context,schedule){
 async function buildChange(scope,{legacy,schedule,plannerActions}){
  const started=clock(),{payload,context,reservation}=scope,zone=R.calendarZone();
  await calendar.assertCalendarSemantics(schedule);
+ if(!schedule.validData({version:1,goals:[],routines:[],events:[{...payload,id:reservation.eventId,seriesId:reservation.seriesId}],logs:{}}))stop('DRAFT_INVALID','El formulario contiene campos inválidos');
  for(const date of [payload.date,payload.endDate,payload.applyFrom,...(payload.specificDates||[]),...Object.keys(payload.overrides||{})].filter(Boolean))canonicalLocal(date,schedule);
  if(payload.endDate&&payload.endDate<payload.date)stop('DATE_ORDER','La fecha final no puede ser anterior al comienzo');
  const values=t=>scope.rows.filter(r=>r.store===t).map(r=>copy(r.row.value));
  const before={version:2,goals:values('goals'),routines:values('routines'),events:values('events'),logs:{},recipeRevisions:Object.fromEntries(values('revisions').map(r=>[r.id,r]))};
  if(payload.routineId){
   const r=before.routines.find(r=>r.id===payload.routineId),id=reservation.seriesId+':definition-validation';
+  if(payload.allDay)stop('ALLDAY_ROUTINE_UNSUPPORTED','Día completo con rutina requiere demostrar paridad de asignación histórica; no se admite todavía','indeterminate');
+  const compatible=steps=>{for(const step of steps){if(!step.mode&&(step.variants||[]).length)stop('IMPLICIT_ALTERNATIVES','La rutina necesita modo de alternativas explícito para garantizar su captura','indeterminate');if(['__proto__','constructor','prototype'].includes(step.id))stop('STEP_ID_UNSUPPORTED','El ID de paso no es compatible con las operaciones históricas de diccionario','indeterminate');compatible(step.children||[]);for(const v of step.variants||[])compatible(v.children||[]);}};compatible(r.steps);
   const errors=codec.validateV2({version:2,goals:[],routines:[],events:[],logs:{},recipeRevisions:{[id]:{id,sourceRoutineId:r.id,createdAt:context.at,definition:r}}},legacy);
   if(errors.length)stop('ROUTINE_NOT_CAPTURABLE','La rutina puede planificarse, pero su definición todavía no puede capturarse: '+errors.join('; '),'indeterminate');
  }
@@ -110,4 +148,4 @@ async function buildChange(scope,{legacy,schedule,plannerActions}){
  if(R.calendarZone()!==zone)stop('ZONE_CHANGED','La zona cambió durante la preparación','indeterminate');
  return {row:partial.tables.events[0],event:freeze(copy(event)),proof,zone,metrics:{componentMs:scope.componentMs,normalizationMs,calendarMs,constructionMs:clock()-started}};
 }
-module.exports={LIMITS,historyIdentities,issue,checkIdentity,component,selectScope,buildChange,effectEnd,memoFrames,canonicalLocal,proveCalendar};
+module.exports={LIMITS,historyIdentities,issue,checkIdentity,component,selectScope,buildChange,effectEnd,memoFrames,canonicalLocal,proveCalendar,localWeekdayProof};

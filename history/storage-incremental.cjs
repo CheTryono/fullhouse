@@ -211,12 +211,16 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
         if(previous)fail('ID de operación ya confirmado: inspecciona el recibo');
         const reservation=freeze(copy(issued));reservations.set(reservation,b);return reservation;
     }
-    async function readEvent(t,id) {
+    async function readEvent(t,id,{after=null,limit=50}={}) {
+        if(!Number.isSafeInteger(limit)||limit<1||limit>1000)fail('Página fuera del presupuesto');
         const b=base(t),library=require('./storage-events.cjs'),started=clock(),event=b.maps.events.get(id)?.value||null;
         const related=event?library.component(b.plan.header.eventIds.map(k=>b.maps.events.get(k).value),id):[],ids=new Set(related.map(e=>e.id)),rids=new Set(related.flatMap(e=>[e.routineId,e.afterRoutineId,e.beforeRoutineId]).filter(Boolean));
         const rows=[...b.plan.tables.events.filter(r=>ids.has(r.key)).map(row=>({store:'events',row})),...b.plan.tables.routines.filter(r=>rids.has(r.key)).map(row=>({store:'routines',row}))];
-        await verifyRows(b,rows);
-        return freeze({event:copy(event),related:rows.map(r=>({store:r.store,key:r.row.key,value:copy(r.row.value)})),historicalIdentityKnown:b.historicalIdentities.events.has(id),photoBytesHydrated:0,readMs:clock()-started});
+        const goals=new Set(related.map(e=>e.goalId).filter(Boolean)),revisions=new Set(related.map(e=>e.recipeRevisionId).filter(Boolean));
+        for(const id of goals){const row=b.maps.goals.get(id);if(row)rows.push({store:'goals',row});}
+        for(const id of revisions){const row=b.maps.revisions.get(id);if(!row)fail('Revisión histórica referenciada inexistente');rows.push({store:'revisions',row});}
+        await verifyRows(b,rows);const records=b.historicalIdentities.byEvent.get(id)||[],page=records.filter(r=>!after||r.key>after).slice(0,limit);
+        return freeze({records:copy(page),recordCount:records.length,next:page.length===limit?page.at(-1).key:null,event:copy(event),related:rows.map(r=>({store:r.store,key:r.row.key,value:copy(r.row.value)})),historicalIdentityKnown:b.historicalIdentities.events.has(id),photoBytesHydrated:0,readMs:clock()-started});
     }
     async function prepareEvent(t,reservation,payload,context) {
         if(!protocol)fail('La creación requiere autoridad persistente');

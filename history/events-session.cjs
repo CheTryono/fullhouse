@@ -7,6 +7,6 @@ function createEventsSession(access){
   const draft=snapshotInput(payload),ctx=snapshotInput(context);
   return access.prepareEvent(t,await access.reserveEvent(t,ctx.operationId),draft,ctx);
  },commitPlanning:access.commitEvent});
- return Object.freeze({...base,readEvent:id=>access.readEvent(base.state().confirmed,id)});
+ return Object.freeze({...base,readEvent:(id,options)=>access.readEvent(base.state().confirmed,id,options)});
 }
 module.exports={createEventsSession};
