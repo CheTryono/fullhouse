@@ -5,6 +5,11 @@ declare const verifiedWindow:unique symbol,preparedDelta:unique symbol;
 export interface VerifiedWindow {readonly [verifiedWindow]:true;readonly format:'verified-history-window';readonly generation:number;readonly rootHash:string}
 export interface PreparedDelta {readonly [preparedDelta]:true;readonly format:'prepared-history-delta';readonly id:string;readonly prepareMs:number;readonly changedRows:number;readonly newImages:number}
 export interface IncrementalAccess {
+ reserveEvent(token:VerifiedWindow,operationId:string,expectedIds?:{eventId:string;seriesId:string}):Promise<import('./storage-events.cjs').EventReservation>;
+ prepareEvent(token:VerifiedWindow,reservation:import('./storage-events.cjs').EventReservation,payload:import('./storage-events.cjs').EventDraftCreate,context:import('./storage-events.cjs').EventContext):Promise<PreparedDelta>;
+ commitEvent:IncrementalAccess['commitExecution'];
+ eventMetrics(operation:PreparedDelta):import('./storage-events.cjs').EventMetrics|null;
+ readEvent(token:VerifiedWindow,id:string):Promise<{readonly event:Readonly<EventItem>|null;readonly related:readonly unknown[];readonly historicalIdentityKnown:boolean;readonly photoBytesHydrated:0;readonly readMs:number}>;
  prepareRoutine<M extends import('./storage-routines.cjs').RoutineMethod>(token:VerifiedWindow,method:M,payload:import('./storage-routines.cjs').RoutinePayloads[M],context:import('./storage-routines.cjs').RoutineContext):Promise<PreparedDelta>;
  commitRoutine:IncrementalAccess['commitExecution'];
  routineMetrics(operation:PreparedDelta):{readonly relationsMs:number;readonly validationMs:number;readonly proof:{readonly dates:number;readonly combinations:number;readonly checks:number;readonly proof:string;readonly from:string;readonly eventIds:readonly string[]}}|null;
