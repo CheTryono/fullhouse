@@ -248,7 +248,7 @@ function createIncrementalAccess({ open, transaction, legacy, schedule, protocol
         const started=clock(),b=base(t),event=b.maps.events.get(id)?.value;
         if(!event)fail('El evento ya no existe');
         const own=b.historicalIdentities.byEvent.get(id)||[],seriesId=event.seriesId||own.find(r=>r.seriesId)?.seriesId,
-            records=seriesId?b.historicalIdentities.bySeries.get(seriesId)||own:own,
+            records=[...new Map([...own,...(seriesId?b.historicalIdentities.bySeries.get(seriesId)||[]:[])].map(r=>[r.key,r])).values()],
             segments=b.plan.header.eventIds.map(k=>b.maps.events.get(k)).filter(r=>r.key===id||seriesId&&r.value.seriesId===seriesId);
         await verifyRows(b,segments.map(row=>({store:'events',row})));
         return freeze({event:copy(event),segments:segments.map(r=>copy(r.value)),captures:copy(records),readMs:clock()-started,photoBytesHydrated:0});

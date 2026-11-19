@@ -95,3 +95,31 @@ A: contrato, comparación completa, identidad y metadatos con pruebas.
 B: cortes/fases, capturas futuras y calendario completo con pruebas.
 C: fallos, concurrencia, recuperación, corpus, verificaciones y resultados finales.
 Lo no probado no se declara implementado. BUG-05 público y seis TODO permanecen.
+
+
+## Estado del checkpoint B
+
+35 pruebas Node aprobadas (incluidas cuatro zonas locales). Chromium UTC/México/
+Nueva York/Madrid/Apia: corte confirmado, captura futura conservada, timeline sin
+segunda pendiente, rechazo del segundo par serie/fecha, hashes intactos y archivo
+portable con captura fuera del rango del prefijo. Finito mensual/anual/every válido;
+indefinidos locales no demostrados bloqueados. No teléfonos físicos.
+
+Coexistencia implementada solo con capturas verificadas e identidad de serie única,
+confirmación y `capturedFuture: retain-frozen`. Hasta 256 capturas futuras comprobadas
+por operación; no se hidratan sus fotos. Se bloquean legado, identidades ambiguas y
+un override antiguo o propuesto en una fecha ya capturada: la captura no conserva
+la regla bruta completa y no se cambia su propietario implícitamente.
+
+Se exige prueba completa válida antes y después sobre el alcance combinado. Una base
+con calendario inválido/no demostrable no se repara silenciosamente en este puerto.
+Los representantes locales de B.2 solo se usan cuando sus supuestos valen para todos
+los segmentos del componente. Los cambios de fase requieren búsqueda completa acotada
+(20.000 comprobaciones); punto/fechas explícitas se resuelven por sus candidatos exactos.
+Sin demostración o sin ocurrencias originales futuras, se bloquea, no se resucita la serie.
+
+Los overrides no crean ocurrencias fuera de la regla real de occurs. Un límite civil
+fin anterior a un corte puede ser una etiqueta inexistente localmente (Apia 2011-12-30):
+sirve como comparación exclusiva de etiquetas, no se normaliza a otra fecha física.
+El corte explícito y la primera ocurrencia deben ser canónicos. Una fase que conduce
+primero a una etiqueta normalizada se bloquea en lugar de omitirla.
