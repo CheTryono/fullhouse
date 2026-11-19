@@ -88,3 +88,25 @@ de futuras capturas. En límites relacionados se evalúan base y variante real s
 confundir sus IDs, conservando la reparación B.3a.1. Las primeras expectativas de
 fixtures B se corrigieron al aplicar routineBalance real: un bloque fijo con tiempo
 sobrante es inválido, y el min flexible no es un mínimo duro de asignación.
+
+### Checkpoint C: persistencia y capacidad verificadas
+
+Driver faults aprobado: validación previa conserva borrador, cuota Chromium real
+con asignación binaria inyectada en la TX (no una cuota estimada), reintento estable,
+lectura posterior fallida, dos páginas, aborto, recibo perdido, replay y reconocimiento
+de confirmado. Dos comandos distintos que clampan a la misma raíz se rechazan;
+también un paquete alterado que intenta reutilizar el recibo. Cierre de página dentro
+de TX conserva estado anterior completo. Fuentes cambiadas antes/durante bloquean;
+durante puede existir commit seguido de cuarentena, no rollback. Cambio de rutina
+concurrente y corrupción fuera de protocolo se rechazan. Zona antes/después por CDP;
+recovery en otra zona bloqueada hasta inspección. Sin errores JavaScript.
+
+Corpus completo: 5000/501/65/42175847 bytes. Tres operaciones, mismo Chromium y datos,
+raíces completas/incrementales iguales; todos los hashes históricos por clave y los
+blobs del archivo restaurado verificados. Preparación incremental 19,9–23,8 ms,
+reconstrucción física 6,83–7,12 s + commit completo 2,59–2,68 s. La sesión anterior
+rechaza por complejidad; no se cuenta como una escritura lenta. Apertura 1,27 s;
+paquetes/archivos siguen necesitando validación global. Heap retenido adicional
+43.230.252 bytes en ventana separada tras solicitar GC: no RSS, pico, reducción
+comparada ni evidencia de viabilidad móvil. Datos crudos en measurements/*shift*.
+Pendiente el cierre de suites generales y regresiones Chromium anteriores.

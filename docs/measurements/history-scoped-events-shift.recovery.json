@@ -1,0 +1,68 @@
+{
+  "browser": "156.0.8078.79",
+  "beforePrepare": {
+    "draftKept": true,
+    "noWrite": true
+  },
+  "quota": {
+    "error": "No se confirmó el guardado (QuotaExceededError). Conserva el candidato y reintenta.",
+    "generation": 1,
+    "mechanism": "Real 3 MiB origin quota; 4 MiB random allocation injected in the participating transaction"
+  },
+  "retry": {
+    "generation": 2,
+    "sameId": true
+  },
+  "readFailure": {
+    "pendingKept": true,
+    "receiptInspected": true,
+    "generation": 3
+  },
+  "tabs": {
+    "staleBlocked": true,
+    "pendingExportable": true,
+    "noAutomaticRebase": true
+  },
+  "atomic": {
+    "atomic": true,
+    "receipt": "persisted-receipt",
+    "generation": 5,
+    "alreadyConfirmedRecovery": true
+  },
+  "identities": {
+    "sameRootDifferentCommandBlocked": true,
+    "localClaimBound": true,
+    "forgedRecoveryBlocked": true
+  },
+  "reopened": {
+    "generation": 1,
+    "coherent": true
+  },
+  "sources": [
+    {
+      "duringTransaction": false,
+      "status": "recovery",
+      "generation": 1
+    },
+    {
+      "duringTransaction": true,
+      "status": "recovery",
+      "generation": 2
+    }
+  ],
+  "routineConcurrent": true,
+  "corruption": {
+    "blocked": true,
+    "noNewReceipt": true
+  },
+  "zoneBefore": {
+    "error": "Calendario indeterminado: cambió la zona desde la preparación; conserva y vuelve a validar el candidato",
+    "resumeBlocked": true
+  },
+  "zoneAfter": {
+    "error": "La zona cambió tras escribir: el commit puede estar confirmado; conserva el candidato y examina el recibo",
+    "receipt": "persisted-receipt"
+  },
+  "historicalHashesEqual": true,
+  "noJavaScriptErrors": true
+}

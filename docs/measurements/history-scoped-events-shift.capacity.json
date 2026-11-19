@@ -1,0 +1,719 @@
+{
+  "base": "721ce2d",
+  "browser": "156.0.8078.79",
+  "sample": "Single desktop run; same facts/browser; previous full session rejects corpus, full physical comparator separate. No mobile or memory reduction claim.",
+  "result": {
+    "executions": 5000,
+    "revisions": 501,
+    "images": 65,
+    "photoBytes": 42175847,
+    "seedPrepareMs": 7103.20000000298,
+    "fullOpenMs": 4427.89999999851,
+    "openMs": 1273.5,
+    "previousSessionError": "Documento demasiado complejo",
+    "previousAttemptMs": 105.89999999850988,
+    "operations": [
+      {
+        "id": "forward",
+        "date": "2050-01-01",
+        "deltaMinutes": 15,
+        "catalogReadMs": 8.299999997019768,
+        "reservationMs": 17.200000002980232,
+        "fullPrepareMs": 7116.10000000149,
+        "fullCommitMs": 2621.2000000029802,
+        "prepareMs": 23.799999997019768,
+        "scopeReadMs": 3.4000000059604645,
+        "rootMs": 7.5,
+        "componentMs": 1.8000000044703484,
+        "calculationMs": 0.29999999701976776,
+        "validationMs": 5.899999998509884,
+        "constructionMs": 7.5999999940395355,
+        "before": {
+          "status": "valid",
+          "certificate": {
+            "format": "fullhouse-calendar-proof",
+            "version": 1,
+            "algorithm": "gregorian-component-proof-v1",
+            "status": "valid",
+            "reason": null,
+            "inputHash": "1a681d9f47bb0aaafad6b9e14be683d62020fd7ecc7ad16841e099fa63ce216d",
+            "semanticsHash": "3c5f55beb0ef70b818d9724820e979661a88bb6d2112002871518252011f523e",
+            "environment": {
+              "zone": "UTC",
+              "dateConstructor": "function Date() { [native code] }",
+              "utc": true
+            },
+            "domain": {
+              "min": "0100-01-01",
+              "max": "9999-12-31"
+            },
+            "from": "2050-01-01",
+            "through": "2050-01-01",
+            "restrictions": [
+              "applicability",
+              "selected-dependencies",
+              "same-day-interval",
+              "routine-balance",
+              "all-manual-choices",
+              "overlaps-and-collisions-not-forbidden"
+            ],
+            "recurrences": [
+              {
+                "id": "e",
+                "repeat": "daily",
+                "repeatDays": [],
+                "origin": "2030-01-07",
+                "end": null,
+                "every": null,
+                "specificDates": [],
+                "overrides": {}
+              }
+            ],
+            "components": [
+              {
+                "eventIds": [
+                  "e"
+                ],
+                "routineIds": [
+                  "r"
+                ],
+                "periodDays": "7",
+                "segments": [
+                  {
+                    "from": "2050-01-01",
+                    "through": "2050-01-01",
+                    "periodDays": "7",
+                    "representatives": 1,
+                    "profiles": 1,
+                    "states": 1,
+                    "coverage": "finite"
+                  }
+                ]
+              }
+            ],
+            "counts": {
+              "states": 1,
+              "checks": 1,
+              "work": 86,
+              "segments": 1
+            },
+            "counterexample": null,
+            "budgets": {
+              "states": 300000,
+              "checks": 2000000,
+              "work": 20000000,
+              "profiles": 256,
+              "segments": 2048
+            }
+          },
+          "proofHash": "3209d72005a468053a5473d059e4ea4a460536373cd4cd94b859f304f5060aca",
+          "metrics": {
+            "elapsedMs": 3
+          }
+        },
+        "after": {
+          "status": "valid",
+          "certificate": {
+            "format": "fullhouse-calendar-proof",
+            "version": 1,
+            "algorithm": "gregorian-component-proof-v1",
+            "status": "valid",
+            "reason": null,
+            "inputHash": "635d04c1134af8dc31adb516a44e360ba723fb634804b9c10a542429ebd22f06",
+            "semanticsHash": "3c5f55beb0ef70b818d9724820e979661a88bb6d2112002871518252011f523e",
+            "environment": {
+              "zone": "UTC",
+              "dateConstructor": "function Date() { [native code] }",
+              "utc": true
+            },
+            "domain": {
+              "min": "0100-01-01",
+              "max": "9999-12-31"
+            },
+            "from": "2050-01-01",
+            "through": "2050-01-01",
+            "restrictions": [
+              "applicability",
+              "selected-dependencies",
+              "same-day-interval",
+              "routine-balance",
+              "all-manual-choices",
+              "overlaps-and-collisions-not-forbidden"
+            ],
+            "recurrences": [
+              {
+                "id": "e",
+                "repeat": "daily",
+                "repeatDays": [],
+                "origin": "2030-01-07",
+                "end": null,
+                "every": null,
+                "specificDates": [],
+                "overrides": {
+                  "2050-01-01": {
+                    "time": "09:15"
+                  }
+                }
+              }
+            ],
+            "components": [
+              {
+                "eventIds": [
+                  "e"
+                ],
+                "routineIds": [
+                  "r"
+                ],
+                "periodDays": "7",
+                "segments": [
+                  {
+                    "from": "2050-01-01",
+                    "through": "2050-01-01",
+                    "periodDays": "7",
+                    "representatives": 1,
+                    "profiles": 1,
+                    "states": 1,
+                    "coverage": "finite"
+                  }
+                ]
+              }
+            ],
+            "counts": {
+              "states": 1,
+              "checks": 1,
+              "work": 86,
+              "segments": 1
+            },
+            "counterexample": null,
+            "budgets": {
+              "states": 300000,
+              "checks": 2000000,
+              "work": 20000000,
+              "profiles": 256,
+              "segments": 2048
+            }
+          },
+          "proofHash": "9272d0788996ce5f1aaf14133df8173be9dfaf1fffaaf289e63af0e61188f170",
+          "metrics": {
+            "elapsedMs": 1.1000000014901161
+          }
+        },
+        "proof": {
+          "status": "valid",
+          "certificate": {
+            "format": "fullhouse-occurrence-shift-proof",
+            "version": 1,
+            "status": "valid",
+            "date": "2050-01-01",
+            "zone": "UTC",
+            "baseRoot": "99d10b86f29644fd4bd6faf5fd5a9c1c6eb5c50b90230e9bb137185ad4dfa768",
+            "semanticsHash": "3c5f55beb0ef70b818d9724820e979661a88bb6d2112002871518252011f523e",
+            "timeSemanticsHash": "f811218345c41e37b71cbbc1b2668e7c22063494a7cfd94f4bbaf79a7da10ef0",
+            "eventIds": [
+              "e"
+            ],
+            "oldHash": "10a88604893e2cf2660af3ec9073046119ffae9a0e3edd8b8db210425262d911",
+            "newHash": "3e53880d5a76235492241dd98845b2e6e8f4baef69336a4e79163c6554ad20a1",
+            "beforeProofHash": "3209d72005a468053a5473d059e4ea4a460536373cd4cd94b859f304f5060aca",
+            "afterProofHash": "9272d0788996ce5f1aaf14133df8173be9dfaf1fffaaf289e63af0e61188f170",
+            "noOtherDates": "single-time-override-pointwise-v1"
+          },
+          "proofHash": "f8a264a1d73f7b2ee94faceccebf12aad960a0f8e3b5aee3b925ba5d0f64d9de"
+        },
+        "transactionMs": 9.600000001490116,
+        "lineagePrepareMs": 6.199999995529652,
+        "lineageAfterMs": 0.10000000149011612,
+        "confirmationMs": 3.8000000044703484,
+        "writeMs": 15.799999997019768,
+        "readMs": 8.599999994039536,
+        "changedRows": 1,
+        "newImages": 0,
+        "photoBytesHydrated": 0,
+        "recovery": null
+      },
+      {
+        "id": "backward",
+        "date": "2050-01-01",
+        "deltaMinutes": -30,
+        "catalogReadMs": 8.400000005960464,
+        "reservationMs": 5.699999995529652,
+        "fullPrepareMs": 6827.69999999553,
+        "fullCommitMs": 2585.7000000029802,
+        "prepareMs": 19.899999998509884,
+        "scopeReadMs": 3.7000000029802322,
+        "rootMs": 7.600000001490116,
+        "componentMs": 1.6000000014901161,
+        "calculationMs": 0.09999999403953552,
+        "validationMs": 4.799999997019768,
+        "constructionMs": 6.399999998509884,
+        "before": {
+          "status": "valid",
+          "certificate": {
+            "format": "fullhouse-calendar-proof",
+            "version": 1,
+            "algorithm": "gregorian-component-proof-v1",
+            "status": "valid",
+            "reason": null,
+            "inputHash": "635d04c1134af8dc31adb516a44e360ba723fb634804b9c10a542429ebd22f06",
+            "semanticsHash": "3c5f55beb0ef70b818d9724820e979661a88bb6d2112002871518252011f523e",
+            "environment": {
+              "zone": "UTC",
+              "dateConstructor": "function Date() { [native code] }",
+              "utc": true
+            },
+            "domain": {
+              "min": "0100-01-01",
+              "max": "9999-12-31"
+            },
+            "from": "2050-01-01",
+            "through": "2050-01-01",
+            "restrictions": [
+              "applicability",
+              "selected-dependencies",
+              "same-day-interval",
+              "routine-balance",
+              "all-manual-choices",
+              "overlaps-and-collisions-not-forbidden"
+            ],
+            "recurrences": [
+              {
+                "id": "e",
+                "repeat": "daily",
+                "repeatDays": [],
+                "origin": "2030-01-07",
+                "end": null,
+                "every": null,
+                "specificDates": [],
+                "overrides": {
+                  "2050-01-01": {
+                    "time": "09:15"
+                  }
+                }
+              }
+            ],
+            "components": [
+              {
+                "eventIds": [
+                  "e"
+                ],
+                "routineIds": [
+                  "r"
+                ],
+                "periodDays": "7",
+                "segments": [
+                  {
+                    "from": "2050-01-01",
+                    "through": "2050-01-01",
+                    "periodDays": "7",
+                    "representatives": 1,
+                    "profiles": 1,
+                    "states": 1,
+                    "coverage": "finite"
+                  }
+                ]
+              }
+            ],
+            "counts": {
+              "states": 1,
+              "checks": 1,
+              "work": 86,
+              "segments": 1
+            },
+            "counterexample": null,
+            "budgets": {
+              "states": 300000,
+              "checks": 2000000,
+              "work": 20000000,
+              "profiles": 256,
+              "segments": 2048
+            }
+          },
+          "proofHash": "9272d0788996ce5f1aaf14133df8173be9dfaf1fffaaf289e63af0e61188f170",
+          "metrics": {
+            "elapsedMs": 1.5
+          }
+        },
+        "after": {
+          "status": "valid",
+          "certificate": {
+            "format": "fullhouse-calendar-proof",
+            "version": 1,
+            "algorithm": "gregorian-component-proof-v1",
+            "status": "valid",
+            "reason": null,
+            "inputHash": "40e571d46cdd759191a0ecc2589d516c35fd8d9371997def9fbf24da266c776b",
+            "semanticsHash": "3c5f55beb0ef70b818d9724820e979661a88bb6d2112002871518252011f523e",
+            "environment": {
+              "zone": "UTC",
+              "dateConstructor": "function Date() { [native code] }",
+              "utc": true
+            },
+            "domain": {
+              "min": "0100-01-01",
+              "max": "9999-12-31"
+            },
+            "from": "2050-01-01",
+            "through": "2050-01-01",
+            "restrictions": [
+              "applicability",
+              "selected-dependencies",
+              "same-day-interval",
+              "routine-balance",
+              "all-manual-choices",
+              "overlaps-and-collisions-not-forbidden"
+            ],
+            "recurrences": [
+              {
+                "id": "e",
+                "repeat": "daily",
+                "repeatDays": [],
+                "origin": "2030-01-07",
+                "end": null,
+                "every": null,
+                "specificDates": [],
+                "overrides": {
+                  "2050-01-01": {
+                    "time": "08:45"
+                  }
+                }
+              }
+            ],
+            "components": [
+              {
+                "eventIds": [
+                  "e"
+                ],
+                "routineIds": [
+                  "r"
+                ],
+                "periodDays": "7",
+                "segments": [
+                  {
+                    "from": "2050-01-01",
+                    "through": "2050-01-01",
+                    "periodDays": "7",
+                    "representatives": 1,
+                    "profiles": 1,
+                    "states": 1,
+                    "coverage": "finite"
+                  }
+                ]
+              }
+            ],
+            "counts": {
+              "states": 1,
+              "checks": 1,
+              "work": 86,
+              "segments": 1
+            },
+            "counterexample": null,
+            "budgets": {
+              "states": 300000,
+              "checks": 2000000,
+              "work": 20000000,
+              "profiles": 256,
+              "segments": 2048
+            }
+          },
+          "proofHash": "361f8481b1b5561b062eb8b62acdc14bf87c9da13de0db7c10c3b3103968e60a",
+          "metrics": {
+            "elapsedMs": 2.100000001490116
+          }
+        },
+        "proof": {
+          "status": "valid",
+          "certificate": {
+            "format": "fullhouse-occurrence-shift-proof",
+            "version": 1,
+            "status": "valid",
+            "date": "2050-01-01",
+            "zone": "UTC",
+            "baseRoot": "7fab0bed22c46bd7d352ef437c66e1cc6c8607e1339ef42f9c27dace7cc0ee7e",
+            "semanticsHash": "3c5f55beb0ef70b818d9724820e979661a88bb6d2112002871518252011f523e",
+            "timeSemanticsHash": "f811218345c41e37b71cbbc1b2668e7c22063494a7cfd94f4bbaf79a7da10ef0",
+            "eventIds": [
+              "e"
+            ],
+            "oldHash": "3e53880d5a76235492241dd98845b2e6e8f4baef69336a4e79163c6554ad20a1",
+            "newHash": "44a1b922d51c40fa7f5c5a25151b152c23d31a42f473d81e34c0af0c3def1976",
+            "beforeProofHash": "9272d0788996ce5f1aaf14133df8173be9dfaf1fffaaf289e63af0e61188f170",
+            "afterProofHash": "361f8481b1b5561b062eb8b62acdc14bf87c9da13de0db7c10c3b3103968e60a",
+            "noOtherDates": "single-time-override-pointwise-v1"
+          },
+          "proofHash": "dd98e5457cba4e8d5c7c5577b4feb3a013d5fcaadc1bf736c314d357e4517154"
+        },
+        "transactionMs": 9.200000002980232,
+        "lineagePrepareMs": 4.399999998509884,
+        "lineageAfterMs": 0,
+        "confirmationMs": 3.7000000029802322,
+        "writeMs": 13.600000001490116,
+        "readMs": 7.899999998509884,
+        "changedRows": 1,
+        "newImages": 0,
+        "photoBytesHydrated": 0,
+        "recovery": {
+          "bytes": 49742515,
+          "exportMs": 1300.3999999985099,
+          "inspectMs": 7255.69999999553,
+          "rebuildMs": 1644.4000000059605
+        }
+      },
+      {
+        "id": "other-day",
+        "date": "2050-01-02",
+        "deltaMinutes": 120,
+        "catalogReadMs": 6.199999995529652,
+        "reservationMs": 8.300000004470348,
+        "fullPrepareMs": 6901,
+        "fullCommitMs": 2681.6999999955297,
+        "prepareMs": 21.600000001490116,
+        "scopeReadMs": 5.9000000059604645,
+        "rootMs": 9.100000001490116,
+        "componentMs": 2.1999999955296516,
+        "calculationMs": 0.10000000149011612,
+        "validationMs": 3.600000001490116,
+        "constructionMs": 4.5999999940395355,
+        "before": {
+          "status": "valid",
+          "certificate": {
+            "format": "fullhouse-calendar-proof",
+            "version": 1,
+            "algorithm": "gregorian-component-proof-v1",
+            "status": "valid",
+            "reason": null,
+            "inputHash": "2ee3005ab119bbe17aa4c6b0de51a7ce82eb4f901bf23552a0bb7da0149de241",
+            "semanticsHash": "3c5f55beb0ef70b818d9724820e979661a88bb6d2112002871518252011f523e",
+            "environment": {
+              "zone": "UTC",
+              "dateConstructor": "function Date() { [native code] }",
+              "utc": true
+            },
+            "domain": {
+              "min": "0100-01-01",
+              "max": "9999-12-31"
+            },
+            "from": "2050-01-02",
+            "through": "2050-01-02",
+            "restrictions": [
+              "applicability",
+              "selected-dependencies",
+              "same-day-interval",
+              "routine-balance",
+              "all-manual-choices",
+              "overlaps-and-collisions-not-forbidden"
+            ],
+            "recurrences": [
+              {
+                "id": "e",
+                "repeat": "daily",
+                "repeatDays": [],
+                "origin": "2030-01-07",
+                "end": null,
+                "every": null,
+                "specificDates": [],
+                "overrides": {
+                  "2050-01-01": {
+                    "time": "08:45"
+                  }
+                }
+              }
+            ],
+            "components": [
+              {
+                "eventIds": [
+                  "e"
+                ],
+                "routineIds": [
+                  "r"
+                ],
+                "periodDays": "7",
+                "segments": [
+                  {
+                    "from": "2050-01-02",
+                    "through": "2050-01-02",
+                    "periodDays": "7",
+                    "representatives": 1,
+                    "profiles": 1,
+                    "states": 1,
+                    "coverage": "finite"
+                  }
+                ]
+              }
+            ],
+            "counts": {
+              "states": 1,
+              "checks": 1,
+              "work": 86,
+              "segments": 1
+            },
+            "counterexample": null,
+            "budgets": {
+              "states": 300000,
+              "checks": 2000000,
+              "work": 20000000,
+              "profiles": 256,
+              "segments": 2048
+            }
+          },
+          "proofHash": "413700efd5a29fbb8788161b8e10ae9b41979f92a8d4997c621cfcdf68c7c1be",
+          "metrics": {
+            "elapsedMs": 1.6000000014901161
+          }
+        },
+        "after": {
+          "status": "valid",
+          "certificate": {
+            "format": "fullhouse-calendar-proof",
+            "version": 1,
+            "algorithm": "gregorian-component-proof-v1",
+            "status": "valid",
+            "reason": null,
+            "inputHash": "9d1acf2cedde4e6edc598d4955eb4f68bf1dceee3e42d3ce68ff14811bc9ed01",
+            "semanticsHash": "3c5f55beb0ef70b818d9724820e979661a88bb6d2112002871518252011f523e",
+            "environment": {
+              "zone": "UTC",
+              "dateConstructor": "function Date() { [native code] }",
+              "utc": true
+            },
+            "domain": {
+              "min": "0100-01-01",
+              "max": "9999-12-31"
+            },
+            "from": "2050-01-02",
+            "through": "2050-01-02",
+            "restrictions": [
+              "applicability",
+              "selected-dependencies",
+              "same-day-interval",
+              "routine-balance",
+              "all-manual-choices",
+              "overlaps-and-collisions-not-forbidden"
+            ],
+            "recurrences": [
+              {
+                "id": "e",
+                "repeat": "daily",
+                "repeatDays": [],
+                "origin": "2030-01-07",
+                "end": null,
+                "every": null,
+                "specificDates": [],
+                "overrides": {
+                  "2050-01-01": {
+                    "time": "08:45"
+                  },
+                  "2050-01-02": {
+                    "time": "11:00"
+                  }
+                }
+              }
+            ],
+            "components": [
+              {
+                "eventIds": [
+                  "e"
+                ],
+                "routineIds": [
+                  "r"
+                ],
+                "periodDays": "7",
+                "segments": [
+                  {
+                    "from": "2050-01-02",
+                    "through": "2050-01-02",
+                    "periodDays": "7",
+                    "representatives": 1,
+                    "profiles": 1,
+                    "states": 1,
+                    "coverage": "finite"
+                  }
+                ]
+              }
+            ],
+            "counts": {
+              "states": 1,
+              "checks": 1,
+              "work": 86,
+              "segments": 1
+            },
+            "counterexample": null,
+            "budgets": {
+              "states": 300000,
+              "checks": 2000000,
+              "work": 20000000,
+              "profiles": 256,
+              "segments": 2048
+            }
+          },
+          "proofHash": "87bc6e6559e1e350be8a7c982ce3508099e056517f75852b3a15efc80990c021",
+          "metrics": {
+            "elapsedMs": 1.3999999985098839
+          }
+        },
+        "proof": {
+          "status": "valid",
+          "certificate": {
+            "format": "fullhouse-occurrence-shift-proof",
+            "version": 1,
+            "status": "valid",
+            "date": "2050-01-02",
+            "zone": "UTC",
+            "baseRoot": "d35b90132032e5baf355c86345f00012f9ef0102b5e323cf7f980890d98c8ed7",
+            "semanticsHash": "3c5f55beb0ef70b818d9724820e979661a88bb6d2112002871518252011f523e",
+            "timeSemanticsHash": "f811218345c41e37b71cbbc1b2668e7c22063494a7cfd94f4bbaf79a7da10ef0",
+            "eventIds": [
+              "e"
+            ],
+            "oldHash": "44a1b922d51c40fa7f5c5a25151b152c23d31a42f473d81e34c0af0c3def1976",
+            "newHash": "6aadb724092886ec7bb4333c16c414b303fb0adb5ba34b7d585a3f70f3db3bc3",
+            "beforeProofHash": "413700efd5a29fbb8788161b8e10ae9b41979f92a8d4997c621cfcdf68c7c1be",
+            "afterProofHash": "87bc6e6559e1e350be8a7c982ce3508099e056517f75852b3a15efc80990c021",
+            "noOtherDates": "single-time-override-pointwise-v1"
+          },
+          "proofHash": "c89579d39b653a903ceea07a28b2c3a9ac5ac988cb1aca6a3a5d281ea1ff260d"
+        },
+        "transactionMs": 9.600000001490116,
+        "lineagePrepareMs": 3.7000000029802322,
+        "lineageAfterMs": 0.10000000149011612,
+        "confirmationMs": 4.600000001490116,
+        "writeMs": 13.300000004470348,
+        "readMs": 6.699999995529652,
+        "changedRows": 1,
+        "newImages": 0,
+        "photoBytesHydrated": 0,
+        "recovery": null
+      }
+    ],
+    "archiveBytes": 49659018,
+    "exportMs": 1314.0999999940395,
+    "importMs": 6822.60000000149,
+    "restoreMs": 3228.2000000029802,
+    "heap": {
+      "usedJSHeapSize": 382156433,
+      "totalJSHeapSize": 434711133
+    },
+    "allHistoricalHashesEqual": true,
+    "allPhotoBytesVerified": true,
+    "metadataMemory": {
+      "beforeJSHeapBytes": 1196816,
+      "afterJSHeapBytes": 44427068,
+      "deltaJSHeapBytes": 43230252,
+      "requestedGC": true,
+      "scope": "Retained JS heap of metadata window; not peak, native blobs or total RSS"
+    }
+  },
+  "measuredSources": {
+    "history/storage-events-shift.cjs": "92696e57d9f936cc5901ef7095d36d7aa884bba081e7bc220f2971602c64d48a",
+    "history/storage-incremental.cjs": "99ce6d76f182afedc51aa973e43f94f4fc3e62f97fa31f498a709b0f7ccec47d",
+    "history/storage-events.cjs": "9e6dd5e0e8ef28b268e06595038e0d84a7eaa23b0b68eceda8603ffbe1a1a474",
+    "history/storage-lineage.cjs": "6e853e8ee156884b2d50e4b2365239f90bc513acd302eb84deb665f293a3c707",
+    "history/calendar-proof.cjs": "4028e70f076131c2b0817055592e0fd65d9e2961d34201f63905ac56584c1484",
+    "scripts/history-browser.cjs": "259597dc42539150faaf980df8eccf42f237e7e9277ef2431427b3f73431708e",
+    "scripts/planner-actions.cjs": "86a9950c46c8fd2b4530952c56a8117069e2081777e1891410566d8fe40cfc04",
+    "tests/browser/history-scoped-events-shift-performance.cjs": "78c095a4fa193645d6d2c172e61c55bde40f4b38a77d91e833e70031c291105f"
+  },
+  "machine": {
+    "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+    "cpu": "INTEL(R) XEON(R) PLATINUM 8573C"
+  }
+}
