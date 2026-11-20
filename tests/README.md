@@ -4,15 +4,15 @@ Estas pruebas ejecutan el JavaScript servido de la aplicación en aislamiento.
 El arnés no requiere refactorizar producción ni cambiar el esquema de datos.
 Todos los ejemplos son sintéticos.
 
-**Estado actual — PR comercial 1:** regresión 194; contratos 291 + seis TODO;
-npm test 486 aprobadas + seis TODO, sin fallos. La reproducción original BUG-05
+**Estado actual — PR comercial 2:** regresión 194; autenticación 12; contratos 291 + seis TODO;
+npm test 498 aprobadas + seis TODO, sin fallos. La reproducción original BUG-05
 permanece intacta y pasa por rechazo de la edición insegura, sin activar v2.
 Las cifras/fallos de las fases anteriores que siguen abajo son su registro histórico.
 [Alcance de la mitigación](../docs/COMMERCIAL_V1_HISTORY_GUARDRAILS.md).
 
 ## Instalación y comandos
 
-Requiere Node.js 20 o posterior y npm. Desde la raíz del repositorio:
+Requiere Node.js 22 o posterior y npm para las herramientas comerciales actuales. Desde la raíz del repositorio:
 
 ```sh
 npm ci
@@ -22,9 +22,9 @@ npm run test:known-bugs
 npm test
 ```
 
-- `npm ci` instala únicamente TypeScript 5.9.3 como dependencia de desarrollo,
-  usando el lockfile y su comprobación de integridad. No hay dependencias nuevas
-  de ejecución para la aplicación.
+- `npm ci` usa el lockfile: TypeScript y herramientas de staging/emuladores; el
+  SDK Firebase solo se empaqueta en la entrada de staging. Pages continúa usando
+  los recursos locales de React y app.js, sin SDK ni cambio de framework.
 - `npm run check` comprueba TypeScript sin emitir archivos, la sintaxis del
   JavaScript servido y su correspondencia exacta con una compilación en memoria.
   Falla si la fuente y `app.js` divergen; no sobrescribe archivos para hacerlo pasar.
@@ -678,3 +678,14 @@ identidad del primer límite, copia anidada, colisiones, cuota y borradores, cor
 de alternativas sin borrar marcas y legado ambiguo. Los tests de guardado usan
 candidatos autorizados; no se confunde rechazo histórico con error de almacenamiento.
 La prueba original BUG-05 no cambia. [Informe](../docs/COMMERCIAL_V1_HISTORY_GUARDRAILS.md).
+
+
+## Comercial · autenticación de pruebas
+
+`npm run test:auth`: doce pruebas unitarias/de integración local (sesiones, revocación,
+borradores/fotos, prefijos, importación explícita y recuperación). Los dobles de sesión
+no se presentan como verificación de Firebase. `npm run test:auth:emulator` ejecuta
+SDK Firebase real y emuladores Auth/Hosting: registro, correo, acceso, salida, contraseña
+anterior/nueva y dos cuentas en 1280/390 px. No hay correo real ni proyecto real probado.
+Consultar [configuración y límites](../docs/COMMERCIAL_AUTH_STAGING.md). Los seis TODO
+de historia siguen explícitos. Las guardas comerciales v1 y su reproducción no cambian.

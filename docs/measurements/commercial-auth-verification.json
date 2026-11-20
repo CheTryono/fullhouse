@@ -1,0 +1,152 @@
+{
+  "base": "d159fe64916342478351558aa788e9568d2094fe",
+  "branch": "feat/commercial-auth-staging",
+  "checkpoint": "519b0bc",
+  "commands": [
+    {
+      "command": "npm run check",
+      "exit": 0
+    },
+    {
+      "command": "npm run check:auth",
+      "exit": 0
+    },
+    {
+      "command": "npm run check:history-contract",
+      "exit": 0
+    },
+    {
+      "command": "npm run test:auth",
+      "exit": 0,
+      "tests": 12,
+      "pass": 12,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "command": "npm run test:regression",
+      "exit": 0,
+      "tests": 194,
+      "pass": 194,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "command": "npm test",
+      "exit": 0,
+      "tests": 504,
+      "pass": 498,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 6
+    },
+    {
+      "command": "NODE_PATH=/workspace/.fullhouse-tools/node_modules npm run test:auth:emulator",
+      "exit": 0,
+      "backend": "real Firebase Auth/Hosting emulators; Web SDK 13.4.0; demo-fullhouse-auth"
+    },
+    {
+      "command": "npm run dev:auth (equivalent runner --serve)",
+      "exit": 0,
+      "hostingHTTP": 200,
+      "authHTTP": 200,
+      "headers": {
+        "Cache-Control": "no-store",
+        "X-Frame-Options": "SAMEORIGIN"
+      },
+      "stoppedGracefully": true
+    },
+    {
+      "command": "npm run build:staging (no local config)",
+      "exit": 0,
+      "configured": false,
+      "noLabsOrTestsInBuild": true
+    }
+  ],
+  "publicChromiumSuites": [
+    {
+      "suite": "commercial-history",
+      "exit": 0,
+      "viewports": [
+        1280,
+        390
+      ],
+      "palettes": 5
+    },
+    {
+      "suite": "pending-save",
+      "exit": 0,
+      "viewports": [
+        1280,
+        390
+      ]
+    },
+    {
+      "suite": "day-shifts",
+      "exit": 0,
+      "viewports": [
+        1280,
+        390
+      ]
+    }
+  ],
+  "auditProduction": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "total": 0
+  },
+  "auditAll": {
+    "info": 0,
+    "low": 0,
+    "moderate": 14,
+    "high": 0,
+    "critical": 0,
+    "total": 14
+  },
+  "auditAllExit": 1,
+  "auditNote": "14 moderate findings are in CLI development dependencies; not shipped to the browser. Firebase-scoped gRPC override 1.14.7 removes high production findings; no force downgrade.",
+  "notTested": [
+    "Real Firebase project configuration",
+    "Real email delivery/spam",
+    "Firefox",
+    "WebKit",
+    "Physical Android/iPhone"
+  ],
+  "unitBoundaries": "Unexpected session change/late writes/pending recovery tested using explicit doubles; not presented as real Firebase server tests. Real signup/login/verification/reset tested separately against the emulator.",
+  "noDeployOrMigration": true,
+  "unchanged": [
+    ".github/workflows/pages.yml",
+    "index.html",
+    "styles.css",
+    "history/*",
+    "tests/known-bugs.test.cjs"
+  ],
+  "sources": {
+    "auth/errors.ts": "776e7dc4ef27a700e9314ecbd0f7e91d2cc16fcac9879ef2884bb9652d13765a",
+    "auth/firebase.ts": "dd78a5dc9abd022d0411627d65ab48f237d354af8445fe9d212a674d34bb7b36",
+    "auth/planner-bootstrap.ts": "9361144a6b4001eceaee69757427429cca9ca8f6d7eb041ecae1cb65e5782080",
+    "auth/staging.ts": "0d6bae23b5373db0e6f5fb7617bbdcdd84de84e68651795e7c06393fd65e1c1c",
+    "auth/workspace.ts": "b74386ee90593cb1476deb3fc55de1d8122c9f49ac98e3a3aefa0631ad28926e",
+    "auth/tsconfig.json": "78cc67f273b57b8cbdf932c965166aad91aff7a63068d716d5c0b3b387226d1c",
+    "app.tsx": "c115c9c4b1335346373eec576aa5ba5bba1aba9645171d6b0adfe01e0543d051",
+    "app.js": "e3dbabcb6a3d5f4c3f39e674045cd420ecd2f16f1fe3657e4229e4a6f84d270c",
+    "scripts/build-auth-staging.cjs": "29d4e3a4166c628d3a7160ced423cc3cba7151276915991f362bcbbb9b6f46e8",
+    "scripts/test-auth-staging.cjs": "eee6204bbd6344104ca33247ba4d484a6ebc69119a5e04f2c3ad5d307fd47f7d",
+    "firebase.staging.json": "a2a389623ff9ea8503f29b03ccbb12079ae4573122765196178dfa686ee74d69",
+    "staging/index.html": "0e75242f58c84e8a2651b703d0125ef942e09e45064487a0dace820edae2ca77",
+    "staging/auth.css": "37af4aa9f8ff53f6dd3c966d564987c656fe49dc0e59647998a845faa5b2384a",
+    "package.json": "581beab714b0e60eb4340b21d01eae988a49ce1fabe88e1105f70721f0dfba8e",
+    "package-lock.json": "bf7ac5329265116d2dde117b3cb4fe9f400e3419521aea3670c6440a8cbd8fee",
+    "tests/auth-unit.test.cjs": "54e17774943840e4cbe808f3fac692f482d356713d55396f94ec6331d2f14623",
+    "tests/auth-planner.test.cjs": "e6ab5720c60a151d185c5e02b8198bf02406823b1153dadf1a2c9c50d320c79a",
+    "tests/browser/auth-staging.cjs": "509d9df9add595dcd2adad74fc0e4df7129251f597fb51774681ca7adac4fa67"
+  }
+}

@@ -380,3 +380,19 @@ notas/marcas y rechazo de traslado de registros futuros. La reprogramación se c
 con el modal propio antes de comprobar el rechazo; el driver no se salta ese diálogo.
 También comprueba foco de teclado y ausencia de errores JS. Sin servicios remotos ni
 datos personales. No son teléfonos físicos ni pruebas Firefox/WebKit.
+
+
+## Comercial · Authentication y Hosting de staging
+
+```sh
+NODE_PATH=/workspace/.fullhouse-tools/node_modules npm run test:auth:emulator
+```
+
+Usa SDK real, emuladores en loopback y proyecto fijo demo-fullhouse-auth. Prueba
+registro/verificación y aplicación del código, acceso incorrecto y error de red,
+logout con/sin borrador, separación A/B en el mismo perfil, recarga, recuperación
+con cambio efectivo de contraseña, originales/alias/preferencias intactos, acceso
+directo bloqueado y configuración ausente. Dos viewports 1280/390, zona México.
+Los enlaces se toman de las cuentas sintéticas del emulador: no se simula correo
+real entregado. Los códigos de acción y contraseñas no se guardan en resultados Git.
+Sin Firebase real, Firefox/WebKit ni teléfonos físicos probados.

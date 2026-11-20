@@ -133,3 +133,24 @@ Esta PR solo lo registra; no modifica guardas ni decisiones del motor histórico
 Resultados exactos y fuentes verificadas: docs/measurements/commercial-auth-verification.json.
 No se ha probado un proyecto Firebase real, entrega de correo real, Firefox/WebKit
 ni dispositivos físicos. No se puede dar por validada una beta pública solo con esto.
+
+
+## Cierre verificado
+
+- check, check:auth y check:history-contract: correctos.
+- test:auth: 12 aprobadas. Regresión pública: 194 aprobadas.
+- npm test: 498 aprobadas, cero fallos y seis TODO (504 casos); incluye los
+  contratos históricos anteriores y la reproducción original de BUG-05 sin cambios.
+- SDK real/emuladores: dos recorridos completos, Chromium 156, viewports 1280/390;
+  registro, verificación aplicada por backend, acceso erróneo/red fallida, logout,
+  datos A/B y recarga, contraseña anterior rechazada/nueva aceptada, originales
+  intactos, sin configuración y acceso directo cerrados. Sin errores JS.
+- Chromium público: commercial-history (cinco paletas), pending-save y day-shifts
+  aprobados. No cambiaron las guardas de PR #19.
+- dev:auth comprobado con Auth/Hosting HTTP 200 y apagado limpio; build sin config
+  comprobado sin formularios activos ni laboratorios/tests en los recursos.
+
+Correcciones de los drivers: usar el nombre real «Crear meta» y resolver los dos
+botones «Cerrar». El contenedor del iframe se ajustó al espacio real restante para
+que los avisos no oculten el pie de formularios; la navegación real volvió a pasar.
+No se forzaron clicks ni se omitieron confirmaciones para producir resultados positivos.
