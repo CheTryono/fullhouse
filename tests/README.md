@@ -4,6 +4,12 @@ Estas pruebas ejecutan el JavaScript servido de la aplicación en aislamiento.
 El arnés no requiere refactorizar producción ni cambiar el esquema de datos.
 Todos los ejemplos son sintéticos.
 
+**Estado actual — PR comercial 1:** regresión 194; contratos 291 + seis TODO;
+npm test 486 aprobadas + seis TODO, sin fallos. La reproducción original BUG-05
+permanece intacta y pasa por rechazo de la edición insegura, sin activar v2.
+Las cifras/fallos de las fases anteriores que siguen abajo son su registro histórico.
+[Alcance de la mitigación](../docs/COMMERCIAL_V1_HISTORY_GUARDRAILS.md).
+
 ## Instalación y comandos
 
 Requiere Node.js 20 o posterior y npm. Desde la raíz del repositorio:
@@ -23,11 +29,10 @@ npm test
   JavaScript servido y su correspondencia exacta con una compilación en memoria.
   Falla si la fuente y `app.js` divergen; no sobrescribe archivos para hacerlo pasar.
 - `npm run test:regression` ejecuta la base que pasa actualmente.
-- `npm run test:known-bugs` ejecuta contratos deseados que fallan por problemas
-  existentes. Termina con código 1; no son pruebas omitidas ni fallos convertidos
-  en éxitos.
-- `npm test` ejecuta ambas suites y conserva el código de fallo del ejecutor.
-  Actualmente debe fallar por el caso documentado abajo.
+- `npm run test:known-bugs` conserva la reproducción original de BUG-05. Con las
+  guardas comerciales v1 pasa sin cambiar su aserción; no implica capturas históricas.
+- `npm test` ejecuta todas las suites y conserva cualquier fallo real. Actualmente
+  termina con código 0, con seis TODO todavía explícitos.
 
 No es necesario iniciar un servidor ni acceder a servicios externos para ejecutar
 las pruebas. Cada caso obtiene su propio contexto, almacenamiento y controlador.
@@ -52,7 +57,7 @@ Este arnés depende de los nombres internos actuales; renombrar o modularizar la
 funciones requerirá adaptar el arnés. Cuando se extraigan módulos, podrán
 importarse directamente conservando los mismos casos y datos.
 
-## Cobertura: 164 pruebas que pasan
+## Cobertura pública: 194 pruebas que pasan
 
 | Área | Comportamientos comprobados |
 | --- | --- |
@@ -663,3 +668,13 @@ excepciones, dependencias y zonas; pruebas de IndexedDB/recuperación/capacidad 
 modificarlo; las diferencias v2 se verifican separadamente. Un caso no representable
 se prueba como bloqueo, no como una implementación aprobada. Los seis TODO y el
 BUG-05 público permanecen. [Informe](../docs/HISTORY_V2_SCOPED_EVENTS_EDIT.md).
+
+
+## Comercial · conservación mínima v1
+
+30 casos adicionales en commercial-history.cjs, cargados por regression.test.cjs:
+plantillas usadas/no usadas, corte con/sin registros futuros, dependencias indirectas,
+identidad del primer límite, copia anidada, colisiones, cuota y borradores, correcciones
+de alternativas sin borrar marcas y legado ambiguo. Los tests de guardado usan
+candidatos autorizados; no se confunde rechazo histórico con error de almacenamiento.
+La prueba original BUG-05 no cambia. [Informe](../docs/COMMERCIAL_V1_HISTORY_GUARDRAILS.md).

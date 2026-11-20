@@ -265,6 +265,119 @@ function dependentMovementIssue(before, after, date) {
     }
     return '';
 }
+/* v1 guardrails: preserve the current interpretation of existing log keys.
+   This is a write-time comparison, not a historical snapshot or a migration. */
+function sameHistoryValue(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
+function recordedRoutine(data, id) {
+    const events = data.events.filter(e => e.routineId === id);
+    return Object.keys(data.logs).some(k => events.some(e => k.startsWith(e.id + '@')));
+}
+function historicalBindings(e, date, data, seen = new Set()) {
+    if (!e || e.anchor !== 'between' || seen.has(e.id))
+        return (e === null || e === void 0 ? void 0 : e.id) || null;
+    const next = new Set(seen);
+    next.add(e.id);
+    const find = (id) => data.events.find(x => x.id !== e.id && x.routineId === id && occurs(x, date));
+    const a = find(e.afterRoutineId), b = find(e.beforeRoutineId);
+    return [e.id, (a === null || a === void 0 ? void 0 : a.id) || null, (b === null || b === void 0 ? void 0 : b.id) || null, historicalBindings(a, date, data, next), historicalBindings(b, date, data, next)];
+}
+function unresolvedHistoryContext(e, data) {
+    const events = new Set(), routines = new Set();
+    const visit = (item) => {
+        if (events.has(item.id))
+            return;
+        events.add(item.id);
+        if (item.routineId)
+            routines.add(item.routineId);
+        if (item.anchor === 'between')
+            for (const id of [item.afterRoutineId, item.beforeRoutineId]) {
+                if (id)
+                    routines.add(id);
+                data.events.filter(x => x.id !== item.id && x.routineId === id).forEach(visit);
+            }
+    };
+    visit(e);
+    return { events: data.events.filter(x => events.has(x.id)), routines: data.routines.filter(x => routines.has(x.id)) };
+}
+function historyPlanningIssue(before, after) {
+    const removedGoals = new Set(before.goals.filter(g => !after.goals.some(n => n.id === g.id)).map(g => g.id));
+    if (before.events === after.events && before.routines === after.routines && !removedGoals.size)
+        return '';
+    if (sameHistoryValue(before.events, after.events) && sameHistoryValue(before.routines, after.routines) && !removedGoals.size)
+        return '';
+    const blocked = 'No se guardó el cambio porque alteraría una actividad que ya tiene registros, aunque su fecha sea futura. Conservamos tus datos y el borrador. Puedes crear una copia independiente de la rutina para actividades futuras.';
+    const temporal = new Set(['date', 'endDate', 'applyFrom', 'time', 'endTime', 'minutes', 'anchor', 'repeat', 'repeatDays', 'everyDays', 'specificDates', 'afterRoutineId', 'beforeRoutineId', 'overrides']);
+    const identity = (e) => Object.fromEntries(Object.keys(e).filter(k => !temporal.has(k)).sort().map(k => [k, e[k]]));
+    const oldEvents = new Map(before.events.map(e => [e.id, e])), newEvents = new Map(after.events.map(e => [e.id, e]));
+    try {
+        for (const [k, log] of Object.entries(before.logs)) {
+            // A planning action must never move, replace or delete any prior facts.
+            if (!Object.prototype.hasOwnProperty.call(after.logs, k) || !sameHistoryValue(log, after.logs[k]))
+                return blocked;
+            const split = k.lastIndexOf('@'), id = split < 0 ? k : k.slice(0, split), date = split < 0 ? '' : k.slice(split + 1), old = oldEvents.get(id), next = newEvents.get(id);
+            if (!old) {
+                if (next)
+                    return blocked;
+                continue;
+            } // Do not attach an orphan record to a new activity.
+            if (!next || !sameHistoryValue(identity(old), identity(next)))
+                return blocked;
+            const r = before.routines.find(r => r.id === old.routineId), nr = after.routines.find(r => r.id === old.routineId);
+            if (!sameHistoryValue(r, nr))
+                return blocked;
+            const linked = new Set([old.goalId]);
+            const goals = (steps) => steps.forEach(step => { if (step.goalId)
+                linked.add(step.goalId); goals(step.children || []); (step.variants || []).forEach(v => { if (v.goalId)
+                linked.add(v.goalId); goals(v.children || []); }); });
+            if (r)
+                goals(r.steps);
+            if ([...linked].some(id => removedGoals.has(id)))
+                return blocked;
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || ymd(parseDay(date)) !== date) {
+                if (sameHistoryValue(unresolvedHistoryContext(old, before), unresolvedHistoryContext(next, after)))
+                    continue;
+                return 'No podemos comprobar la fecha de un registro antiguo. Conservamos el original y tu borrador; exporta un respaldo antes de revisar su programación.';
+            }
+            if (occurs(old, date) !== occurs(next, date) || !sameHistoryValue(eventFrame(old, date, before), eventFrame(next, date, after)) ||
+                !sameHistoryValue(historicalBindings(old, date, before), historicalBindings(next, date, after)))
+                return blocked;
+        }
+    }
+    catch {
+        return 'No pudimos comprobar que el historial quede intacto. No se guardó el cambio y conservamos tu borrador.';
+    }
+    return '';
+}
+function plannerIdentities(data) {
+    const ids = new Set();
+    const add = (id) => { if (id)
+        ids.add(id); };
+    const steps = (items) => items.forEach(s => { add(s.id); add(s.goalId); steps(s.children || []); (s.variants || []).forEach(v => { add(v.id); add(v.goalId); steps(v.children || []); }); });
+    data.goals.forEach(g => { add(g.id); (g.milestones || []).forEach(m => add(m.id)); });
+    data.routines.forEach(r => { add(r.id); steps(r.steps); });
+    data.events.forEach(e => { [e.id, e.routineId, e.goalId, e.afterRoutineId, e.beforeRoutineId].forEach(add); });
+    Object.entries(data.logs).forEach(([k, l]) => { add(k); add(k.slice(0, k.lastIndexOf('@'))); l.checkedSteps.forEach(add); Object.entries(l.choices || {}).forEach(([k, v]) => { add(k); add(v); }); Object.keys(l.stepNotes || {}).forEach(add); (l.evidences || []).forEach(e => { add(e.id); add(e.stepId); }); });
+    return ids;
+}
+function freshPlannerIdentity(ids) {
+    for (let i = 0; i < 128; i++) {
+        const id = uid();
+        if (id && !ids.has(id)) {
+            ids.add(id);
+            return id;
+        }
+    }
+    throw new Error('No pudimos reservar una identidad independiente. Vuelve a intentar crear la copia.');
+}
+function futureRoutineCopy(source, data) {
+    const copy = JSON.parse(JSON.stringify(source)), ids = plannerIdentities(data);
+    // Also reserve unsaved IDs in the source draft; they must not alias the copy.
+    const reserve = (items) => items.forEach(s => { ids.add(s.id); reserve(s.children || []); (s.variants || []).forEach(v => { ids.add(v.id); reserve(v.children || []); }); });
+    reserve(copy.steps);
+    const renew = (items) => items.forEach(s => { s.id = freshPlannerIdentity(ids); renew(s.children || []); (s.variants || []).forEach(v => { v.id = freshPlannerIdentity(ids); renew(v.children || []); }); });
+    renew(copy.steps);
+    return { ...copy, id: '', title: (copy.title.trim() || 'Rutina').slice(0, 82) + ' (copia)' };
+}
 function eventsOn(data, date) { return data.events.filter(e => occurs(e, date) && (e.allDay || !!eventFrame(e, date, data))).sort((a, b) => eventTime(a, date, data).localeCompare(eventTime(b, date, data))); }
 function eventTime(e, date, data) { var _a, _b; const frame = data ? eventFrame(e, date, data) : null; return frame ? timeString(frame.start) : ((_b = (_a = e.overrides) === null || _a === void 0 ? void 0 : _a[date]) === null || _b === void 0 ? void 0 : _b.time) || e.time; }
 function scheduleStart(e, date, data) { var _a, _b; return (_b = (_a = eventFrame(e, date, data)) === null || _a === void 0 ? void 0 : _a.start) !== null && _b !== void 0 ? _b : minutes(e.time); }
@@ -753,7 +866,7 @@ class Planner extends React.Component {
                 else
                     this.noteDrafts.set(id, text); }, onDiscard: () => this.askConfirm('Descartar borrador de nota', 'Esta nota todavía no se ha guardado. ¿Quieres descartar lo que escribiste?', 'Descartar borrador', true) };
         };
-        this.save = (data, message = 'Cambios guardados') => {
+        this.save = (data, message = 'Cambios guardados', replaceAll = false) => {
             var _a;
             if (this.state.recovery) {
                 this.notice('Guardado bloqueado para proteger la información original. Descarga el original o vuelve a intentar la lectura.');
@@ -772,6 +885,13 @@ class Planner extends React.Component {
                 if (!validData(data) || !validData(candidate))
                     throw Error('Datos incompatibles');
                 valid = true;
+                if (!replaceAll) {
+                    const issue = historyPlanningIssue(this.state.data, data);
+                    if (issue) {
+                        this.notice(issue);
+                        return false;
+                    }
+                }
                 localStorage.setItem(STORE, raw);
                 this.setState({ data: candidate });
                 this.notice(message);
@@ -865,6 +985,27 @@ class Planner extends React.Component {
             this.setState({ modal: 'goal', colorEditorOpen: false, hexDraft: draft.color, goalDraft: draft });
         };
         this.openRoutine = (r) => { const draft = r ? JSON.parse(JSON.stringify(r)) : rDraft(); this.initialDraft = JSON.stringify(draft); this.setState({ modal: 'routine', routineDraft: draft }); };
+        this.copyRoutineForFuture = (r) => {
+            if (this.state.pending || this.state.recovery) {
+                this.notice('Resuelve el guardado pendiente o la recuperación antes de preparar una copia.');
+                return;
+            }
+            if (this.state.returnToSchedule) {
+                this.notice('Conservamos tus dos borradores. Vuelve a la programación y crea la copia desde Rutinas; no la vincularemos automáticamente a una actividad existente.');
+                return;
+            }
+            if (r !== this.state.routineDraft && !this.canNavigate())
+                return;
+            try {
+                const draft = futureRoutineCopy(r, this.state.data);
+                this.initialDraft = '';
+                this.setState({ modal: 'routine', routineDraft: draft, returnToSchedule: false });
+                this.notice('Copia independiente preparada, todavía sin guardar. Conserva tus cambios y no incluye registros ni programaciones.');
+            }
+            catch (err) {
+                this.notice(err.message || 'No pudimos preparar la copia. Tu borrador sigue intacto.');
+            }
+        };
         this.openEvent = (e, kind) => {
             if ((e === null || e === void 0 ? void 0 : e.kind) === 'review') {
                 const g = this.state.data.goals.find(x => x.id === e.goalId);
@@ -1044,7 +1185,8 @@ class Planner extends React.Component {
             if ((_a = next.review) === null || _a === void 0 ? void 0 : _a.date) {
                 reviews.push({ id: reviewId, kind: 'review', title: 'Revisión · ' + next.title, date: next.review.date, time: next.review.time || '18:00', minutes: 30, goalId: next.id, routineId: '', repeat: next.review.repeat || 'none', note: 'Revisa los avances de la meta, lo que aprendiste y qué conviene ajustar.', overrides: ((_b = data.events.find(e => e.id === reviewId)) === null || _b === void 0 ? void 0 : _b.overrides) || {} });
             }
-            this.save({ ...data, goals: before ? data.goals.map(g => g.id === x.id ? next : g) : [...data.goals, next], events: reviews });
+            if (!this.save({ ...data, goals: before ? data.goals.map(g => g.id === x.id ? next : g) : [...data.goals, next], events: reviews }))
+                return;
             this.close(true);
             if (this.state.guideOpen) {
                 if (this.state.guideStep === 1 && !x.id)
@@ -1178,9 +1320,21 @@ class Planner extends React.Component {
                 return;
             }
             const data = this.state.data;
+            let routineId = x.id;
+            if (!routineId) {
+                try {
+                    const ids = plannerIdentities({ ...data, routines: [...data.routines, x] });
+                    routineId = freshPlannerIdentity(ids);
+                }
+                catch (err) {
+                    this.notice(err.message);
+                    return;
+                }
+            }
             const clean = (steps) => steps.map(s => { var _a; const children = s.children ? clean(s.children) : undefined; return { ...s, title: s.title.trim(), children, variants: (_a = s.variants) === null || _a === void 0 ? void 0 : _a.filter(v => v.title.trim() && (s.chooseWhen === 'execute' || v.days.length)).map(v => ({ ...v, title: v.title.trim(), days: [...new Set(v.days)], children: v.children ? clean(v.children) : undefined, min: Math.max(0, v.min) })), min: children && children.length ? children.reduce((a, c) => a + stepMinutes(c), 0) : s.flexible ? Math.max(5, s.min) : Math.max(1, s.min), mode: s.mode || ((s.variants || []).length ? 'alternatives' : 'always') }; });
-            const result = { ...x, id: x.id || uid(), title: x.title.trim(), steps: clean(x.steps) };
-            this.save({ ...data, routines: x.id ? data.routines.map(r => r.id === x.id ? result : r) : [...data.routines, result], events: data.events.map(e => e.routineId === result.id ? { ...e, minutes: routineMinutes(result) } : e) });
+            const result = { ...x, id: routineId, title: x.title.trim(), steps: clean(x.steps) };
+            if (!this.save({ ...data, routines: x.id ? data.routines.map(r => r.id === x.id ? result : r) : [...data.routines, result], events: data.events.map(e => e.routineId === result.id ? { ...e, minutes: routineMinutes(result) } : e) }) && !this.state.pending)
+                return;
             if (this.state.returnToSchedule && this.pendingSchedule) {
                 const draft = this.pendingSchedule;
                 this.pendingSchedule = null;
@@ -1353,7 +1507,8 @@ class Planner extends React.Component {
                 const planned = await withOverlap(nextData);
                 if (!planned)
                     return;
-                this.save(planned, 'Programación actualizada desde ' + finalStart);
+                if (!this.save(planned, 'Programación actualizada desde ' + finalStart))
+                    return;
             }
             else {
                 if (future.routineId && data.events.some(other => other.id !== result.id && other.routineId === future.routineId && sameScheduleActive(other, today()))) {
@@ -1363,7 +1518,8 @@ class Planner extends React.Component {
                 const planned = await withOverlap({ ...data, events: x.id ? data.events.map(e => e.id === x.id ? cleanFuture : e) : [...data.events, cleanFuture] });
                 if (!planned)
                     return;
-                this.save(planned, 'Actividad guardada');
+                if (!this.save(planned, 'Actividad guardada'))
+                    return;
             }
             this.close(true);
             if (this.state.guideOpen) {
@@ -1409,8 +1565,8 @@ class Planner extends React.Component {
                 return;
             const d = this.state.data;
             const next = this.cancelFutureDependencies({ ...d, routines: d.routines.filter(x => x.id !== r.id), events: d.events.map(e => e.routineId === r.id ? { ...e, routineId: '' } : e) }, r.id);
-            this.save(next);
-            this.close(true);
+            if (this.save(next))
+                this.close(true);
         };
         this.deleteEvent = async (e) => {
             const dependents = e.routineId ? this.state.data.events.filter(x => x.anchor === 'between' && (x.afterRoutineId === e.routineId || x.beforeRoutineId === e.routineId)) : [];
@@ -1423,8 +1579,8 @@ class Planner extends React.Component {
             const old = e.date < cutoff;
             const updated = d.events.flatMap(item => item.id !== e.id ? [item] : old ? [{ ...item, endDate: addDays(cutoff, -1) }] : []);
             const next = (e.routineId && sameScheduleActive(e, from) ? this.cancelFutureDependencies({ ...d, events: updated, goals: e.kind === 'review' ? d.goals.map(g => g.id === e.goalId ? { ...g, review: undefined } : g) : d.goals, logs }, e.routineId, cutoff) : { ...d, events: updated, goals: e.kind === 'review' ? d.goals.map(g => g.id === e.goalId ? { ...g, review: undefined } : g) : d.goals, logs });
-            this.save(next);
-            this.close(true);
+            if (this.save(next))
+                this.close(true);
         };
         this.saveEvidence = async (e, date, stepId, file) => {
             if (!file || !file.type.startsWith('image/')) {
@@ -1496,9 +1652,19 @@ class Planner extends React.Component {
             const updated = stepId ? { ...log, stepNotes: { ...log.stepNotes, [stepId]: value } } : { ...log, note: value };
             this.save({ ...d, logs: { ...d.logs, [k]: updated } }, 'Nota guardada en el historial');
         };
-        this.selectVariant = (e, date, stepId, choice) => {
-            const d = this.state.data, k = key(e, date), r = d.logs[k] || { completed: false, checkedSteps: [] };
-            this.save({ ...d, logs: { ...d.logs, [k]: { ...r, choices: { ...r.choices, [stepId]: choice }, checkedSteps: [], completed: false } } }, 'Elección guardada solo para este día');
+        this.selectVariant = async (e, date, stepId, choice) => {
+            var _a, _b;
+            const k = key(e, date), original = this.state.data.logs[k], previous = (_a = original === null || original === void 0 ? void 0 : original.choices) === null || _a === void 0 ? void 0 : _a[stepId];
+            if (previous === choice)
+                return;
+            if ((previous !== undefined || (original === null || original === void 0 ? void 0 : original.completed)) && !await this.askConfirm('Corregir alternativa', 'Cambiarás la alternativa de esta fecha. Conservaremos todas las marcas, notas y fotos, incluso las de pasos que dejen de mostrarse. La actividad quedará pendiente para que revises su progreso.', 'Cambiar alternativa'))
+                return;
+            const d = this.state.data, r = d.logs[k] || { completed: false, checkedSteps: [] };
+            if (((_b = r.choices) === null || _b === void 0 ? void 0 : _b[stepId]) !== previous) {
+                this.notice('La elección cambió mientras confirmabas. Revisa el registro antes de volver a corregirla.');
+                return;
+            }
+            this.save({ ...d, logs: { ...d.logs, [k]: { ...r, choices: { ...r.choices, [stepId]: choice }, completed: false } } }, 'Alternativa guardada; marcas, notas y fotos conservadas');
         };
         this.shiftEvent = (e, date, delta) => {
             if (e.anchor === 'between') {
@@ -1541,8 +1707,8 @@ class Planner extends React.Component {
                 return;
             }
             const next = { ...g, current: val, status: mode === 'qualitative' ? this.state.progressStatus : goalStatus(g), history: [...g.history, { date: today(), value: val, note: this.state.progressNote.trim(), status: mode === 'qualitative' ? this.state.progressStatus : undefined }] };
-            this.save({ ...d, goals: d.goals.map(x => x.id === g.id ? next : x) }, 'Avance registrado');
-            this.close(true);
+            if (this.save({ ...d, goals: d.goals.map(x => x.id === g.id ? next : x) }, 'Avance registrado'))
+                this.close(true);
         };
         this.toggleMilestone = (goalId, milestoneId) => { const d = this.state.data; const g = d.goals.find(x => x.id === goalId); if (!g)
             return; const ms = goalMilestones(g).map(m => m.id === milestoneId ? { ...m, done: !m.done } : m); const n = ms.filter(m => m.done).length; const next = { ...g, milestones: ms, current: n, target: ms.length, history: [...g.history, { date: today(), value: n, note: 'Hito actualizado' }] }; this.save({ ...d, goals: d.goals.map(x => x.id === goalId ? next : x) }, 'Hito actualizado'); };
@@ -1677,7 +1843,8 @@ class Planner extends React.Component {
             }
             if (!(await this.askConfirm('Restablecer ejemplos', 'Se perderán los datos actuales. Descarga un respaldo antes de continuar.', 'Restablecer', true)))
                 return;
-            this.save(seed(), 'Ejemplos restablecidos');
+            if (!this.save(seed(), 'Ejemplos restablecidos', true))
+                return;
             this.setState({ page: 'inicio', selectedDate: today(), month: firstMonth(today()) });
         };
         this.childrenOf = (id) => this.state.data.goals.filter(g => g.parentId === id);
@@ -2599,6 +2766,7 @@ class Planner extends React.Component {
                         React.createElement(Btn, { tiny: true, kind: "secondary", onClick: () => this.openRoutine(r) },
                             React.createElement(Icon, { name: "edit", size: 14 }),
                             " Editar"),
+                        React.createElement(Btn, { tiny: true, kind: "secondary", onClick: () => this.copyRoutineForFuture(r) }, "Crear copia"),
                         React.createElement(Btn, { tiny: true, kind: "ghost", onClick: () => this.deleteRoutine(r) },
                             React.createElement(Icon, { name: "trash", size: 14 }))));
             })),
@@ -3297,6 +3465,11 @@ class Planner extends React.Component {
         const r = this.state.routineDraft, mode = r.durationMode || 'steps', active = activeSteps(r.steps, this.state.selectedDate), balance = routineBalance(r, this.state.selectedDate), issue = this.routineIssue(r);
         const allocations = leafAllocation(active, routineMinutes(r)), flexLeaves = leafSteps(active).filter(x => x.flexible), free = Math.max(0, routineMinutes(r) - fixedStepMinutes(active));
         return React.createElement("div", { className: 'routine-form-v07', style: { '--routine-accent': r.color || '#a26cf4' } },
+            r.id && recordedRoutine(this.state.data, r.id) && React.createElement("div", { className: 'notice', role: 'status' },
+                React.createElement("strong", null, "Esta rutina conserva registros."),
+                React.createElement("p", null, "Para proteger sus pasos, alternativas y tiempos anteriores, prepara los cambios en una copia independiente. Tus registros y la programaci\u00F3n original se conservan."),
+                React.createElement(Btn, { kind: 'secondary', onClick: () => this.copyRoutineForFuture(r), disabled: this.state.returnToSchedule }, "Continuar estos cambios en una copia"),
+                this.state.returnToSchedule && React.createElement("p", null, "Vuelve a la programaci\u00F3n antes de crear la copia desde Rutinas; ambos borradores siguen disponibles.")),
             this.state.returnToSchedule && React.createElement("div", { className: 'routine-context-alert' },
                 React.createElement(Icon, { name: 'clock', size: 22 }),
                 React.createElement("div", null,

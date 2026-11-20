@@ -247,6 +247,76 @@ function dependentMovementIssue(before:Data,after:Data,date:string):string {
   }
   return '';
 }
+/* v1 guardrails: preserve the current interpretation of existing log keys.
+   This is a write-time comparison, not a historical snapshot or a migration. */
+function sameHistoryValue(a:any,b:any):boolean{return JSON.stringify(a)===JSON.stringify(b);}
+function recordedRoutine(data:Data,id:string):boolean{
+  const events=data.events.filter(e=>e.routineId===id);
+  return Object.keys(data.logs).some(k=>events.some(e=>k.startsWith(e.id+'@')));
+}
+function historicalBindings(e:EventItem,date:string,data:Data,seen=new Set<string>()):any{
+  if(!e||e.anchor!=='between'||seen.has(e.id))return e?.id||null;
+  const next=new Set(seen);next.add(e.id);
+  const find=(id:string)=>data.events.find(x=>x.id!==e.id&&x.routineId===id&&occurs(x,date));
+  const a=find(e.afterRoutineId),b=find(e.beforeRoutineId);
+  return [e.id,a?.id||null,b?.id||null,historicalBindings(a,date,data,next),historicalBindings(b,date,data,next)];
+}
+function unresolvedHistoryContext(e:EventItem,data:Data):any{
+  const events=new Set<string>(),routines=new Set<string>();
+  const visit=(item:EventItem)=>{if(events.has(item.id))return;events.add(item.id);if(item.routineId)routines.add(item.routineId);
+    if(item.anchor==='between')for(const id of [item.afterRoutineId,item.beforeRoutineId]){if(id)routines.add(id);data.events.filter(x=>x.id!==item.id&&x.routineId===id).forEach(visit);}};
+  visit(e);return {events:data.events.filter(x=>events.has(x.id)),routines:data.routines.filter(x=>routines.has(x.id))};
+}
+function historyPlanningIssue(before:Data,after:Data):string{
+  const removedGoals=new Set(before.goals.filter(g=>!after.goals.some(n=>n.id===g.id)).map(g=>g.id));
+  if(before.events===after.events&&before.routines===after.routines&&!removedGoals.size)return '';
+  if(sameHistoryValue(before.events,after.events)&&sameHistoryValue(before.routines,after.routines)&&!removedGoals.size)return '';
+  const blocked='No se guardó el cambio porque alteraría una actividad que ya tiene registros, aunque su fecha sea futura. Conservamos tus datos y el borrador. Puedes crear una copia independiente de la rutina para actividades futuras.';
+  const temporal=new Set(['date','endDate','applyFrom','time','endTime','minutes','anchor','repeat','repeatDays','everyDays','specificDates','afterRoutineId','beforeRoutineId','overrides']);
+  const identity=(e:EventItem)=>Object.fromEntries(Object.keys(e).filter(k=>!temporal.has(k)).sort().map(k=>[k,e[k]]));
+  const oldEvents=new Map(before.events.map(e=>[e.id,e])),newEvents=new Map(after.events.map(e=>[e.id,e]));
+  try{
+    for(const [k,log] of Object.entries(before.logs)){
+      // A planning action must never move, replace or delete any prior facts.
+      if(!Object.prototype.hasOwnProperty.call(after.logs,k)||!sameHistoryValue(log,after.logs[k]))return blocked;
+      const split=k.lastIndexOf('@'),id=split<0?k:k.slice(0,split),date=split<0?'':k.slice(split+1),old=oldEvents.get(id),next=newEvents.get(id);
+      if(!old){if(next)return blocked;continue;} // Do not attach an orphan record to a new activity.
+      if(!next||!sameHistoryValue(identity(old),identity(next)))return blocked;
+      const r=before.routines.find(r=>r.id===old.routineId),nr=after.routines.find(r=>r.id===old.routineId);
+      if(!sameHistoryValue(r,nr))return blocked;
+      const linked=new Set<string>([old.goalId]);
+      const goals=(steps:Step[])=>steps.forEach(step=>{if(step.goalId)linked.add(step.goalId);goals(step.children||[]);(step.variants||[]).forEach(v=>{if(v.goalId)linked.add(v.goalId);goals(v.children||[]);});});
+      if(r)goals(r.steps);if([...linked].some(id=>removedGoals.has(id)))return blocked;
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||ymd(parseDay(date))!==date){
+        if(sameHistoryValue(unresolvedHistoryContext(old,before),unresolvedHistoryContext(next,after)))continue;
+        return 'No podemos comprobar la fecha de un registro antiguo. Conservamos el original y tu borrador; exporta un respaldo antes de revisar su programación.';
+      }
+      if(occurs(old,date)!==occurs(next,date)||!sameHistoryValue(eventFrame(old,date,before),eventFrame(next,date,after))||
+        !sameHistoryValue(historicalBindings(old,date,before),historicalBindings(next,date,after)))return blocked;
+    }
+  }catch{return 'No pudimos comprobar que el historial quede intacto. No se guardó el cambio y conservamos tu borrador.';}
+  return '';
+}
+function plannerIdentities(data:Data):Set<string>{
+  const ids=new Set<string>();const add=(id:string)=>{if(id)ids.add(id);};
+  const steps=(items:Step[])=>items.forEach(s=>{add(s.id);add(s.goalId);steps(s.children||[]);(s.variants||[]).forEach(v=>{add(v.id);add(v.goalId);steps(v.children||[]);});});
+  data.goals.forEach(g=>{add(g.id);(g.milestones||[]).forEach(m=>add(m.id));});data.routines.forEach(r=>{add(r.id);steps(r.steps);});
+  data.events.forEach(e=>{[e.id,e.routineId,e.goalId,e.afterRoutineId,e.beforeRoutineId].forEach(add);});
+  Object.entries(data.logs).forEach(([k,l])=>{add(k);add(k.slice(0,k.lastIndexOf('@')));l.checkedSteps.forEach(add);Object.entries(l.choices||{}).forEach(([k,v])=>{add(k);add(v);});Object.keys(l.stepNotes||{}).forEach(add);(l.evidences||[]).forEach(e=>{add(e.id);add(e.stepId);});});
+  return ids;
+}
+function freshPlannerIdentity(ids:Set<string>):string{
+  for(let i=0;i<128;i++){const id=uid();if(id&&!ids.has(id)){ids.add(id);return id;}}
+  throw new Error('No pudimos reservar una identidad independiente. Vuelve a intentar crear la copia.');
+}
+function futureRoutineCopy(source:Routine,data:Data):RoutineDraft{
+  const copy:Routine=JSON.parse(JSON.stringify(source)),ids=plannerIdentities(data);
+  // Also reserve unsaved IDs in the source draft; they must not alias the copy.
+  const reserve=(items:Step[])=>items.forEach(s=>{ids.add(s.id);reserve(s.children||[]);(s.variants||[]).forEach(v=>{ids.add(v.id);reserve(v.children||[]);});});reserve(copy.steps);
+  const renew=(items:Step[])=>items.forEach(s=>{s.id=freshPlannerIdentity(ids);renew(s.children||[]);(s.variants||[]).forEach(v=>{v.id=freshPlannerIdentity(ids);renew(v.children||[]);});});renew(copy.steps);
+  return {...copy,id:'',title:(copy.title.trim()||'Rutina').slice(0,82)+' (copia)'};
+}
+
 function eventsOn(data:Data,date:string):EventItem[]{return data.events.filter(e=>occurs(e,date)&&(e.allDay||!!eventFrame(e,date,data))).sort((a,b)=>eventTime(a,date,data).localeCompare(eventTime(b,date,data)));}
 function eventTime(e:EventItem,date:string,data?:Data):string {const frame=data?eventFrame(e,date,data):null;return frame?timeString(frame.start):e.overrides?.[date]?.time||e.time;}
 function scheduleStart(e:EventItem,date:string,data:Data):number{return eventFrame(e,date,data)?.start??minutes(e.time);}
@@ -495,7 +565,7 @@ class Planner extends React.Component<{},State> {
     const id=JSON.stringify([e.id,date,stepId]);
     return {draft:this.noteDrafts.get(id),onDraft:text=>{if(text===undefined)this.noteDrafts.delete(id);else this.noteDrafts.set(id,text);},onDiscard:()=>this.askConfirm('Descartar borrador de nota','Esta nota todavía no se ha guardado. ¿Quieres descartar lo que escribiste?','Descartar borrador',true)};
   };
-  save = (data:Data,message='Cambios guardados'):boolean=>{
+  save = (data:Data,message='Cambios guardados',replaceAll=false):boolean=>{
     if(this.state.recovery){this.notice('Guardado bloqueado para proteger la información original. Descarga el original o vuelve a intentar la lectura.');return false;}
     if(this.state.pending){this.notice('Ya hay cambios pendientes. Esta nueva acción no se añadió; reinténtala después de resolver la copia pendiente.');return false;}
     let raw:string|null=null,valid=false;
@@ -503,6 +573,7 @@ class Planner extends React.Component<{},State> {
       raw=JSON.stringify(data)??null;if(raw===null)throw Error('Datos incompletos');const candidate=JSON.parse(raw);
       if(!validData(data)||!validData(candidate))throw Error('Datos incompatibles');
       valid=true;
+      if(!replaceAll){const issue=historyPlanningIssue(this.state.data,data);if(issue){this.notice(issue);return false;}}
       localStorage.setItem(STORE,raw);
       this.setState({data:candidate});this.notice(message);return true;
     }catch(err){
@@ -574,6 +645,13 @@ class Planner extends React.Component<{},State> {
     this.setState({modal:'goal',colorEditorOpen:false,hexDraft:draft.color,goalDraft:draft});
   };
   openRoutine=(r?:Routine):void=>{const draft=r?JSON.parse(JSON.stringify(r)):rDraft();this.initialDraft=JSON.stringify(draft);this.setState({modal:'routine',routineDraft:draft});};
+  copyRoutineForFuture=(r:Routine):void=>{
+    if(this.state.pending||this.state.recovery){this.notice('Resuelve el guardado pendiente o la recuperación antes de preparar una copia.');return;}
+    if(this.state.returnToSchedule){this.notice('Conservamos tus dos borradores. Vuelve a la programación y crea la copia desde Rutinas; no la vincularemos automáticamente a una actividad existente.');return;}
+    if(r!==this.state.routineDraft&&!this.canNavigate())return;
+    try{const draft=futureRoutineCopy(r,this.state.data);this.initialDraft='';this.setState({modal:'routine',routineDraft:draft,returnToSchedule:false});this.notice('Copia independiente preparada, todavía sin guardar. Conserva tus cambios y no incluye registros ni programaciones.');}
+    catch(err){this.notice(err.message||'No pudimos preparar la copia. Tu borrador sigue intacto.');}
+  };
   openEvent=(e?:EventItem,kind?:'occasion'):void=>{if(e?.kind==='review'){const g=this.state.data.goals.find(x=>x.id===e.goalId);if(g){this.openGoal(g);return;}}const draft:EventDraft=e?JSON.parse(JSON.stringify(e)):{...eDraft(this.state.selectedDate),...(kind==='occasion'?{kind:'occasion' as const,allDay:true}: {})};
     if(e&&e.date<today())draft.applyFrom=today();
     this.initialDraft=JSON.stringify(draft);this.setState({modal:'event',eventDraft:draft,datePickerMonth:firstMonth(draft.date)});};
@@ -665,7 +743,7 @@ class Planner extends React.Component<{},State> {
     if(next.review?.date){
       reviews.push({id:reviewId,kind:'review',title:'Revisión · '+next.title,date:next.review.date,time:next.review.time||'18:00',minutes:30,goalId:next.id,routineId:'',repeat:next.review.repeat||'none',note:'Revisa los avances de la meta, lo que aprendiste y qué conviene ajustar.',overrides:data.events.find(e=>e.id===reviewId)?.overrides||{}});
     }
-    this.save({...data,goals:before?data.goals.map(g=>g.id===x.id?next:g):[...data.goals,next],events:reviews});this.close(true);if(this.state.guideOpen){if(this.state.guideStep===1&&!x.id)this.selectGuideGoal(next.id);else if(this.state.guideStep===2&&!x.id&&x.parentId===this.state.guideGoalId)this.setState({guideStep:3,page:'calendario',modal:null});}
+    if(!this.save({...data,goals:before?data.goals.map(g=>g.id===x.id?next:g):[...data.goals,next],events:reviews}))return;this.close(true);if(this.state.guideOpen){if(this.state.guideStep===1&&!x.id)this.selectGuideGoal(next.id);else if(this.state.guideStep===2&&!x.id&&x.parentId===this.state.guideGoalId)this.setState({guideStep:3,page:'calendario',modal:null});}
   }
   schedulePreview=(draft:EventDraft):{date:string;label:string;start:string;end:string;length:number;issue:string;overlaps:string[];skipped?:boolean}[]=>{
     const r=this.state.data.routines.find(x=>x.id===draft.routineId);
@@ -722,8 +800,8 @@ class Planner extends React.Component<{},State> {
     const x=this.state.routineDraft;if(!x.title.trim()){this.setState({toast:'Escribe un nombre para la rutina'});return;}
     if((function invalid(steps:Step[]):boolean{return steps.some(s=>!s.title.trim()||(s.children&&invalid(s.children))||((s.variants||[]).some(v=>!!v.title.trim()&&(s.chooseWhen==='execute'||!!v.days.length)&&v.children&&invalid(v.children))))})(x.steps)){this.setState({toast:'Todos los pasos necesitan un nombre'});return;}
     const issue=this.routineIssue(x);if(issue){this.notice('Corrige la distribución de tiempo: '+issue);return;}
-    const data=this.state.data;const clean=(steps:Step[]):Step[]=>steps.map(s=>{const children=s.children?clean(s.children):undefined;return {...s,title:s.title.trim(),children,variants:s.variants?.filter(v=>v.title.trim()&&(s.chooseWhen==='execute'||v.days.length)).map(v=>({...v,title:v.title.trim(),days:[...new Set(v.days)],children:v.children?clean(v.children):undefined,min:Math.max(0,v.min)})),min:children&&children.length?children.reduce((a,c)=>a+stepMinutes(c),0):s.flexible?Math.max(5,s.min):Math.max(1,s.min),mode:s.mode||((s.variants||[]).length?'alternatives':'always')};});const result:Routine={...x,id:x.id||uid(),title:x.title.trim(),steps:clean(x.steps)};
-    this.save({...data,routines:x.id?data.routines.map(r=>r.id===x.id?result:r):[...data.routines,result],events:data.events.map(e=>e.routineId===result.id?{...e,minutes:routineMinutes(result)}:e)});
+    const data=this.state.data;let routineId=x.id;if(!routineId){try{const ids=plannerIdentities({...data,routines:[...data.routines,x]});routineId=freshPlannerIdentity(ids);}catch(err){this.notice(err.message);return;}}const clean=(steps:Step[]):Step[]=>steps.map(s=>{const children=s.children?clean(s.children):undefined;return {...s,title:s.title.trim(),children,variants:s.variants?.filter(v=>v.title.trim()&&(s.chooseWhen==='execute'||v.days.length)).map(v=>({...v,title:v.title.trim(),days:[...new Set(v.days)],children:v.children?clean(v.children):undefined,min:Math.max(0,v.min)})),min:children&&children.length?children.reduce((a,c)=>a+stepMinutes(c),0):s.flexible?Math.max(5,s.min):Math.max(1,s.min),mode:s.mode||((s.variants||[]).length?'alternatives':'always')};});const result:Routine={...x,id:routineId,title:x.title.trim(),steps:clean(x.steps)};
+    if(!this.save({...data,routines:x.id?data.routines.map(r=>r.id===x.id?result:r):[...data.routines,result],events:data.events.map(e=>e.routineId===result.id?{...e,minutes:routineMinutes(result)}:e)})&&!this.state.pending)return;
     if(this.state.returnToSchedule&&this.pendingSchedule){
       const draft=this.pendingSchedule;this.pendingSchedule=null;this.initialDraft=this.pendingScheduleBaseline;this.pendingScheduleBaseline='';
       this.setState({modal:'event',eventDraft:draft,returnToSchedule:false,scheduleContextNote:''});
@@ -819,10 +897,10 @@ class Planner extends React.Component<{},State> {
       const logs={...data.logs};
       Object.keys(logs).filter(k=>k.startsWith(original.id+'@')&&k.split('@')[1]>=finalStart).forEach(k=>{logs[cleanFuture.id+'@'+k.split('@')[1]]=logs[k];delete logs[k];});
       const nextData={...data,events:[...data.events.map(e=>e.id===original.id?history:e),cleanFuture],logs};
-      const planned=await withOverlap(nextData);if(!planned)return;this.save(planned,'Programación actualizada desde '+finalStart);
+      const planned=await withOverlap(nextData);if(!planned)return;if(!this.save(planned,'Programación actualizada desde '+finalStart))return;
     }else{
       if(future.routineId&&data.events.some(other=>other.id!==result.id&&other.routineId===future.routineId&&sameScheduleActive(other,today()))){this.notice('Esta rutina ya está programada. Reprograma la existente.');return;}
-      const planned=await withOverlap({...data,events:x.id?data.events.map(e=>e.id===x.id?cleanFuture:e):[...data.events,cleanFuture]});if(!planned)return;this.save(planned,'Actividad guardada');
+      const planned=await withOverlap({...data,events:x.id?data.events.map(e=>e.id===x.id?cleanFuture:e):[...data.events,cleanFuture]});if(!planned)return;if(!this.save(planned,'Actividad guardada'))return;
     }
     this.close(true);
     if(this.state.guideOpen){if(this.state.guideStep===3&&result.goalId===this.state.guideGoalId)this.setState({guideStep:4,page:'rutinas'});else if(this.state.guideStep===4&&result.routineId){this.setState({guideStep:5,page:'horario',selectedDate:result.date,month:firstMonth(result.date),guideEventId:cleanFuture.id});}}
@@ -849,7 +927,7 @@ class Planner extends React.Component<{},State> {
     if(!(await this.askConfirm('Eliminar rutina',`¿Eliminar «${r.title}»? Las actividades conservarán su nombre pero perderán sus pasos.${dependents.length?'\n\nSe cancelarán las programaciones futuras de '+dependents.length+' bloque(s) dependiente(s); se conserva el historial.':''}`,'Eliminar rutina',true)))return;
     const d=this.state.data;
     const next=this.cancelFutureDependencies({...d,routines:d.routines.filter(x=>x.id!==r.id),events:d.events.map(e=>e.routineId===r.id?{...e,routineId:''}:e)},r.id);
-    this.save(next);this.close(true);
+    if(this.save(next))this.close(true);
   }
   deleteEvent=async (e:EventItem):Promise<void>=>{
     const dependents=e.routineId?this.state.data.events.filter(x=>x.anchor==='between'&&(x.afterRoutineId===e.routineId||x.beforeRoutineId===e.routineId)):[];
@@ -860,7 +938,7 @@ class Planner extends React.Component<{},State> {
     const old=e.date<cutoff;
     const updated=d.events.flatMap(item=>item.id!==e.id?[item]:old?[{...item,endDate:addDays(cutoff,-1)}]:[]);
     const next=(e.routineId&&sameScheduleActive(e,from)?this.cancelFutureDependencies({...d,events:updated,goals:e.kind==='review'?d.goals.map(g=>g.id===e.goalId?{...g,review:undefined}:g):d.goals,logs},e.routineId,cutoff):{...d,events:updated,goals:e.kind==='review'?d.goals.map(g=>g.id===e.goalId?{...g,review:undefined}:g):d.goals,logs});
-    this.save(next);this.close(true);
+    if(this.save(next))this.close(true);
   }
   saveEvidence=async (e:EventItem,date:string,stepId:string,file:File):Promise<void>=>{
     if(!file||!file.type.startsWith('image/')){this.notice('Selecciona una imagen válida.');return;}
@@ -894,9 +972,13 @@ class Planner extends React.Component<{},State> {
     const value=text.trim();const updated:RecordLog=stepId?{...log,stepNotes:{...log.stepNotes,[stepId]:value}}:{...log,note:value};
     this.save({...d,logs:{...d.logs,[k]:updated}},'Nota guardada en el historial');
   };
-  selectVariant=(e:EventItem,date:string,stepId:string,choice:string):void=>{
-    const d=this.state.data,k=key(e,date),r=d.logs[k]||{completed:false,checkedSteps:[]};
-    this.save({...d,logs:{...d.logs,[k]:{...r,choices:{...r.choices,[stepId]:choice},checkedSteps:[],completed:false}}},'Elección guardada solo para este día');
+  selectVariant=async (e:EventItem,date:string,stepId:string,choice:string):Promise<void>=>{
+    const k=key(e,date),original=this.state.data.logs[k],previous=original?.choices?.[stepId];
+    if(previous===choice)return;
+    if((previous!==undefined||original?.completed)&&!await this.askConfirm('Corregir alternativa','Cambiarás la alternativa de esta fecha. Conservaremos todas las marcas, notas y fotos, incluso las de pasos que dejen de mostrarse. La actividad quedará pendiente para que revises su progreso.','Cambiar alternativa'))return;
+    const d=this.state.data,r=d.logs[k]||{completed:false,checkedSteps:[]};
+    if(r.choices?.[stepId]!==previous){this.notice('La elección cambió mientras confirmabas. Revisa el registro antes de volver a corregirla.');return;}
+    this.save({...d,logs:{...d.logs,[k]:{...r,choices:{...r.choices,[stepId]:choice},completed:false}}},'Alternativa guardada; marcas, notas y fotos conservadas');
   };
   shiftEvent=(e:EventItem,date:string,delta:number):void=>{
     if(e.anchor==='between'){this.notice('Este bloque depende de dos rutinas. Para moverlo, reprograma alguna de sus rutinas límite.');return;}
@@ -917,7 +999,7 @@ class Planner extends React.Component<{},State> {
     const d=this.state.data,g=d.goals.find(x=>x.id===this.state.progressGoalId);if(!g)return;
     const mode=goalMode(g),val=mode==='numeric'?Number(this.state.progressValue.replace(',','.')):g.current;if(mode==='numeric'&&(!Number.isFinite(val)||val<0)){this.setState({toast:'Registra un valor válido mayor o igual a cero'});return;}
     const next={...g,current:val,status:mode==='qualitative'?this.state.progressStatus:goalStatus(g),history:[...g.history,{date:today(),value:val,note:this.state.progressNote.trim(),status:mode==='qualitative'?this.state.progressStatus:undefined}]};
-    this.save({...d,goals:d.goals.map(x=>x.id===g.id?next:x)},'Avance registrado');this.close(true);
+    if(this.save({...d,goals:d.goals.map(x=>x.id===g.id?next:x)},'Avance registrado'))this.close(true);
   }
   toggleMilestone=(goalId:string,milestoneId:string):void=>{const d=this.state.data;const g=d.goals.find(x=>x.id===goalId);if(!g)return;const ms=goalMilestones(g).map(m=>m.id===milestoneId?{...m,done:!m.done}:m);const n=ms.filter(m=>m.done).length;const next={...g,milestones:ms,current:n,target:ms.length,history:[...g.history,{date:today(),value:n,note:'Hito actualizado'}]};this.save({...d,goals:d.goals.map(x=>x.id===goalId?next:x)},'Hito actualizado');};
   retryLocalLoad=():void=>{
@@ -990,7 +1072,7 @@ class Planner extends React.Component<{},State> {
     if(this.state.pending){this.notice('No se pueden restablecer ejemplos mientras hay cambios pendientes.');return;}
     if(this.state.recovery){this.notice('No se pueden restablecer ejemplos mientras el original está protegido.');return;}
     if(!(await this.askConfirm('Restablecer ejemplos','Se perderán los datos actuales. Descarga un respaldo antes de continuar.','Restablecer',true)))return;
-    this.save(seed(),'Ejemplos restablecidos');this.setState({page:'inicio',selectedDate:today(),month:firstMonth(today())});
+    if(!this.save(seed(),'Ejemplos restablecidos',true))return;this.setState({page:'inicio',selectedDate:today(),month:firstMonth(today())});
   }
   childrenOf=(id:string):Goal[]=>this.state.data.goals.filter(g=>g.parentId===id);
   descendants=(id:string):string[]=>{
@@ -1139,6 +1221,7 @@ class Planner extends React.Component<{},State> {
         <div className="actions">{this.state.guideOpen&&this.state.guideStep===4&&<Btn tiny kind="secondary" onClick={()=>this.useRoutineForGuide(r)}>Usar en la guía</Btn>}
           <Btn tiny onClick={()=>this.chooseRoutineForSchedule(r)}><Icon name="calendar" size={14}/> {scheduled?'Reprogramar':'Programar'}</Btn>
           <Btn tiny kind="secondary" onClick={()=>this.openRoutine(r)}><Icon name="edit" size={14}/> Editar</Btn>
+          <Btn tiny kind="secondary" onClick={()=>this.copyRoutineForFuture(r)}>Crear copia</Btn>
           <Btn tiny kind="ghost" onClick={()=>this.deleteRoutine(r)}><Icon name="trash" size={14}/></Btn></div>
       </div>;})}</div>
       {!rs.length&&<div className="panel"><div className="empty"><strong>Aún no tienes rutinas</strong><p>Crea un procedimiento, sus pasos y duración estimada.</p><Btn onClick={()=>this.openRoutine()}>Crear rutina</Btn></div></div>}
@@ -1327,6 +1410,7 @@ class Planner extends React.Component<{},State> {
     const r=this.state.routineDraft,mode=r.durationMode||'steps',active=activeSteps(r.steps,this.state.selectedDate),balance=routineBalance(r,this.state.selectedDate),issue=this.routineIssue(r);
     const allocations=leafAllocation(active,routineMinutes(r)),flexLeaves=leafSteps(active).filter(x=>x.flexible),free=Math.max(0,routineMinutes(r)-fixedStepMinutes(active));
     return <div className='routine-form-v07' style={{'--routine-accent':r.color||'#a26cf4'} as any}>
+      {r.id&&recordedRoutine(this.state.data,r.id)&&<div className='notice' role='status'><strong>Esta rutina conserva registros.</strong><p>Para proteger sus pasos, alternativas y tiempos anteriores, prepara los cambios en una copia independiente. Tus registros y la programación original se conservan.</p><Btn kind='secondary' onClick={()=>this.copyRoutineForFuture(r)} disabled={this.state.returnToSchedule}>Continuar estos cambios en una copia</Btn>{this.state.returnToSchedule&&<p>Vuelve a la programación antes de crear la copia desde Rutinas; ambos borradores siguen disponibles.</p>}</div>}
       {this.state.returnToSchedule&&<div className='routine-context-alert'><Icon name='clock' size={22}/><div><strong>Actualizando rutina para programarla entre bloques</strong><p>{this.state.scheduleContextNote}</p><small>Al guardar regresarás a la programación, con las horas ya actualizadas.</small></div></div>}
       <section className='routine-edit-section'><div className='editor-section-title'><span>01</span><div><h3>Identidad</h3><p>Nombre, icono y propósito de la rutina</p></div></div>
         <div className='field'><label>Nombre de la rutina *</label><input maxLength={90} value={r.title} onChange={ev=>this.updateRoutineDraft({title:ev.target.value})} placeholder='Ej. Trabajo concentrado'/></div>

@@ -2,6 +2,17 @@
 
 **Fullhouse** es una herramienta independiente de organización integral: metas, rutinas, calendario propio y progreso. Es la versión ligera para prueba e iteraciones, sin sincronización con calendarios ni servicios externos.
 
+## Protección del historial en la preparación comercial
+
+Las rutinas utilizadas conservan sus definiciones: un cambio que altere actividades
+registradas se bloquea y mantiene el borrador. Usa **Crear copia** para preparar una
+rutina independiente; desde el editor también puedes continuar tus cambios en esa
+copia. Sus registros y programación originales no se trasladan. Después puedes
+guardar y programar la copia. Las fechas futuras con registros también se protegen.
+
+Esta es una mitigación v1, sin cuentas ni nube todavía. No recupera definiciones
+históricas ya perdidas. [Alcance, restricciones y pruebas](docs/COMMERCIAL_V1_HISTORY_GUARDRAILS.md).
+
 ## Cómo empezar
 
 ### Abrir en tu equipo
