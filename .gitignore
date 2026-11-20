@@ -1,3 +1,10 @@
 node_modules/
 .DS_Store
 *.log
+dist-staging/
+.firebase/
+.env
+.env.*
+!.env.example
+staging/firebase-config.local.json
+.firebaserc

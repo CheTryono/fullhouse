@@ -1,0 +1,8 @@
+{
+  "firebase": {
+    "apiKey": "YOUR_PUBLIC_WEB_API_KEY",
+    "authDomain": "YOUR_STAGING_PROJECT.firebaseapp.com",
+    "projectId": "YOUR_STAGING_PROJECT",
+    "appId": "YOUR_PUBLIC_WEB_APP_ID"
+  }
+}

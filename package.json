@@ -8,12 +8,28 @@
     "test:known-bugs": "node --test tests/known-bugs.test.cjs",
     "check": "tsc -p tsconfig.json --noEmit && node --check app.js && node scripts/check-build.cjs",
     "check:history-contract": "tsc -p contracts/tsconfig.json",
-    "test:history-contract": "node --test tests/history-contract*.test.cjs"
+    "test:history-contract": "node --test tests/history-contract*.test.cjs",
+    "check:auth": "tsc -p auth/tsconfig.json",
+    "build:staging": "node scripts/build-auth-staging.cjs",
+    "build:staging:emulator": "node scripts/build-auth-staging.cjs --emulator",
+    "dev:auth": "node scripts/test-auth-staging.cjs --serve",
+    "test:auth": "node --test tests/auth-*.test.cjs",
+    "test:auth:emulator": "node scripts/test-auth-staging.cjs"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "devDependencies": {
+    "esbuild": "0.28.2",
+    "firebase-tools": "15.37.0",
     "typescript": "5.9.3"
+  },
+  "dependencies": {
+    "firebase": "13.4.0"
+  },
+  "overrides": {
+    "firebase": {
+      "@grpc/grpc-js": "1.14.7"
+    }
   }
 }
