@@ -1,3 +1,12 @@
+// Optional staging port. Pages has no port and retains its original storage paths.
+const accountWorkspace = window.FullhouseAccountWorkspace;
+const plannerStorage = {
+    getItem: (name) => accountWorkspace ? accountWorkspace.storage.getItem(name) : localStorage.getItem(name),
+    setItem: (name, value) => { if (accountWorkspace)
+        accountWorkspace.storage.setItem(name, value);
+    else
+        localStorage.setItem(name, value); }
+};
 const STORE = 'fullhouse-v01';
 const SLEEP_START_STORE = 'fullhouse-sleep-start-v09';
 const SLEEP_HOURS_STORE = 'fullhouse-sleep-hours-v09';
@@ -17,13 +26,13 @@ const THEME_STORE = 'fullhouse-theme-v02';
 const LAYOUT_STORE = 'fullhouse-modal-layout-v02';
 const GUIDE_STORE = 'fullhouse-onboarding-v03'; // Mantener para no reiniciar guías ya finalizadas.
 function getPreference(name) { try {
-    return localStorage.getItem(name) || '';
+    return plannerStorage.getItem(name) || '';
 }
 catch {
     return '';
 } }
 function putPreference(name, value) { try {
-    localStorage.setItem(name, value);
+    plannerStorage.setItem(name, value);
 }
 catch (err) {
     console.warn('No se pudo guardar preferencia', err);
@@ -102,18 +111,18 @@ function seed() {
 function load() {
     // Existing but unreadable data must never look like a new installation.
     // Do not fall back to the legacy store when the current store is present.
-    for (const key of [STORE, LEGACY_STORE]) {
+    for (const key of accountWorkspace ? [STORE] : [STORE, LEGACY_STORE]) {
         let raw = null;
         const blocked = () => ({ data: { version: 1, goals: [], routines: [], events: [], logs: {} }, recovery: { key, raw } });
         try {
-            raw = localStorage.getItem(key);
+            raw = plannerStorage.getItem(key);
             if (raw === null)
                 continue;
             const parsed = JSON.parse(raw);
             if (!validData(parsed))
                 return blocked();
             if (key === LEGACY_STORE)
-                localStorage.setItem(STORE, raw); // Original is retained.
+                plannerStorage.setItem(STORE, raw); // Original is retained.
             return { data: parsed, recovery: null };
         }
         catch (err) {
@@ -121,7 +130,7 @@ function load() {
             return blocked();
         }
     }
-    return { data: seed(), recovery: null };
+    return { data: accountWorkspace ? { version: 1, goals: [], routines: [], events: [], logs: {} } : seed(), recovery: null };
 }
 /* Validate known fields without normalizing or dropping historical/unknown fields.
    Optional additions stay optional so version-1 backups from earlier releases work. */
@@ -892,7 +901,7 @@ class Planner extends React.Component {
                         return false;
                     }
                 }
-                localStorage.setItem(STORE, raw);
+                plannerStorage.setItem(STORE, raw);
                 this.setState({ data: candidate });
                 this.notice(message);
                 return true;
@@ -913,7 +922,7 @@ class Planner extends React.Component {
                 const data = JSON.parse(pending.raw);
                 if (!validData(data))
                     throw Error('Respaldo incompatible');
-                localStorage.setItem(STORE, pending.raw);
+                plannerStorage.setItem(STORE, pending.raw);
                 this.setState({ data, pending: null });
                 this.notice('Cambios pendientes guardados correctamente');
             }
@@ -1721,7 +1730,7 @@ class Planner extends React.Component {
             // Check before load(): a missing captured source must not trigger legacy copy.
             if (this.state.recovery && this.state.recovery.raw !== null) {
                 try {
-                    if (localStorage.getItem(this.state.recovery.key) === null) {
+                    if (plannerStorage.getItem(this.state.recovery.key) === null) {
                         this.notice('No encontramos el original. La copia capturada sigue disponible para descargar.');
                         return;
                     }
@@ -1815,7 +1824,7 @@ class Planner extends React.Component {
                 // localStorage.setItem is atomic: publish the new state only after it succeeds.
                 // Keep general save() behavior (BUG-01) unchanged outside backup restoration.
                 try {
-                    localStorage.setItem(STORE, JSON.stringify(data));
+                    plannerStorage.setItem(STORE, JSON.stringify(data));
                 }
                 catch (err) {
                     fail('No pudimos guardar el respaldo: falta espacio o el navegador bloqueó el almacenamiento.');
@@ -3934,4 +3943,5 @@ class Planner extends React.Component {
                         clearTimeout(this.toastTimer); this.setState({ toast: '' }); } }, "\u00D7")));
     }
 }
-ReactDOM.render(React.createElement(Planner, null), document.getElementById('app'));
+const mountedPlanner = ReactDOM.render(React.createElement(Planner, null), document.getElementById('app'));
+accountWorkspace === null || accountWorkspace === void 0 ? void 0 : accountWorkspace.registerPlanner(mountedPlanner);

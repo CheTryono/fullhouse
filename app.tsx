@@ -28,6 +28,12 @@ type Modal = 'goal' | 'routine' | 'event' | 'execute' | 'progress' | 'detail' | 
 type ConfirmDialog = {title:string; message:string; acceptLabel:string; danger:boolean};
 type State = { pending:PendingSave|null; recovery:StorageRecovery|null; clockMinutes:number; expandedTodayId:string; scheduleFocusId:string; sleepStart:string; sleepHours:number; soundsOn:boolean; dragOverCardId:string; confirmDialog:ConfirmDialog|null; durationDisplay:'hours'|'minutes'; returnToSchedule:boolean; scheduleContextNote:string; data: Data; page: Page; selectedDate: string; month: string; modal: Modal; goalDraft: GoalDraft; routineDraft: RoutineDraft; eventDraft: EventDraft; activeEventId: string; detailPath: string[]; progressValue: string; progressNote: string; progressStatus: GoalStatus; progressGoalId: string; toast: string; theme: Theme; modalLayout: 'vertical'|'horizontal'; guideOpen: boolean; guideStep: number; guideGoalId: string; guideEventId: string; helpTopic: string; helpOpen:boolean; areaFilter:LifeArea|'all'; goalView: 'cards'|'map'; mapGrouping: 'structure'|'time'; colorEditorOpen:boolean; hexDraft:string; draggedStepId:string; dragTargetId:string; draggedCardType:''|'goal'|'routine'; draggedCardId:string; datePickerMonth:string; calendarDetailOpen:boolean; advancedOpen:boolean; expandedGoalPick:string[]; helpX:number|null; helpY:number|null; reviewDraft:string; evidenceCaption:string };
 
+// Optional staging port. Pages has no port and retains its original storage paths.
+const accountWorkspace=(window as any).FullhouseAccountWorkspace as {storage:Pick<Storage,'getItem'|'setItem'>;registerPlanner:(planner:any)=>void}|undefined;
+const plannerStorage={
+  getItem:(name:string):string|null=>accountWorkspace?accountWorkspace.storage.getItem(name):localStorage.getItem(name),
+  setItem:(name:string,value:string):void=>{if(accountWorkspace)accountWorkspace.storage.setItem(name,value);else localStorage.setItem(name,value);}
+};
 const STORE = 'fullhouse-v01';
 const SLEEP_START_STORE='fullhouse-sleep-start-v09';
 const SLEEP_HOURS_STORE='fullhouse-sleep-hours-v09';
@@ -44,8 +50,8 @@ const DURATION_STORE='fullhouse-duration-display-v07';
 const THEME_STORE = 'fullhouse-theme-v02';
 const LAYOUT_STORE = 'fullhouse-modal-layout-v02';
 const GUIDE_STORE = 'fullhouse-onboarding-v03'; // Mantener para no reiniciar guías ya finalizadas.
-function getPreference(name:string):string{try{return localStorage.getItem(name)||'';}catch{return '';}}
-function putPreference(name:string,value:string):void{try{localStorage.setItem(name,value);}catch(err){console.warn('No se pudo guardar preferencia',err);}}
+function getPreference(name:string):string{try{return plannerStorage.getItem(name)||'';}catch{return '';}}
+function putPreference(name:string,value:string):void{try{plannerStorage.setItem(name,value);}catch(err){console.warn('No se pudo guardar preferencia',err);}}
 const lifeAreas:{id:LifeArea;title:string;detail:string;color:string}[]=[
   {id:'mind',title:'Mente',detail:'Aprendizaje, experiencias, hábitos y crecimiento personal.',color:'#8d70ec'},
   {id:'physical',title:'Físico',detail:'Fuerza, salud, habilidades, movimiento y alimentación.',color:'#e77991'},
@@ -120,19 +126,19 @@ function seed():Data {
 function load():LocalLoad {
   // Existing but unreadable data must never look like a new installation.
   // Do not fall back to the legacy store when the current store is present.
-  for(const key of [STORE,LEGACY_STORE]){
+  for(const key of accountWorkspace?[STORE]:[STORE,LEGACY_STORE]){
     let raw:string|null=null;
     const blocked=():LocalLoad=>({data:{version:1,goals:[],routines:[],events:[],logs:{}},recovery:{key,raw}});
     try{
-      raw=localStorage.getItem(key);
+      raw=plannerStorage.getItem(key);
       if(raw===null)continue;
       const parsed=JSON.parse(raw);
       if(!validData(parsed))return blocked();
-      if(key===LEGACY_STORE)localStorage.setItem(STORE,raw); // Original is retained.
+      if(key===LEGACY_STORE)plannerStorage.setItem(STORE,raw); // Original is retained.
       return {data:parsed,recovery:null};
     }catch(err){console.warn('No se pudo cargar el almacenamiento; original protegido',err);return blocked();}
   }
-  return {data:seed(),recovery:null};
+  return {data:accountWorkspace?{version:1,goals:[],routines:[],events:[],logs:{}}:seed(),recovery:null};
 }
 /* Validate known fields without normalizing or dropping historical/unknown fields.
    Optional additions stay optional so version-1 backups from earlier releases work. */
@@ -574,7 +580,7 @@ class Planner extends React.Component<{},State> {
       if(!validData(data)||!validData(candidate))throw Error('Datos incompatibles');
       valid=true;
       if(!replaceAll){const issue=historyPlanningIssue(this.state.data,data);if(issue){this.notice(issue);return false;}}
-      localStorage.setItem(STORE,raw);
+      plannerStorage.setItem(STORE,raw);
       this.setState({data:candidate});this.notice(message);return true;
     }catch(err){
       this.setState({pending:{raw,valid}});
@@ -587,7 +593,7 @@ class Planner extends React.Component<{},State> {
     try{
       if(!pending.valid||pending.raw===null)throw Error('Respaldo incompatible');
       const data=JSON.parse(pending.raw);if(!validData(data))throw Error('Respaldo incompatible');
-      localStorage.setItem(STORE,pending.raw);
+      plannerStorage.setItem(STORE,pending.raw);
       this.setState({data,pending:null});this.notice('Cambios pendientes guardados correctamente');
     }catch(err){this.notice('Los cambios siguen pendientes. El último estado guardado no se ha modificado. Puedes exportarlos para conservarlos.');}
   };
@@ -1006,7 +1012,7 @@ class Planner extends React.Component<{},State> {
     if(this.state.pending){this.notice('Resuelve los cambios pendientes antes de volver a cargar los datos.');return;}
     // Check before load(): a missing captured source must not trigger legacy copy.
     if(this.state.recovery&&this.state.recovery.raw!==null){
-      try{if(localStorage.getItem(this.state.recovery.key)===null){this.notice('No encontramos el original. La copia capturada sigue disponible para descargar.');return;}}
+      try{if(plannerStorage.getItem(this.state.recovery.key)===null){this.notice('No encontramos el original. La copia capturada sigue disponible para descargar.');return;}}
       catch(err){/* load() below reports the read failure and retains the snapshot. */}
     }
     const result=load();
@@ -1061,7 +1067,7 @@ class Planner extends React.Component<{},State> {
       }catch(err){fail('No pudimos abrir este respaldo. Comprueba que sea un archivo JSON de Fullhouse.');return;}
       // localStorage.setItem is atomic: publish the new state only after it succeeds.
       // Keep general save() behavior (BUG-01) unchanged outside backup restoration.
-      try{localStorage.setItem(STORE,JSON.stringify(data));}
+      try{plannerStorage.setItem(STORE,JSON.stringify(data));}
       catch(err){fail('No pudimos guardar el respaldo: falta espacio o el navegador bloqueó el almacenamiento.');return;}
       this.setState({data,page:'inicio',modal:null});this.notice('Respaldo restaurado');
     };
@@ -1533,4 +1539,5 @@ class Planner extends React.Component<{},State> {
       <div className="content">{this.state.page==='hoy'?this.renderToday():this.state.page==='inicio'?this.renderHome():this.state.page==='metas'?this.renderGoals():this.state.page==='rutinas'?this.renderRoutines():this.state.page==='horario'?this.renderSchedule():this.state.page==='calendario'?this.renderCalendar():this.state.page==='progreso'?this.renderProgress():this.renderSettings()}</div></main>{this.renderModal()}{this.renderConfirm()}{this.renderGuide()}{this.renderHelpPanel()}{this.state.toast&&<div className="toast" role="status"><span>{this.state.toast}</span><button aria-label="Cerrar aviso" onClick={()=>{if(this.toastTimer)clearTimeout(this.toastTimer);this.setState({toast:''});}}>×</button></div>}</div>;
   }
 }
-ReactDOM.render(<Planner/>,document.getElementById('app'));
+const mountedPlanner=ReactDOM.render(<Planner/>,document.getElementById('app'));
+accountWorkspace?.registerPlanner(mountedPlanner);

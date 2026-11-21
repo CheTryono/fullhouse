@@ -12,7 +12,7 @@ const event = (id = 'event', patch = {}) => ({
   goalId: '', routineId: '', repeat: 'none', note: '', overrides: {}, ...patch,
 });
 
-function app({ data = emptyData(), stored = {}, failRead = false, failWrite = false, writeError = 'QuotaExceededError', fileFailure = '', useLoadedData = false } = {}) {
+function app({ data = emptyData(), stored = {}, failRead = false, failWrite = false, writeError = 'QuotaExceededError', fileFailure = '', useLoadedData = false, workspace = undefined, failStorageAccess = false } = {}) {
   const storage = new Map(Object.entries(stored));
   const confirmations = [];
   const warnings = [];
@@ -40,7 +40,7 @@ function app({ data = emptyData(), stored = {}, failRead = false, failWrite = fa
   }
   const context = vm.createContext({
     Date: Clock, FileReader, Blob, setTimeout() {}, setInterval() { return 1; }, clearInterval() {}, clearTimeout() {},
-    window: { addEventListener(name, fn) { listeners.set(name, fn); }, removeEventListener(name) { listeners.delete(name); }, scrollTo() {} },
+    window: { ...(workspace ? {FullhouseAccountWorkspace: workspace} : {}), addEventListener(name, fn) { listeners.set(name, fn); }, removeEventListener(name) { listeners.delete(name); }, scrollTo() {} },
     URL: { createObjectURL(blob) { const url = 'blob:synthetic-' + blobs.size; blobs.set(url, blob); return url; }, revokeObjectURL() {} },
     React: { Component, createElement() {} }, ReactDOM: { render() {} },
     document: { addEventListener() {}, removeEventListener() {}, querySelectorAll() { return []; }, getElementById() { return null; }, body: { style: {}, appendChild() {} }, createElement() { return { click() { downloads.push({ name: this.download, blob: blobs.get(this.href) }); }, remove() {} }; } },
@@ -50,6 +50,7 @@ function app({ data = emptyData(), stored = {}, failRead = false, failWrite = fa
       setItem(name, value) { if (failWrite) { const error = new Error('Synthetic storage failure'); error.name = writeError; throw error; } storage.set(name, String(value)); },
     },
   });
+  if(failStorageAccess)Object.defineProperty(context,'localStorage',{get(){throw new Error('Synthetic storage access denied');}});
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../../app.js'), 'utf8'), context, { filename: 'app.js' });
   const controller = vm.runInContext('new Planner({})', context);
   if (!useLoadedData) controller.state.data = plain(data);

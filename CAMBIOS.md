@@ -1,3 +1,27 @@
+# Comercial · PR 2: autenticación y staging aislados
+
+- Base d159fe6 (PR #19), rama feat/commercial-auth-staging. Firebase Web SDK 13.4.0:
+  registro/acceso por correo, cierre, verificación/reenvío/comprobación y recuperación.
+  Formularios de acción para enlaces reales; mensajes controlados sin falsos éxitos.
+- Entrada/compilación/Hosting separados. Pages y su workflow no cambian. Sin config
+  no se abre Planner ni se simula acceso. Sin despliegue ni proyecto real conectado.
+- Puerto opcional mínimo en Planner, con fallback al camino v1 original. Espacio
+  vacío por cuenta verificada, prefijo proyecto/UID para datos y preferencias; ni
+  lectura, copia, asociación ni eliminación automáticas de fullhouse-v01/alias.
+- Ventana nueva por cuenta; concesiones revocadas impiden escrituras asíncronas de
+  la sesión anterior. Salida bloqueada con borradores/fotos pendientes. Si cambia
+  inesperadamente la sesión, borradores ocultos recuperables solo por el mismo UID.
+- Los datos siguen locales; sin autorización/almacenamiento remoto, cifrado local
+  ni sincronización del mismo UID entre pestañas. No se incorporó historial v2.
+- SDK real probado contra emuladores Auth/Hosting con proyecto demo y datos sintéticos;
+  no prueba entrega real de correos ni configuración de un proyecto real.
+- Dependencias fijadas. Override gRPC de Firebase: auditoría de producción sin avisos;
+  14 moderados en herramientas CLI de desarrollo pendientes, cero altos/críticos.
+- UX pendiente antes del lanzamiento: claridad anticipada de rechazos históricos y
+  reprogramaciones de PR #19. Se registra sin modificar las guardas del motor.
+- Instrucciones y resultados: docs/COMMERCIAL_AUTH_STAGING.md y measurements/commercial-auth-*.
+  app.tsx/app.js sincronizados. Sin merge, migración, despliegue, Stripe ni siguiente fase.
+
 # Comercial · PR 1: guardas públicas de historial v1
 
 - Base 721ce2d, rama fix/commercial-v1-history-guardrails. No incorpora B.3c.1/v2.

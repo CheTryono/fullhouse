@@ -1,0 +1,39 @@
+{
+  "browser": "156.0.8078.79",
+  "backend": "Firebase Auth emulator demo-fullhouse-auth",
+  "physicalDevices": false,
+  "realEmailDeliveryTested": false,
+  "realFirebaseProjectTested": false,
+  "unconfiguredFailsClosed": true,
+  "directPlannerBlocked": true,
+  "results": [
+    {
+      "width": 1280,
+      "registration": true,
+      "verificationRequired": true,
+      "verificationAppliedOnEmulator": true,
+      "login": true,
+      "logout": true,
+      "resetChangesAcceptedPassword": true,
+      "sessionReload": true,
+      "accountIsolation": true,
+      "legacyUntouched": true,
+      "dirtyLogoutBlocked": true,
+      "noJavaScriptErrors": true
+    },
+    {
+      "width": 390,
+      "registration": true,
+      "verificationRequired": true,
+      "verificationAppliedOnEmulator": true,
+      "login": true,
+      "logout": true,
+      "resetChangesAcceptedPassword": true,
+      "sessionReload": true,
+      "accountIsolation": true,
+      "legacyUntouched": true,
+      "dirtyLogoutBlocked": true,
+      "noJavaScriptErrors": true
+    }
+  ]
+}

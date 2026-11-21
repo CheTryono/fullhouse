@@ -13,6 +13,22 @@ guardar y programar la copia. Las fechas futuras con registros también se prote
 Esta es una mitigación v1, sin cuentas ni nube todavía. No recupera definiciones
 históricas ya perdidas. [Alcance, restricciones y pruebas](docs/COMMERCIAL_V1_HISTORY_GUARDRAILS.md).
 
+## Cuentas y entorno independiente de pruebas
+
+La rama comercial prepara Firebase Authentication y Hosting de staging sin cambiar
+GitHub Pages. Registro, acceso, verificación y recuperación se prueban con el SDK
+real y emuladores. No hay proyecto Firebase real conectado ni despliegue autorizado.
+
+```sh
+npm ci
+npm run dev:auth
+```
+
+Node 22+. Abrir http://127.0.0.1:5000; solo cuentas sintéticas. Cada cuenta verificada
+abre un espacio local separado por proyecto/UID. No se importa `fullhouse-v01` ni su
+alias. **Los datos de cuenta aún no se guardan en la nube ni sincronizan dispositivos.**
+[Configuración personal de Firebase, pruebas y límites](docs/COMMERCIAL_AUTH_STAGING.md).
+
 ## Cómo empezar
 
 ### Abrir en tu equipo

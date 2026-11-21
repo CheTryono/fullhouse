@@ -8,8 +8,10 @@ No es un compromiso de fechas ni autorización de despliegue.
 
 | Estado | Trabajo | Evidencia / siguiente paso |
 | --- | --- | --- |
-| 🔄 | PR comercial 1: protección mínima del historial v1 | Implementada y probada en rama fix/commercial-v1-history-guardrails; pendiente de revisión, sin despliegue |
-| ⬜ | Cuentas, persistencia remota y fotografías privadas | Siguiente PR tras aprobación; sin servicios configurados |
+| ✅ | PR comercial 1: protección mínima del historial v1 | PR #19 fusionada; main d159fe6. Mitigación por bloqueo/copia, sin v2 |
+| 🔄 | PR comercial 2: cuentas y Hosting de pruebas | SDK/emuladores y aislamiento local implementados; pendiente revisión/configuración humana, sin despliegue |
+| ⬜ | PR comercial 3: persistencia remota y fotografías privadas | Requiere autorización de servidor por UID, reglas, CAS, respaldos/restauración; sin servicios configurados |
+| ⬜ | UX antes del lanzamiento: avisos de protección histórica | Explicar antes del rechazo qué fecha/registro impide reprogramar y cómo continuar con copia; conservar borradores. No cambiar motor en PR 2 |
 | ⬜ | Suscripciones, información pública y validación de lanzamiento | Condicionado a aislamiento, recuperación y decisiones comerciales |
 
 B.3c.1 permanece pausada en feature/history-scoped-events-shift-v2, commit 773c2d2.
