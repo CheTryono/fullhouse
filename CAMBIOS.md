@@ -1,3 +1,19 @@
+# Comercial · PR 3A: contrato y backend remoto v1 aislados
+
+- Base origin/main 0953ce3. Backend solo demo/emuladores, separado del planificador.
+  Firestore: cabeza, revisiones y recibos por UID. Storage: sobres inmutables y
+  fuentes fotográficas privadas deduplicadas por cuenta. Sin historial v2.
+- API de guardado/lectura/restauración/inspección; Auth verificado, validación v1
+  pública reproducible, límites, CAS, idempotencia y confirmación por lectura.
+- Reglas de privilegio mínimo: get de metadatos propios verificados; ninguna
+  escritura cliente ni acceso directo a objetos Storage. Prototipo aún por revisar.
+- Ocho pruebas de contrato/servicio pasan; Auth+Functions HTTP pasa. Suite completa
+  Firestore/Storage preparada, pero bloqueada por 403 al descargar su emulador;
+  no se declara probado su aislamiento/transacción real. Ver informe y limitaciones.
+- No cambia app.tsx/app.js, auth, almacenamiento local, config de staging ni Pages.
+  Sin cuentas/servicios reales, facturación, migración, despliegue ni merge.
+- Contrato, configuración manual, costes y resultados: docs/COMMERCIAL_REMOTE_STORAGE.md.
+
 # Comercial · PR 2: autenticación y staging aislados
 
 - Base d159fe6 (PR #19), rama feat/commercial-auth-staging. Firebase Web SDK 13.4.0:

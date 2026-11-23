@@ -1,0 +1,11 @@
+{
+  "name": "fullhouse-remote-v1",
+  "private": true,
+  "version": "0.1.0",
+  "main": "index.cjs",
+  "engines": {"node": "22"},
+  "dependencies": {
+    "firebase-admin": "14.5.1",
+    "firebase-functions": "7.4.0"
+  }
+}

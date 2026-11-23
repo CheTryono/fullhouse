@@ -17,7 +17,9 @@ históricas ya perdidas. [Alcance, restricciones y pruebas](docs/COMMERCIAL_V1_H
 
 La rama comercial prepara Firebase Authentication y Hosting de staging sin cambiar
 GitHub Pages. Registro, acceso, verificación y recuperación se prueban con el SDK
-real y emuladores. No hay proyecto Firebase real conectado ni despliegue autorizado.
+real y emuladores. El propietario confirmó la publicación de
+https://fullhouse-staging.web.app/; las pruebas manuales de autenticación real
+están en curso. Los datos del planificador siguen siendo locales.
 
 ```sh
 npm ci
@@ -28,6 +30,10 @@ Node 22+. Abrir http://127.0.0.1:5000; solo cuentas sintéticas. Cada cuenta ver
 abre un espacio local separado por proyecto/UID. No se importa `fullhouse-v01` ni su
 alias. **Los datos de cuenta aún no se guardan en la nube ni sincronizan dispositivos.**
 [Configuración personal de Firebase, pruebas y límites](docs/COMMERCIAL_AUTH_STAGING.md).
+
+La PR comercial 3A prepara un backend v1 separado, solo para emuladores, con
+revisiones privadas, CAS y recibos. No está conectado al planificador ni habilita
+servicios remotos. [Contrato, pruebas pendientes y costes](docs/COMMERCIAL_REMOTE_STORAGE.md).
 
 ## Cómo empezar
 

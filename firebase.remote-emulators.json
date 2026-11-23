@@ -1,0 +1,15 @@
+{
+  "functions": [{"source":"remote","codebase":"remote-v1","runtime":"nodejs22"}],
+  "firestore": {"rules":"remote/firestore.rules"},
+  "storage": {"rules":"remote/storage.rules"},
+  "emulators": {
+    "auth": {"host":"127.0.0.1","port":9098},
+    "firestore": {"host":"127.0.0.1","port":8088},
+    "storage": {"host":"127.0.0.1","port":9198},
+    "functions": {"host":"127.0.0.1","port":5002},
+    "hub": {"host":"127.0.0.1","port":4408},
+    "logging": {"host":"127.0.0.1","port":4508},
+    "ui": {"enabled":false},
+    "singleProjectMode":true
+  }
+}
