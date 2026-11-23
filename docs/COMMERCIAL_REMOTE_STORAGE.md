@@ -120,13 +120,13 @@ servidor deriva la propiedad y valida sus entradas. Estas reglas no sustituyen I
 | Ataque o fallo | Protección / evidencia |
 | --- | --- |
 | UID ajeno en cuerpo, sesión ausente/no verificada | Rechazo, probado con Auth + Functions reales de emulador |
-| Otra cuenta leyendo revisión | Namespace derivado de Auth; probado con puertos; reglas reales pendientes |
-| Listado público, lectura entre UID o de subcolecciones, roles falsos | Denegaciones explícitas; suite Firestore pendiente de ejecutar |
-| Crear/actualizar/borrar, omitir campos, tipos falsos, cambio de propietario o fecha | Ninguna escritura cliente permitida; suite Firestore pendiente |
-| Foto privada/URL de descarga, sobrescritura/borrado cliente | Sin tokens, denegación total; suite Storage pendiente |
+| Otra cuenta leyendo revisión | Namespace derivado de Auth; puertos probados por Codex; suite completa aprobada en Cloud Shell según el propietario |
+| Listado público, lectura entre UID o de subcolecciones, roles falsos | Denegaciones explícitas; suite Firestore aprobada en Cloud Shell según el propietario |
+| Crear/actualizar/borrar, omitir campos, tipos falsos, cambio de propietario o fecha | Ninguna escritura cliente permitida; suite Firestore aprobada en Cloud Shell según el propietario |
+| Foto privada/URL de descarga, sobrescritura/borrado cliente | Sin tokens, denegación total; suite Storage aprobada en Cloud Shell según el propietario |
 | Arreglos/cadenas enormes y JSON profundo | Límites previos a subidas; pruebas unitarias |
-| Repetición, base obsoleta y acuse perdido | CAS, recibos/objetos inmutables; puertos probados, TX real pendiente |
-| Hash corrupto o referencia duplicada/faltante | Bloqueo, sin respaldos degradados; puertos probados, Storage real pendiente |
+| Repetición, base obsoleta y acuse perdido | CAS, recibos/objetos inmutables; puertos probados por Codex y suite de emuladores aprobada según el propietario |
+| Hash corrupto o referencia duplicada/faltante | Bloqueo, sin respaldos degradados; puertos probados por Codex y suite de emuladores aprobada según el propietario |
 
 No hay borrado físico, bloqueo legal de retención ni eliminación automática de
 revisiones en esta PR. Antes de datos reales se debe aprobar retención, borrado de
@@ -144,7 +144,9 @@ If you'd like, I can help you harden these rules."
 ## Reproducción y resultados
 
 Node 22 para el runtime previsto; pruebas ejecutadas con Node 24.22.1 y Java 21.
-El emulador avisa que usa Node 24 del host, por lo que Node 22 queda por comprobar.
+Estas versiones corresponden al entorno de Codex. El emulador local usa Node 24
+del host; el propietario no indicó versiones de Node/Java de Cloud Shell, por lo
+que no se considera verificado el runtime Node 22 a partir de ese informe.
 
 ```sh
 npm ci
@@ -159,21 +161,24 @@ El runner usa solo `demo-fullhouse-remote`, loopback y configuración temporal; 
 hereda credenciales reales. El backend rechaza inicializar fuera del emulador demo.
 No se toca `firebase.staging.json` ni el build/Hosting/Pages.
 
+### Evidencia ejecutada directamente por Codex
+
 - Unitarias: 8 aprobadas, incluida ida/vuelta con fotos, fuentes 0.1–0.9, fallos,
   restauración, CAS e idempotencia con puertos simulados, sin prueba de reglas.
 - Auth + Functions: 1 prueba HTTP aprobada, 3 rechazos reales comprobados. Los
   cuatro callables cargan. El CLI emite avisos de eventos Auth no disparados;
   no hay triggers Auth en este backend y las respuestas comprobadas son correctas.
-- Suite completa: **bloqueada antes de ejecutar pruebas**. La descarga oficial de
+- Intento local de la suite completa: **bloqueado antes de ejecutar pruebas**. La descarga oficial de
   `cloud-firestore-emulator-v1.22.0.jar` desde `storage.googleapis.com` devuelve
   403. La política de red del entorno no incluye ese dominio. La descarga elevada
   también fue rechazada por la red; no fue un rechazo del auto-review.
-  Es necesario permitir ese dominio o ejecutar la suite en un entorno con acceso.
-- La suite preparada contiene 9 escenarios end-to-end (dos cuentas, reglas,
+  Este resultado describe el entorno de Codex; la ejecución posterior de Cloud
+  Shell comunicada por el propietario se registra por separado más abajo.
+- La suite contiene 9 escenarios end-to-end (dos cuentas, reglas,
   transacciones, cuota simulada, interrupciones, corrupción y nueve respaldos).
-  No son 9 pruebas aprobadas: Firestore/Storage, sus reglas y CAS real permanecen
-  sin verificar. El emulador tampoco demuestra cuota real ni persistencia del
-  proveedor ante caída física. No se añaden TODO para ocultar este bloqueo.
+  Codex no ejecutó esos nueve escenarios localmente. El emulador tampoco demuestra
+  cuota real ni persistencia del proveedor ante caída física. No se añaden TODO
+  para ocultar el bloqueo de red local.
 - `npm run check`, `check:auth`, `check:history-contract`, `check:remote`: correctos.
   `npm test`: 506 aprobadas, cero fallos y seis TODO previos (512 casos). Incluye
   regresiones locales/guardas comerciales sin modificar. No se repiten pruebas
@@ -181,6 +186,41 @@ No se toca `firebase.staging.json` ni el build/Hosting/Pages.
 - Auditorías de dependencias de producción (`npm audit --omit=dev`): cero avisos
   en raíz y backend. Los avisos moderados conocidos del CLI de desarrollo no se
   corrigen ni se confunden con dependencias entregadas al navegador.
+
+### Evidencia proporcionada por el propietario · 23 de noviembre de 2026
+
+El propietario informó que ejecutó `npm run test:remote:emulator` correctamente
+en **Google Cloud Shell**, para la PR #21 todavía sin fusionar:
+
+| Resultado comunicado | Valor |
+| --- | --- |
+| Pruebas ejecutadas | 9 |
+| Aprobadas | 9 |
+| Fallos | 0 |
+| Omitidas | 0 |
+| Código de salida | 0 |
+| Cierre de emuladores | Todos terminaron correctamente |
+
+Esta es evidencia externa suministrada por el propietario, no una ejecución ni
+una reejecución de Codex. Permite dar por completada la suite en Cloud Shell según
+su informe, conservando el registro del bloqueo local. No prueba servicios reales,
+cuotas reales, runtime Node 22 ni persistencia ante caída física del proveedor.
+
+### Revisión local de aislamiento y actualización documental
+
+En la actualización de la PR #21, Codex volvió a ejecutar `check:remote`,
+`test:remote` (8 aprobadas), `check`, `check:auth`, `check:history-contract` y
+`test:regression` (194 aprobadas), sin fallos. El resultado de `npm test` de 506
+aprobadas y seis TODO corresponde al cierre anterior; no se repitió la suite
+global para esta actualización exclusivamente documental.
+
+Además, cinco procesos Node comprobaron que `remote/index.cjs` rechaza cargar:
+sin modo emulador, con proyecto real aunque exista el flag de emulación, o con un
+endpoint no local de Firestore, Storage o Auth. Los rechazos ocurren antes de
+inicializar el SDK. El runner conserva proyecto demo fijo y endpoints loopback.
+Así se mantiene la barrera al despliegue normal con un proyecto real; no sustituye
+IAM ni constituye protección frente a modificaciones deliberadas del código.
+No se ejecutó ningún comando de despliegue ni se cambiaron backend o configuración.
 
 ## Configuración humana y coste antes de integración real
 
@@ -202,11 +242,14 @@ No ejecutar deploy con `firebase.remote-emulators.json`. Para una PR posterior:
 4. Aprobar autenticación verificada, App Check/medidas antiabuso, cuotas por cuenta,
    límites de concurrencia y retención antes de aceptar datos/pagos reales. Dos
    instancias máximas del prototipo no equivalen a un límite monetario.
-5. Ejecutar y revisar pruebas completas, ajustar región/runtime y retirar la barrera
+5. Revisar la evidencia de pruebas, ajustar región/runtime y retirar la barrera
    demo mediante una PR autorizada, con configuración real independiente y reversión.
 6. Conectar la UI solo después: guardado pendiente, conflictos, importación explícita
    y backups. Ninguna lectura de `fullhouse-v01`/alias se incorpora automáticamente.
 
 **No está listo para activar almacenamiento remoto ni para desplegar a staging.**
-El siguiente paso mínimo es completar las pruebas Firestore/Storage; después,
-revisar reglas/contrato y preparar la integración 3B sin activar servicios por defecto.
+La PR #21 puede revisarse y fusionarse como infraestructura aislada, teniendo en
+cuenta las nueve pruebas aprobadas de Cloud Shell según el propietario y las
+comprobaciones locales de Codex. El siguiente paso es revisar reglas/contrato y
+preparar 3B con decisiones explícitas sobre región, IAM, costes, límites, retención
+y runtime, sin activar servicios por defecto.
