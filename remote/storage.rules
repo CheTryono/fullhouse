@@ -1,0 +1,8 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // All objects are private, immutable and server-managed. Reading goes through
+    // the authenticated backend, including integrity checks. No download tokens.
+    match /{path=**} { allow read, write: if false; }
+  }
+}

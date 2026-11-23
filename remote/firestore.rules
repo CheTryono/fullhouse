@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Model: users/{uid}/storage/head contains uid, revisionId, sequence, format.
+    // users/{uid}/revisions/{id}: immutable revision metadata, hashes and parent.
+    // users/{uid}/operations/{id}: immutable idempotency receipt.
+    // All fields are server-owned. No client creates, updates or deletes.
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid
+        && request.auth.token.email_verified == true;
+    }
+    match /users/{uid}/storage/head {
+      allow get: if isOwner(uid);
+      allow list, create, update, delete: if false;
+    }
+    match /users/{uid}/revisions/{id} {
+      allow get: if isOwner(uid);
+      allow list, create, update, delete: if false;
+    }
+    match /users/{uid}/operations/{id} {
+      allow get: if isOwner(uid);
+      allow list, create, update, delete: if false;
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}

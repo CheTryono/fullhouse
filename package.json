@@ -14,7 +14,10 @@
     "build:staging:emulator": "node scripts/build-auth-staging.cjs --emulator",
     "dev:auth": "node scripts/test-auth-staging.cjs --serve",
     "test:auth": "node --test tests/auth-*.test.cjs",
-    "test:auth:emulator": "node scripts/test-auth-staging.cjs"
+    "test:auth:emulator": "node scripts/test-auth-staging.cjs",
+    "check:remote": "node scripts/build-remote-validator.cjs --check && node --check remote/contract.cjs && node --check remote/service.cjs && node --check remote/index.cjs",
+    "test:remote": "node --test tests/remote-unit.test.cjs",
+    "test:remote:emulator": "node scripts/test-remote-emulators.cjs"
   },
   "engines": {
     "node": ">=22"

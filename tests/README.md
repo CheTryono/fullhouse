@@ -1,5 +1,21 @@
 # Base de regresión de Fullhouse
 
+## Backend comercial 3A aislado
+
+`npm run check:remote` mantiene el validador de servidor idéntico al público.
+`npm run test:remote` ejecuta 8 casos de contrato/servicio con puertos simulados,
+incluidos los respaldos de los nueve escritores históricos. También se incluyen
+en `npm test`: 506 aprobadas y seis TODO previos, sin fallos.
+
+Para servicios reales de emulador, instalar también `npm ci --prefix remote` y
+ejecutar `npm run test:remote:emulator` (Java 21). El runner fuerza proyecto demo,
+loopback y elimina credenciales heredadas. Esta suite completa quedó **bloqueada**
+por 403 al descargar el JAR de Firestore; no se declara aprobada ni se omite con TODO.
+Auth + Functions sí se ejecutaron: `node scripts/test-remote-emulators.cjs --auth-only`,
+1 prueba HTTP aprobada. [Contrato, límites y resultados](../docs/COMMERCIAL_REMOTE_STORAGE.md).
+
+## Regresión de la aplicación
+
 Estas pruebas ejecutan el JavaScript servido de la aplicación en aislamiento.
 El arnés no requiere refactorizar producción ni cambiar el esquema de datos.
 Todos los ejemplos son sintéticos.
