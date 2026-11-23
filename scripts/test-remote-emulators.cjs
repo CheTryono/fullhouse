@@ -10,7 +10,10 @@ for (const key of ['GOOGLE_APPLICATION_CREDENTIALS','FIREBASE_TOKEN','FIREBASE_C
 env.FIRESTORE_EMULATOR_HOST='127.0.0.1:8088';
 env.FIREBASE_STORAGE_EMULATOR_HOST='127.0.0.1:9198';
 const authOnly=process.argv.includes('--auth-only');
-const child = spawn(process.execPath,[require.resolve('firebase-tools/lib/bin/firebase.js'),'emulators:exec','--project','demo-fullhouse-remote','--config','firebase.remote-emulators.json','--only',authOnly?'auth,functions':'auth,firestore,storage,functions',`node --test --test-concurrency=1 tests/remote/${authOnly?'auth-boundary':'emulators'}.cjs`],{cwd:root,env,stdio:'inherit'});
+const planner=process.argv.includes('--planner'),simulated=process.argv.includes('--simulated-data');
+if(simulated&&!planner)throw Error('El backend simulado solo se usa con el laboratorio 3B.');
+const command=planner?'node scripts/remote-lab-run.cjs'+['--simulated-data','--browser','--serve'].filter(x=>process.argv.includes(x)).map(x=>' '+x).join(''):`node --test --test-concurrency=1 tests/remote/${authOnly?'auth-boundary':'emulators'}.cjs`;
+const child = spawn(process.execPath,[require.resolve('firebase-tools/lib/bin/firebase.js'),'emulators:exec','--project','demo-fullhouse-remote','--config','firebase.remote-emulators.json','--only',simulated?'auth':authOnly?'auth,functions':'auth,firestore,storage,functions',command],{cwd:root,env,stdio:'inherit'});
 for (const signal of ['SIGINT','SIGTERM']) process.on(signal,()=>child.kill(signal));
 child.on('error',e=>{console.error(e.message);process.exitCode=1;});
 child.on('exit',code=>{fs.rmSync(config,{recursive:true,force:true});process.exitCode=code??1;});
