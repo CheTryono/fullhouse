@@ -948,13 +948,14 @@ class Planner extends React.Component<{},State> {
     const next=(e.routineId&&sameScheduleActive(e,from)?this.cancelFutureDependencies({...d,events:updated,goals:e.kind==='review'?d.goals.map(g=>g.id===e.goalId?{...g,review:undefined}:g):d.goals,logs},e.routineId,cutoff):{...d,events:updated,goals:e.kind==='review'?d.goals.map(g=>g.id===e.goalId?{...g,review:undefined}:g):d.goals,logs});
     if(this.save(next))this.close(true);
   }
+  waitForWorkspaceSession=():Promise<void>|undefined=>accountWorkspace?.persistence?.waitForSession();
   saveEvidence=async (e:EventItem,date:string,stepId:string,file:File):Promise<void>=>{
     if(!file||!file.type.startsWith('image/')){this.notice('Selecciona una imagen válida.');return;}
     if(file.size>12*1024*1024){this.notice('La imagen es demasiado grande. Prueba con una de menos de 12 MB.');return;}
     try{
       const src=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onerror=()=>reject(new Error('Lectura fallida'));reader.onload=()=>{const img=new Image();img.onload=()=>{const ratio=Math.min(1,1100/Math.max(img.width,img.height));const canvas=document.createElement('canvas');canvas.width=Math.round(img.width*ratio);canvas.height=Math.round(img.height*ratio);const ctx=canvas.getContext('2d');if(!ctx){reject(new Error('Lienzo no disponible'));return;}ctx.drawImage(img,0,0,canvas.width,canvas.height);resolve(canvas.toDataURL('image/jpeg',.66));};img.onerror=()=>reject(new Error('Formato no compatible'));img.src=String(reader.result);};reader.readAsDataURL(file);});
       if(src.length>600000){this.notice('La fotografía ocupa mucho almacenamiento local. Prueba con una imagen más pequeña.');return;}
-      if(accountWorkspace?.persistence)await accountWorkspace.persistence.waitForSession();
+      const waiting=this.waitForWorkspaceSession?.();if(waiting)await waiting;
       const data=this.state.data,k=key(e,date),old=data.logs[k]||{completed:false,checkedSteps:[]};const evidence:Evidence={id:uid(),kind:'image',src,caption:'',stepId:stepId||undefined,createdAt:new Date().toISOString()};
       this.save({...data,logs:{...data.logs,[k]:{...old,evidences:[...(old.evidences||[]),evidence]}}},'Imagen añadida al registro');
     }catch(err){this.notice('No se pudo guardar la imagen. Revisa su formato o el espacio disponible.');}
@@ -1057,12 +1058,14 @@ class Planner extends React.Component<{},State> {
     const input=ev.target; // React 16 releases the event while confirmation is open.
     const f:File|undefined=input.files?.[0];if(!f)return;
     if(!(await this.askConfirm('Restaurar respaldo','Esto sustituirá todos los datos actuales de este navegador. Exporta una copia antes de continuar.','Restaurar datos',true))){input.value='';return;}
+    const importBase=accountWorkspace?.persistence?JSON.stringify(this.state.data):null;
     const fail=(message:string)=>this.notice(message+' Tus datos anteriores siguen intactos.');
     const reader=new FileReader();
     reader.onerror=()=>fail('No pudimos leer el archivo. Intenta seleccionarlo de nuevo.');
     reader.onabort=()=>fail('La lectura del respaldo se interrumpió.');
     reader.onload=()=>{
       const blocked=accountWorkspace?.persistence?.blocked();if(blocked){this.notice(blocked);return;}
+      if(importBase!==null&&importBase!==JSON.stringify(this.state.data)){this.notice('Los datos cambiaron mientras leíamos el respaldo. Conserva el archivo y vuelve a confirmar su importación.');return;}
       if(this.state.pending||this.state.recovery){this.notice('La importación se ha detenido para proteger los cambios pendientes o el original.');return;}
       let data:Data;
       try{

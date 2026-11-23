@@ -1,5 +1,19 @@
 # Base de regresión de Fullhouse
 
+## Cliente remoto comercial 3B, aislado
+
+`npm run test:remote-client`: 13 aprobadas. `npm test`: 519 aprobadas y seis TODO
+previos, cero fallos. `check:remote-client` comprueba TypeScript del adaptador.
+`test:remote:planner` ejecuta el Planner real con Auth/Firestore/Storage/Functions
+emulados; su ejecución local queda bloqueada por la descarga del JAR de Firestore.
+Las nueve pruebas 3A informadas por el propietario no son una ejecución de esta suite.
+
+`test:remote:planner:simulated`: seis recorridos HTTP con Auth en emulador y datos
+simulados, sin probar reglas/transacciones de Firestore. El equivalente Chromium
+`test:remote:planner:browser:simulated` pasa en 1280/390 con Playwright disponible.
+También pasan los drivers públicos pending-save, day-shifts y commercial-history.
+[Comandos completos, estados y evidencia](../docs/COMMERCIAL_REMOTE_PLANNER.md).
+
 ## Backend comercial 3A aislado
 
 `npm run check:remote` mantiene el validador de servidor idéntico al público.
@@ -9,8 +23,9 @@ en `npm test`: 506 aprobadas y seis TODO previos, sin fallos.
 
 Para servicios reales de emulador, instalar también `npm ci --prefix remote` y
 ejecutar `npm run test:remote:emulator` (Java 21). El runner fuerza proyecto demo,
-loopback y elimina credenciales heredadas. Esta suite completa quedó **bloqueada**
-por 403 al descargar el JAR de Firestore; no se declara aprobada ni se omite con TODO.
+loopback y elimina credenciales heredadas. Su ejecución local en Codex quedó
+**bloqueada** por 403 al descargar el JAR de Firestore. El propietario informó
+9/9 aprobadas de 3A en Cloud Shell; se distingue esa evidencia de la ejecución local.
 Auth + Functions sí se ejecutaron: `node scripts/test-remote-emulators.cjs --auth-only`,
 1 prueba HTTP aprobada. [Contrato, límites y resultados](../docs/COMMERCIAL_REMOTE_STORAGE.md).
 
@@ -20,7 +35,7 @@ Estas pruebas ejecutan el JavaScript servido de la aplicación en aislamiento.
 El arnés no requiere refactorizar producción ni cambiar el esquema de datos.
 Todos los ejemplos son sintéticos.
 
-**Estado actual — PR comercial 2:** regresión 194; autenticación 12; contratos 291 + seis TODO;
+**Referencia del cierre de PR comercial 2:** regresión 194; autenticación 12; contratos 291 + seis TODO;
 npm test 498 aprobadas + seis TODO, sin fallos. La reproducción original BUG-05
 permanece intacta y pasa por rechazo de la edición insegura, sin activar v2.
 Las cifras/fallos de las fases anteriores que siguen abajo son su registro histórico.

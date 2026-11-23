@@ -10,8 +10,9 @@ No es un compromiso de fechas ni autorización de despliegue.
 | --- | --- | --- |
 | ✅ | PR comercial 1: protección mínima del historial v1 | PR #19 fusionada; main d159fe6. Mitigación por bloqueo/copia, sin v2 |
 | ✅ | PR comercial 2: cuentas y Hosting de pruebas | PR #20 fusionada; staging publicado por el propietario; autenticación real manual en curso |
-| 🔄 | PR comercial 3A: contrato/backend v1 aislado | Revisiones privadas, CAS, recibos y restauración; pruebas unitarias/Auth+Functions. Firestore/Storage bloqueados por descarga 403; sin despliegue ni activación |
-| ⬜ | PR comercial 3B: conexión a persistencia remota | Tras verificar reglas/emuladores y aprobar servicios, costes y recuperación; Planner sigue local |
+| ✅ | PR comercial 3A: contrato/backend v1 aislado | PR #21 fusionada, main 89540d8; 9/9 emuladores en Cloud Shell según propietario; sin servicios reales |
+| 🔄 | PR comercial 3B inicial: integración asíncrona aislada | Outbox/recibos/conflictos/recuperación, 13 pruebas; Auth real + datos simulados y Chromium. Suite completa pendiente de Cloud Shell; público sigue local |
+| ⬜ | Activación remota y revisión de capacidad/privacidad | Autorizar servicios/costes/IAM; verificar runtime, cola local y suite completa antes de conectar usuarios |
 | ⬜ | UX antes del lanzamiento: avisos de protección histórica | Explicar antes del rechazo qué fecha/registro impide reprogramar y cómo continuar con copia; conservar borradores. No cambiar motor en PR 2 |
 | ⬜ | Suscripciones, información pública y validación de lanzamiento | Condicionado a aislamiento, recuperación y decisiones comerciales |
 
