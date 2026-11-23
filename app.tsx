@@ -29,7 +29,7 @@ type ConfirmDialog = {title:string; message:string; acceptLabel:string; danger:b
 type State = { pending:PendingSave|null; recovery:StorageRecovery|null; clockMinutes:number; expandedTodayId:string; scheduleFocusId:string; sleepStart:string; sleepHours:number; soundsOn:boolean; dragOverCardId:string; confirmDialog:ConfirmDialog|null; durationDisplay:'hours'|'minutes'; returnToSchedule:boolean; scheduleContextNote:string; data: Data; page: Page; selectedDate: string; month: string; modal: Modal; goalDraft: GoalDraft; routineDraft: RoutineDraft; eventDraft: EventDraft; activeEventId: string; detailPath: string[]; progressValue: string; progressNote: string; progressStatus: GoalStatus; progressGoalId: string; toast: string; theme: Theme; modalLayout: 'vertical'|'horizontal'; guideOpen: boolean; guideStep: number; guideGoalId: string; guideEventId: string; helpTopic: string; helpOpen:boolean; areaFilter:LifeArea|'all'; goalView: 'cards'|'map'; mapGrouping: 'structure'|'time'; colorEditorOpen:boolean; hexDraft:string; draggedStepId:string; dragTargetId:string; draggedCardType:''|'goal'|'routine'; draggedCardId:string; datePickerMonth:string; calendarDetailOpen:boolean; advancedOpen:boolean; expandedGoalPick:string[]; helpX:number|null; helpY:number|null; reviewDraft:string; evidenceCaption:string };
 
 // Optional staging port. Pages has no port and retains its original storage paths.
-const accountWorkspace=(window as any).FullhouseAccountWorkspace as {storage:Pick<Storage,'getItem'|'setItem'>;registerPlanner:(planner:any)=>void}|undefined;
+const accountWorkspace=(window as any).FullhouseAccountWorkspace as {storage:Pick<Storage,'getItem'|'setItem'>;registerPlanner:(planner:any)=>void;persistence?:{blocked:()=>string;hasPending:()=>boolean;queuedMessage:string;waitForSession:()=>Promise<void>}}|undefined;
 const plannerStorage={
   getItem:(name:string):string|null=>accountWorkspace?accountWorkspace.storage.getItem(name):localStorage.getItem(name),
   setItem:(name:string,value:string):void=>{if(accountWorkspace)accountWorkspace.storage.setItem(name,value);else localStorage.setItem(name,value);}
@@ -543,7 +543,7 @@ class Planner extends React.Component<{},State> {
   setTheme=(theme:Theme):void=>{putPreference(THEME_STORE,theme);this.setState({theme});};
   changeDurationDisplay=(durationDisplay:'hours'|'minutes'):void=>{putPreference(DURATION_STORE,durationDisplay);this.setState({durationDisplay});};
   dur=(m:number):string=>durationText(m,this.state.durationDisplay);
-  playCheckSound=():void=>{if(!this.state.soundsOn)return;try{const w=window as any,AC=w.AudioContext||w.webkitAudioContext;if(!AC)return;const ctx=this.audioCtx||new AC();this.audioCtx=ctx;if(ctx.state==='suspended')ctx.resume();const start=ctx.currentTime;[0,0.082].forEach((t,i)=>{const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type='sine';osc.frequency.setValueAtTime(i?880:660,start+t);gain.gain.setValueAtTime(.0001,start+t);gain.gain.exponentialRampToValueAtTime(.07,start+t+.012);gain.gain.exponentialRampToValueAtTime(.0001,start+t+.11);osc.connect(gain);gain.connect(ctx.destination);osc.start(start+t);osc.stop(start+t+.115);});}catch(err){console.warn('Sonido no disponible',err);}};
+  playCheckSound=():void=>{if(!this.state.soundsOn||accountWorkspace?.persistence?.hasPending())return;try{const w=window as any,AC=w.AudioContext||w.webkitAudioContext;if(!AC)return;const ctx=this.audioCtx||new AC();this.audioCtx=ctx;if(ctx.state==='suspended')ctx.resume();const start=ctx.currentTime;[0,0.082].forEach((t,i)=>{const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type='sine';osc.frequency.setValueAtTime(i?880:660,start+t);gain.gain.setValueAtTime(.0001,start+t);gain.gain.exponentialRampToValueAtTime(.07,start+t+.012);gain.gain.exponentialRampToValueAtTime(.0001,start+t+.11);osc.connect(gain);gain.connect(ctx.destination);osc.start(start+t);osc.stop(start+t+.115);});}catch(err){console.warn('Sonido no disponible',err);}};
   setSleep=(start:string,hours:number):void=>{const valid=safeSleepHours(hours);putPreference(SLEEP_START_STORE,start);putPreference(SLEEP_HOURS_STORE,String(valid));this.setState({sleepStart:start,sleepHours:valid});};
   setSounds=(on:boolean):void=>{putPreference(SOUND_STORE,on?'on':'off');this.setState({soundsOn:on});if(on)this.playCheckSound();};
   askConfirm=(title:string,message:string,acceptLabel='Confirmar',danger=false):Promise<boolean>=>new Promise(resolve=>{if(this.confirmResolver){this.confirmResolver(false);}this.confirmResolver=resolve;this.setState({confirmDialog:{title,message,acceptLabel,danger}});});
@@ -562,7 +562,7 @@ class Planner extends React.Component<{},State> {
   editingNumber=():boolean=>{const input=document.activeElement as HTMLInputElement|null,committed=input?.getAttribute('data-committed-value');return committed!==null&&committed!==undefined&&!!input?.closest('.modal-backdrop')&&input.value!==committed;};
   hasUnsavedChanges=():boolean=>!!this.state.pending||this.editingNumber()||this.dirtyDraft()||this.noteDrafts.size>0||(!!this.pendingSchedule&&JSON.stringify(this.pendingSchedule)!==this.pendingScheduleBaseline)||
     (this.state.page==='hoy'&&this.state.reviewDraft!==(this.state.data.dayReviews?.[today()]?.note||''));
-  beforeUnload=(event:BeforeUnloadEvent):void=>{if(this.hasUnsavedChanges()){event.preventDefault();event.returnValue='';}};
+  beforeUnload=(event:BeforeUnloadEvent):void=>{if(this.hasUnsavedChanges()||accountWorkspace?.persistence?.hasPending()){event.preventDefault();event.returnValue='';}};
   canNavigate=():boolean=>{
     if(!this.hasUnsavedChanges())return true;
     this.notice('Hay cambios sin guardar. Guarda las notas o el formulario, o ciérralo confirmando que deseas descartarlos.');return false;
@@ -574,6 +574,7 @@ class Planner extends React.Component<{},State> {
   save = (data:Data,message='Cambios guardados',replaceAll=false):boolean=>{
     if(this.state.recovery){this.notice('Guardado bloqueado para proteger la información original. Descarga el original o vuelve a intentar la lectura.');return false;}
     if(this.state.pending){this.notice('Ya hay cambios pendientes. Esta nueva acción no se añadió; reinténtala después de resolver la copia pendiente.');return false;}
+    const blocked=accountWorkspace?.persistence?.blocked();if(blocked){this.notice(blocked);return false;}
     let raw:string|null=null,valid=false;
     try{
       raw=JSON.stringify(data)??null;if(raw===null)throw Error('Datos incompletos');const candidate=JSON.parse(raw);
@@ -581,7 +582,7 @@ class Planner extends React.Component<{},State> {
       valid=true;
       if(!replaceAll){const issue=historyPlanningIssue(this.state.data,data);if(issue){this.notice(issue);return false;}}
       plannerStorage.setItem(STORE,raw);
-      this.setState({data:candidate});this.notice(message);return true;
+      this.setState({data:candidate});this.notice(accountWorkspace?.persistence?.queuedMessage||message);return true;
     }catch(err){
       this.setState({pending:{raw,valid}});
       this.notice(valid?'No se pudo guardar: almacenamiento lleno o bloqueado. Tus cambios están pendientes.':'No se pudo guardar: los datos no se pueden guardar como un respaldo compatible.');
@@ -590,11 +591,12 @@ class Planner extends React.Component<{},State> {
   };
   retryPending=():void=>{
     const pending=this.state.pending;if(!pending||this.state.recovery)return;
+    const blocked=accountWorkspace?.persistence?.blocked();if(blocked){this.notice(blocked);return;}
     try{
       if(!pending.valid||pending.raw===null)throw Error('Respaldo incompatible');
       const data=JSON.parse(pending.raw);if(!validData(data))throw Error('Respaldo incompatible');
       plannerStorage.setItem(STORE,pending.raw);
-      this.setState({data,pending:null});this.notice('Cambios pendientes guardados correctamente');
+      this.setState({data,pending:null});this.notice(accountWorkspace?.persistence?.queuedMessage||'Cambios pendientes guardados correctamente');
     }catch(err){this.notice('Los cambios siguen pendientes. El último estado guardado no se ha modificado. Puedes exportarlos para conservarlos.');}
   };
   exportPending=():void=>{
@@ -952,6 +954,7 @@ class Planner extends React.Component<{},State> {
     try{
       const src=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onerror=()=>reject(new Error('Lectura fallida'));reader.onload=()=>{const img=new Image();img.onload=()=>{const ratio=Math.min(1,1100/Math.max(img.width,img.height));const canvas=document.createElement('canvas');canvas.width=Math.round(img.width*ratio);canvas.height=Math.round(img.height*ratio);const ctx=canvas.getContext('2d');if(!ctx){reject(new Error('Lienzo no disponible'));return;}ctx.drawImage(img,0,0,canvas.width,canvas.height);resolve(canvas.toDataURL('image/jpeg',.66));};img.onerror=()=>reject(new Error('Formato no compatible'));img.src=String(reader.result);};reader.readAsDataURL(file);});
       if(src.length>600000){this.notice('La fotografía ocupa mucho almacenamiento local. Prueba con una imagen más pequeña.');return;}
+      if(accountWorkspace?.persistence)await accountWorkspace.persistence.waitForSession();
       const data=this.state.data,k=key(e,date),old=data.logs[k]||{completed:false,checkedSteps:[]};const evidence:Evidence={id:uid(),kind:'image',src,caption:'',stepId:stepId||undefined,createdAt:new Date().toISOString()};
       this.save({...data,logs:{...data.logs,[k]:{...old,evidences:[...(old.evidences||[]),evidence]}}},'Imagen añadida al registro');
     }catch(err){this.notice('No se pudo guardar la imagen. Revisa su formato o el espacio disponible.');}
@@ -1048,6 +1051,7 @@ class Planner extends React.Component<{},State> {
     this.notice('Respaldo descargado. Guárdalo en un lugar seguro.');
   }
   importData=async (ev:any):Promise<void>=>{
+    const blocked=accountWorkspace?.persistence?.blocked();if(blocked){this.notice(blocked);return;}
     if(this.state.pending){this.notice('Primero reintenta, exporta o descarta los cambios pendientes antes de importar.');return;}
     if(this.state.recovery){this.notice('La restauración está bloqueada para conservar el original. Descárgalo antes de revisar el problema.');return;}
     const input=ev.target; // React 16 releases the event while confirmation is open.
@@ -1058,6 +1062,7 @@ class Planner extends React.Component<{},State> {
     reader.onerror=()=>fail('No pudimos leer el archivo. Intenta seleccionarlo de nuevo.');
     reader.onabort=()=>fail('La lectura del respaldo se interrumpió.');
     reader.onload=()=>{
+      const blocked=accountWorkspace?.persistence?.blocked();if(blocked){this.notice(blocked);return;}
       if(this.state.pending||this.state.recovery){this.notice('La importación se ha detenido para proteger los cambios pendientes o el original.');return;}
       let data:Data;
       try{
@@ -1069,7 +1074,7 @@ class Planner extends React.Component<{},State> {
       // Keep general save() behavior (BUG-01) unchanged outside backup restoration.
       try{plannerStorage.setItem(STORE,JSON.stringify(data));}
       catch(err){fail('No pudimos guardar el respaldo: falta espacio o el navegador bloqueó el almacenamiento.');return;}
-      this.setState({data,page:'inicio',modal:null});this.notice('Respaldo restaurado');
+      this.setState({data,page:'inicio',modal:null});this.notice(accountWorkspace?.persistence?.queuedMessage||'Respaldo restaurado');
     };
     try{reader.readAsText(f);}catch(err){fail('No pudimos leer el archivo. Intenta seleccionarlo de nuevo.');}
     input.value='';
