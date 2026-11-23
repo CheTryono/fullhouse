@@ -1,3 +1,25 @@
+# Comercial · PR 3B inicial: integración asíncrona solo en laboratorio
+
+- Base 89540d8 (PR #21 fusionada), rama feat/commercial-remote-planner-v1. Cliente
+  v1 con confirmado/candidato separados, outbox por UID e identidad estable;
+  estados pendiente, confirmando, confirmado, error y conflicto. Sin historia v2.
+- Adapter para formularios reales de Planner: mensajes de envío pendiente, bloqueo
+  de nuevas acciones, reintento/inspección de recibo, exportación y recuperación
+  explícitas. No rebasa ni sobrescribe automáticamente cambios de otra sesión.
+- Hooks opcionales mínimos en app.tsx/app.js; guardado local público por defecto
+  intacto. Se conservan PR #19, respaldos v1 y claves anteriores sin autoimportación.
+- Trece pruebas de cliente y npm test: 519 aprobadas, cero fallos, seis TODO previos.
+  Auth real en emulador + datos simulados: seis recorridos HTTP; Chromium 1280/390,
+  dos cuentas/sesiones y fallos. Regresiones públicas de pendientes, horarios y
+  guardas históricas/cinco paletas correctas. Sin pruebas de teléfonos físicos.
+- Suite completa nueva con Firestore/Storage bloqueada al descargar emulador. Las
+  nueve pruebas 3A informadas por el propietario no sustituyen su ejecución 3B.
+- Outbox local sujeto a cuota; borradores sin enviar/fotos en proceso son RAM con
+  aviso de cierre. Pendientes de Cloud Shell, capacidad, privacidad y activación.
+- Laboratorio fuera de Pages y staging. Backend, reglas, Hosting, workflows y
+  autenticación publicados sin cambios. Sin migraciones, servicios reales ni merge.
+  Contrato/limitaciones: docs/COMMERCIAL_REMOTE_PLANNER.md.
+
 # Comercial · PR 3A: contrato y backend remoto v1 aislados
 
 - Base origin/main 0953ce3. Backend solo demo/emuladores, separado del planificador.

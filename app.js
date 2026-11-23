@@ -1602,7 +1602,9 @@ class Planner extends React.Component {
             if (this.save(next))
                 this.close(true);
         };
+        this.waitForWorkspaceSession = () => { var _a; return (_a = accountWorkspace === null || accountWorkspace === void 0 ? void 0 : accountWorkspace.persistence) === null || _a === void 0 ? void 0 : _a.waitForSession(); };
         this.saveEvidence = async (e, date, stepId, file) => {
+            var _a;
             if (!file || !file.type.startsWith('image/')) {
                 this.notice('Selecciona una imagen válida.');
                 return;
@@ -1620,8 +1622,9 @@ class Planner extends React.Component {
                     this.notice('La fotografía ocupa mucho almacenamiento local. Prueba con una imagen más pequeña.');
                     return;
                 }
-                if (accountWorkspace === null || accountWorkspace === void 0 ? void 0 : accountWorkspace.persistence)
-                    await accountWorkspace.persistence.waitForSession();
+                const waiting = (_a = this.waitForWorkspaceSession) === null || _a === void 0 ? void 0 : _a.call(this);
+                if (waiting)
+                    await waiting;
                 const data = this.state.data, k = key(e, date), old = data.logs[k] || { completed: false, checkedSteps: [] };
                 const evidence = { id: uid(), kind: 'image', src, caption: '', stepId: stepId || undefined, createdAt: new Date().toISOString() };
                 this.save({ ...data, logs: { ...data.logs, [k]: { ...old, evidences: [...(old.evidences || []), evidence] } } }, 'Imagen añadida al registro');
@@ -1817,6 +1820,7 @@ class Planner extends React.Component {
                 input.value = '';
                 return;
             }
+            const importBase = (accountWorkspace === null || accountWorkspace === void 0 ? void 0 : accountWorkspace.persistence) ? JSON.stringify(this.state.data) : null;
             const fail = (message) => this.notice(message + ' Tus datos anteriores siguen intactos.');
             const reader = new FileReader();
             reader.onerror = () => fail('No pudimos leer el archivo. Intenta seleccionarlo de nuevo.');
@@ -1826,6 +1830,10 @@ class Planner extends React.Component {
                 const blocked = (_a = accountWorkspace === null || accountWorkspace === void 0 ? void 0 : accountWorkspace.persistence) === null || _a === void 0 ? void 0 : _a.blocked();
                 if (blocked) {
                     this.notice(blocked);
+                    return;
+                }
+                if (importBase !== null && importBase !== JSON.stringify(this.state.data)) {
+                    this.notice('Los datos cambiaron mientras leíamos el respaldo. Conserva el archivo y vuelve a confirmar su importación.');
                     return;
                 }
                 if (this.state.pending || this.state.recovery) {

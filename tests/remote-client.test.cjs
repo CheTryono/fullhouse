@@ -37,6 +37,10 @@ test('3B: explicit restore appends a revision; no automatic rebase or deletion',
  const f=await fixture();f.session.stage(value('old'));await f.session.retry();const old=f.session.confirmed.revisionId;f.session.stage(value('new'));await f.session.retry();const newer=f.session.confirmed.revisionId;
  await assert.rejects(f.session.restore(old,false));await f.session.restore(old,true);assert.equal(f.session.phase,'pending');assert.equal(f.session.confirmed.revisionId,newer);await f.session.retry();assert.equal(f.session.confirmed.backup,value('old'));assert.equal((await f.api.read(newer)).backup,value('new'));
 });
+test('3B: loading a replacement locks edits for the entire asynchronous read',async()=>{
+ const f=await fixture();let release;const api={...f.api,read:()=>new Promise(resolve=>{release=()=>resolve(null);})};const s=new RemoteSession('A',f.store,api,()=>true,makeId);s.ready=true;let seen=false;s.onChange(()=>{if(s.hasPending)seen=true;});
+ const reading=s.useServer(true);assert.equal(s.hasPending,true);assert(seen);assert.throws(()=>s.stage(value('must not race')));release();await reading;assert.equal(s.pending,null);assert.equal(s.hasPending,false);
+});
 test('3B: account switch during await leaves A candidate intact and never changes B',async()=>{
  const f=await fixture();let active=true,finish;const api={...f.api,save:data=>new Promise(resolve=>{finish=async()=>resolve(await f.api.save(data));})};
  const s=new RemoteSession('A',f.store,api,()=>active,makeId);await s.open();s.stage(value('A'));const job=s.retry();while(!finish)await new Promise(r=>setImmediate(r));active=false;await finish();await job;assert.equal(s.phase,'error');assert(s.pending);assert.equal(s.confirmed,null);
@@ -45,6 +49,7 @@ test('3B: account switch during await leaves A candidate intact and never change
 test('3B: unconfirmed receipt, corrupt journal and failed initial read do not become confirmed data',async()=>{
  const f=await fixture();const wrong={...f.api,save:async data=>({...await f.api.save(data),backupHash:'bad'})};const s=new RemoteSession('A',f.store,wrong,()=>true,makeId);await s.open();s.stage(value('safe'));await s.retry();assert.equal(s.phase,'error');assert(s.pending);await s.retry();assert.equal(s.phase,'confirmed');
  const unavailable=new RemoteSession('B',f.store,{...f.api,read:async()=>{throw Error('offline');}},()=>true,makeId);await unavailable.open();assert.equal(unavailable.ready,false);assert.throws(()=>unavailable.stage(value('unsafe')));
+ const malformed=new RemoteSession('B',f.store,{...f.api,read:async()=>false},()=>true,makeId);await malformed.open();assert.equal(malformed.ready,false);
  const badKey='fullhouse-remote-lab-v1:demo-fullhouse-remote:C:pending:corrupt_operation_1';f.store.map.set(badKey,'{');const corrupt=new RemoteSession('C',f.store,f.api,()=>true,makeId);await corrupt.open();assert.equal(corrupt.ready,false);assert.equal(corrupt.exportOriginal('corrupt_operation_1'),'{');
 });
 test('3B: local quota blocks sending and retains the original BUG-01 export path',async()=>{
@@ -57,6 +62,11 @@ test('3B: real Planner keeps PR19 guards, public local behavior and explicit que
  const changed=JSON.parse(JSON.stringify(data));changed.routines[0].steps.push(step('new'));assert.equal(h.controller.save(changed),false);assert.equal(f.session.pending,null);assert.equal(h.controller.state.data.routines[0].steps.length,1);
  assert.equal(f.store.map.get('fullhouse-v01'),'original');assert.equal(f.store.map.get('botanica-planificador-v01'),'alias');assert(!f.store.reads.includes('fullhouse-v01'));assert(!f.store.reads.includes('botanica-planificador-v01'));
  const local=app();assert(local.controller.save(emptyData(),'Saved locally'));assert.equal(local.controller.state.toast,'Saved locally');
+});
+test('3B: a delayed backup import cannot replace data changed after its confirmation',async()=>{
+ const f=await fixture(),h=app({workspace:plannerPort(f.session,f.store,()=>true,()=>{},undefined,()=>{}),useLoadedData:true});
+ const importing=h.importBackup(value('imported'));await new Promise(resolve=>setImmediate(resolve));const newer={...emptyData(),events:[event('newer')]};h.controller.state.data=newer;await importing;
+ assert.deepEqual(h.controller.state.data,newer);assert.match(h.controller.state.toast,/datos cambiaron/);assert.equal(f.session.pending,null);assert.equal(f.ports.docs.size,0);
 });
 test('3B transport: real targets rejected; token captured for A, never replaced by B across awaits',async()=>{
  assert.throws(()=>emulatorApi('fullhouse-staging','localhost',()=>null,'A'));assert.throws(()=>emulatorApi('demo-fullhouse-remote','public.example',()=>null,'A'));

@@ -31,7 +31,8 @@ export class RemoteSession {
   private requireActive(){if(!this.active())throw Object.assign(Error('La sesión cambió. El candidato sigue perteneciendo a su cuenta original.'),{code:'session-changed'});}
   private key(op:string){return this.prefix+'pending:'+op;}
   private async checkRevision(value:Revision|null):Promise<Revision|null>{
-    if(!value)return null;
+    if(value===null)return null;
+    if(!value||typeof value!=='object')throw Error('La respuesta de lectura está incompleta.');
     if(!id(value.revisionId)||canonical(value.backup)!==value.backup||await digest(value.backup)!==value.backupHash)throw Error('La revisión no supera la comprobación de integridad.');
     return {...value};
   }
@@ -85,8 +86,8 @@ export class RemoteSession {
       this.requireActive();this.phase='confirming';this.message='Comprobando recibo y confirmando con el servidor…';this.emit();
       const expected=await digest(p.backup);this.requireActive();
       let receipt=await this.api.inspect(p.operationId);this.requireActive();
-      if(!receipt){receipt=p.kind==='restore'?await this.api.restore({operationId:p.operationId,baseRevision:p.baseRevision,restoreRevision:p.restoreRevision!}):await this.api.save({operationId:p.operationId,baseRevision:p.baseRevision,backup:p.backup});this.requireActive();}
-      if(receipt.operationId!==p.operationId||receipt.revisionId!==p.operationId||receipt.baseRevision!==p.baseRevision||!Number.isSafeInteger(receipt.sequence)||receipt.sequence<1||receipt.backupHash!==expected)throw Error('El recibo no corresponde al candidato enviado.');
+      if(receipt===null){receipt=p.kind==='restore'?await this.api.restore({operationId:p.operationId,baseRevision:p.baseRevision,restoreRevision:p.restoreRevision!}):await this.api.save({operationId:p.operationId,baseRevision:p.baseRevision,backup:p.backup});this.requireActive();}
+      if(!receipt||receipt.operationId!==p.operationId||receipt.revisionId!==p.operationId||receipt.baseRevision!==p.baseRevision||!Number.isSafeInteger(receipt.sequence)||receipt.sequence<1||receipt.backupHash!==expected)throw Error('El recibo no corresponde al candidato enviado.');
       // Storage failure here is uncertain locally, not a remote rollback.
       this.store.removeItem(this.key(p.operationId));
       this.confirmed={revisionId:receipt.revisionId,backup:p.backup,backupHash:expected};this.pending=null;this.phase='confirmed';this.message='Guardado confirmado por el servidor y huella verificada.';
@@ -94,9 +95,9 @@ export class RemoteSession {
     this.emit();
   }
   async preview(revisionId:string):Promise<Revision>{this.requireActive();if(!id(revisionId))throw Error('Identidad de revisión inválida.');const r=await this.checkRevision(await this.api.read(revisionId));this.requireActive();if(!r||r.revisionId!==revisionId)throw Error('No se encontró esa revisión propia.');return r;}
-  async restore(revisionId:string,consent:boolean):Promise<void>{if(!consent)throw Error('La restauración requiere confirmación explícita.');if(this.blocked())throw Error(this.blocked());this.resolving=true;try{const r=await this.preview(revisionId);this.resolving=false;this.stage(r.backup,'restore',revisionId);}finally{this.resolving=false;this.emit();}}
+  async restore(revisionId:string,consent:boolean):Promise<void>{if(!consent)throw Error('La restauración requiere confirmación explícita.');if(this.blocked())throw Error(this.blocked());this.resolving=true;this.emit();try{const r=await this.preview(revisionId);this.resolving=false;this.stage(r.backup,'restore',revisionId);}finally{this.resolving=false;this.emit();}}
   async useServer(consent:boolean):Promise<void>{
-    this.requireActive();if(!consent||this.busy)throw Error('Confirma la recuperación cuando no haya peticiones en curso.');this.resolving=true;
+    this.requireActive();if(!consent||this.busy)throw Error('Confirma la recuperación cuando no haya peticiones en curso.');this.resolving=true;this.emit();
     try{const latest=await this.checkRevision(await this.api.read(null));this.requireActive();
     if(this.pending){const key=this.key(this.pending.operationId),raw=this.store.getItem(key);if(raw===null)throw Error('Falta la copia local del candidato.');const archive=this.prefix+'recovery:'+this.pending.operationId,old=this.store.getItem(archive);if(old!==null&&old!==raw)throw Error('La copia de recuperación no coincide.');this.store.setItem(archive,raw);this.store.removeItem(key);}
     this.confirmed=latest;this.observed=latest;this.pending=null;this.ready=true;this.phase='confirmed';this.message='Versión del servidor cargada por tu indicación. El candidato anterior conserva su copia de recuperación.';

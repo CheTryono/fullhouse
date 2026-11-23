@@ -31,9 +31,13 @@ abre un espacio local separado por proyecto/UID. No se importa `fullhouse-v01` n
 alias. **Los datos de cuenta aún no se guardan en la nube ni sincronizan dispositivos.**
 [Configuración personal de Firebase, pruebas y límites](docs/COMMERCIAL_AUTH_STAGING.md).
 
-La PR comercial 3A prepara un backend v1 separado, solo para emuladores, con
+La PR comercial 3A incorporó un backend v1 separado, solo para emuladores, con
 revisiones privadas, CAS y recibos. No está conectado al planificador ni habilita
 servicios remotos. [Contrato, pruebas pendientes y costes](docs/COMMERCIAL_REMOTE_STORAGE.md).
+
+La primera integración 3B permite usar el Planner real en un laboratorio asíncrono,
+con pendientes recuperables, confirmaciones y conflictos. El Fullhouse publicado
+sigue guardando localmente. [Uso del laboratorio y límites](docs/COMMERCIAL_REMOTE_PLANNER.md).
 
 ## Cómo empezar
 
