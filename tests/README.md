@@ -1,5 +1,16 @@
 # Base de regresión de Fullhouse
 
+## Comercial 3C.2: preflight y medios, desactivados
+
+`npm run test:commercial-preflight`: 22 casos (18 política servidor con puertos
+en memoria, cuatro inventario HTTP inyectado), incluidos en `npm test`. No son
+pruebas Firebase reales. `npm run test:remote-staging:media:emulator`: cuatro casos
+preparados con Firestore/Storage; pendiente en este entorno por descarga del JAR
+bloqueada. Ejecutar también `npm run test:remote-staging:rules` para los nuevos
+intentos sobre derechos/inventario. El 3/3 anterior del propietario no acredita
+esta ampliación. Proyecto demo fijo, sin desplegar ni usar credenciales reales.
+Mediciones sintéticas y orden manual: [ensayo 3C.2](../docs/COMMERCIAL_STAGING_TRIAL.md).
+
 ## Preparación real comercial 3C.1, desactivada
 
 `npm run test:remote-staging`: diecisiete casos con puertos de servicio simulados y

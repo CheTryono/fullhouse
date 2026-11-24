@@ -14,7 +14,7 @@ before(async()=>{
 after(async()=>{if(app)await deleteApp(app);});
 for(const who of ['anonymous','A','B'])test('staging deny-all rules reject read/list/create/update/delete and escalation for '+who,async()=>{
  const headers={'content-type':'application/json',...(who==='anonymous'?{}:{authorization:'Bearer '+tokens[who==='A'?0:1]})};
- const requests=[['GET',base+'/users/'+ownerId+'/storage/head'],['GET',base+'/users/'+ownerId+'/revisions'],['PATCH',base+'/users/'+ownerId+'/storage/head'],['PATCH',base+'/stagingAccess/'+ownerId],['PATCH',base+'/stagingControl/remoteV1'],['DELETE',base+'/users/'+ownerId+'/storage/head']];
+ const requests=[['GET',base+'/users/'+ownerId+'/storage/head'],['GET',base+'/users/'+ownerId+'/revisions'],['PATCH',base+'/users/'+ownerId+'/storage/head'],['PATCH',base+'/stagingAccess/'+ownerId],['PATCH',base+'/stagingControl/remoteV1'],['PATCH',base+'/billingEntitlements/'+ownerId],['PATCH',base+'/users/'+ownerId+'/mediaUsage/head'],['GET',base+'/billingEntitlements/'+ownerId],['DELETE',base+'/users/'+ownerId+'/storage/head']];
  for(const [method,url]of requests){const r=await fetch(url,{method,headers,...(method==='PATCH'?{body:JSON.stringify({fields:{enabled:{booleanValue:true}}})}: {})});assert.equal(r.status,403,method+' '+url);}
  const storage=await fetch('http://127.0.0.1:9198/v0/b/'+project+'.appspot.com/o/'+encodeURIComponent('users/'+ownerId+'/photos/secret'),{headers});assert.equal(storage.status,403);
 });

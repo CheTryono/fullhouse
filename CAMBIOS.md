@@ -1,3 +1,20 @@
+# Comercial · 3C.2: ensayo y medios preparados, sin activar
+
+- Base 36aae0f (PR #24). us-central1/EE. UU. y objetivo 5 USD/mes aceptados;
+  vinculación billing, recursos, deploy y activación siguen sin autorizar.
+- Inventario GET fijo con sesión gcloud local, por defecto solo plan; errores y
+  paginación no se confunden con inexistencia. Inventario/tarifas reales pendientes:
+  sin sesión local y páginas oficiales bloqueadas por 403, sin precios inventados.
+- Política de imágenes del servidor detrás de cierres staging: derechos privados,
+  cuotas y referencias por UID, inventario junto a recibo/head en TX. Bajas conservan
+  texto/lectura/exportación; importaciones e IDs nuevos no evaden Premium.
+- 22 pruebas nuevas simuladas, 17 previas; suite general 573 aprobadas + 6 TODO.
+  Node 22 verificado, tamaños JPEG medidos en Chromium sintético. Cuatro casos nuevos
+  de emuladores pendientes por descarga del JAR bloqueada; sin pruebas reales.
+- Contratos, cuotas propuestas, costes por confirmar y autorizaciones en orden:
+  docs/COMMERCIAL_STAGING_TRIAL.md y docs/COMMERCIAL_MEDIA_ENTITLEMENTS.md.
+  Planner, Auth/Hosting/Pages, motor v2, 3A, reglas, IAM y barreras intactos.
+
 # Comercial · 3C.1: preparación real de staging, desactivada
 
 - Base b06c691 (PR #23). Configuración privada separada para fullhouse-staging,
