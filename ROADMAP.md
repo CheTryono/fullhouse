@@ -12,7 +12,7 @@ No es un compromiso de fechas ni autorización de despliegue.
 | ✅ | PR comercial 2: cuentas y Hosting de pruebas | PR #20 fusionada; staging publicado por el propietario; autenticación real manual en curso |
 | ✅ | PR comercial 3A: contrato/backend v1 aislado | PR #21 fusionada, main 89540d8; 9/9 emuladores en Cloud Shell según propietario; sin servicios reales |
 | ✅ | PR comercial 3B inicial: integración asíncrona aislada | PR #22 fusionada, main 5955fb9; propietario informó 6/6 en Cloud Shell. 13 pruebas de cliente; público sigue local |
-| 🔄 | PR comercial 3B.2: candidatos y borradores durables | IndexedDB comercial separado por UID; originales fotográficos y recuperación explícita. Sin v2 ni activación pública. Resultados: docs/COMMERCIAL_DURABLE_WORK.md |
+| 🔄 | PR comercial 3B.2: candidatos y borradores durables (laboratorio) | Implementados y verificados en Chromium; pendientes revisión y emuladores completos en Cloud Shell. Sin v2 ni activación pública. Resultados: docs/COMMERCIAL_DURABLE_WORK.md |
 | ⬜ | Activación remota y revisión de capacidad/privacidad | Autorizar servicios/costes/IAM; verificar runtime, cola local y suite completa antes de conectar usuarios |
 | ⬜ | UX antes del lanzamiento: avisos de protección histórica | Explicar antes del rechazo qué fecha/registro impide reprogramar y cómo continuar con copia; conservar borradores. No cambiar motor en PR 2 |
 | ⬜ | Suscripciones, información pública y validación de lanzamiento | Condicionado a aislamiento, recuperación y decisiones comerciales |

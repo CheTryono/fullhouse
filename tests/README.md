@@ -2,6 +2,7 @@
 
 ## Recuperación comercial 3B.2, aislada
 
+`npm test`: 534 aprobadas, cero fallos y seis TODO previos en 3B.2.
 `npm run test:remote-durable`: 15 pruebas Node con fake-indexeddb y el Planner real
 para candidatos, abortos, CAS, formularios/notas, días distintos, aislamiento y
 recuperación explícita. Son distintas de las pruebas de navegador con IndexedDB

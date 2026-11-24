@@ -89,7 +89,28 @@ npm run test:remote:durable:browser:simulated
 
 Los drivers Chromium necesitan Playwright disponible y `FULLHOUSE_CHROMIUM` (por defecto `/usr/bin/chromium`). En Codex se utiliza `NODE_PATH=/workspace/.fullhouse-tools/node_modules`. Los emuladores se ejecutan en serie, usando puertos de laboratorio. `fake-indexeddb` es dependencia **solo de desarrollo** para CAS, abortos y pruebas deterministas, distinta de IndexedDB real.
 
-Resultados finales y limitaciones de ejecución se registran al cerrar esta PR. La suite completa actualizada se ejecuta en un entorno con Java 21 y descargas Firebase disponibles:
+Resultados ejecutados por Codex sobre esta entrega (Node 24.22.1, Java 21):
+
+| Verificación | Resultado |
+| --- | --- |
+| `check`, `check:auth`, `check:history-contract`, `check:remote`, `check:remote-client` | Aprobadas; app.js coincide con TypeScript sin escribirlo |
+| `test:remote-durable` | 15/15, fake-indexeddb; incluye paquete de 19,2 MB por escape de cadenas y recuperación RAM |
+| `test:remote-client` / `test:remote` | 13/13 y 8/8 |
+| `test:regression` | 194/194 |
+| `npm test` | 534 aprobadas, 0 fallos/omitidas/canceladas, 6 TODO previos (540 casos) |
+| `test:remote:planner:simulated` | 7/7 HTTP; Auth emulado real, datos simulados; añade cierre/reapertura de IDB simulada y fotografía explícita |
+| Chromium · recorrido previo 3B | 1280 y 390: confirmación, acuse perdido, dos sesiones/CAS, cambio de cuenta y foto asíncrona; 0 errores JS |
+| Chromium · nuevo recorrido durable | IDB real: paquete de **12.003.226 bytes**, exportación/restauración en contexto nuevo con el mismo ID, recarga, copia de formulario/nota y aislamiento A/B |
+| Chromium · foto original | PNG de **7.871.695 bytes** en la última ejecución, generación sintética aleatoria; cierre durante procesamiento y descarga con igualdad SHA-256, sin adjuntarla automáticamente |
+| Chromium · capacidad y aborto | Rechazo real `QuotaExceededError` al reducir la cuota por CDP y escribir Blob de 12 MiB; fila previa intacta. Aborto tras escribir dentro de TX: ninguna fila parcial al reabrir |
+| Chromium · regresiones públicas | pending-save (cuota/acceso, 1280/390), day-shifts (límites/dependencias, 1280/390), commercial-history (cinco paletas y teclado): aprobadas, sin errores JS |
+| `test:remote:planner` completo | **Bloqueado antes de ejecutar pruebas**: no pudo descargarse `cloud-firestore-emulator-v1.22.0.jar` desde storage.googleapis.com. No se declara aprobado |
+
+Chromium 156.0.8078.79. El viewport móvil es una ventana de escritorio, no un teléfono. Firefox, WebKit, Android/iPhone físicos y runtime Node 22 **no probados**. Se conserva la mitigación BUG-05 por guardas v1; no se declara recuperada la estructura histórica perdida ni completado v2.
+
+Los primeros intentos de cuota en contextos incógnitos o con reservas previas no provocaron el rechazo esperado. Se corrigió el **ensayo**, sin debilitar la aserción: `durable-quota.cjs` utiliza un origen sin el SDK Firebase y un perfil temporal persistente, reiniciado antes de activar la cuota de 1 KiB por CDP. Exige `overrideActive`, `QuotaExceededError`, cero fotos nuevas y conservación exacta de la fila previa. No simula una falta real de espacio del disco físico.
+
+La suite completa actualizada se ejecuta en un entorno con Java 21 y descargas Firebase disponibles:
 
 ```sh
 npm ci --prefix remote
@@ -103,3 +124,5 @@ El informe del propietario de **3B anterior** (6/6 en Cloud Shell) y **3A** (9/9
 ## Antes de servicios reales
 
 Reejecutar los recorridos con emuladores completos, validar Node 22 y Firefox/WebKit/dispositivos físicos, aprobar retención/privacidad y el tratamiento de dispositivos compartidos (las copias locales no están cifradas por usuario). Separación por UID no protege frente a XSS, acceso al perfil o código malicioso del mismo origen. Siguen pendientes IAM/antiabuso/App Check, cuotas/costes autorizados y adaptación del cliente demo a proyecto real. La beta pública aún no tiene permiso para activar guardado remoto, Blaze, migraciones ni v2. El backend, reglas, despliegues, autenticación y el Planner publicados permanecen intactos.
+
+El público y Staging conservan sus borradores RAM y guardado local actuales. Estas protecciones no están activadas allí. No se ejecutaron despliegues ni servicios reales.
