@@ -121,8 +121,78 @@ npm run test:remote:durable:browser
 
 El informe del propietario de **3B anterior** (6/6 en Cloud Shell) y **3A** (9/9) es evidencia heredada; no certifica estos cambios 3B.2. Auth real emulado + backend HTTP con datos simulados no demuestra transacciones/reglas de Firestore/Storage emulados.
 
+### Suite 3B.2 en Cloud Shell · informe del propietario
+
+El propietario confirmó la ejecución de las comprobaciones de integración 3B.2
+en Google Cloud Shell, sobre `feat/commercial-durable-work-v1`, contra los servicios
+Firebase emulados, incluidos Firestore y Storage. Proporcionó este resumen:
+
+| Resultado informado | Valor |
+| --- | --- |
+| Pruebas | 7 |
+| Suites | 0 |
+| Aprobadas | 7 |
+| Fallos | 0 |
+| Canceladas | 0 |
+| Omitidas | 0 |
+| TODO | 0 |
+| Duración de la suite | 15039.610241 ms |
+| Salida del script | 0, ejecución satisfactoria |
+
+Esta evidencia pertenece al **informe del propietario**. Codex no ejecutó estas
+pruebas en Cloud Shell; su intento local bloqueado al descargar el emulador y sus
+resultados anteriores se conservan arriba. El resumen no incluye el SHA probado,
+el comando exacto ni las versiones de Node/Java: no se deducen de la rama o del
+número de pruebas. Tampoco acredita que se ejecutaran las suites Chromium completas
+contra esos emuladores. La duración es de la suite, no latencia de guardado.
+
+Los niveles de evidencia son distintos y pueden combinarse en una misma suite:
+
+- Las 15 pruebas Node de durabilidad utilizan **fake-indexeddb** y backend simulado.
+- Las siete pruebas HTTP locales de Codex utilizan Auth emulado, pero **datos
+  simulados**; no verifican Firestore/Storage emulados.
+- El informe de Cloud Shell aporta **7/7 con Firestore/Storage emulados**, no servicios
+  reales. La suite Node preparada en `tests/remote/planner.cjs` también usa almacenes
+  locales de prueba, incluido fake-indexeddb para el caso durable; probar el backend
+  emulado no equivale a probar IndexedDB real.
+- Las comprobaciones anteriores de **IndexedDB real en Chromium** corresponden a
+  Codex y permanecen atribuidas a su recorrido con backend de datos simulado.
+
+### Revisión local al registrar el informe
+
+Codex revisó `f5de616`, coincidente con la cabeza remota de esta rama. Respecto a
+su base `5955fb9`, permanecen idénticos `app.tsx`, `app.js`, autenticación, historial
+experimental, backend 3A, reglas, configuración de Hosting y workflow de Pages.
+El backend ejecutable, sus dependencias, validador, reglas y configuraciones también
+coinciden con la entrega 3A fusionada en `89540d8`. Esta actualización es documental.
+
+Se mantienen el proyecto `demo-fullhouse-remote`, los endpoints loopback, las bases
+`fullhouse-lab-*` y el aislamiento por UID/proyecto. El transporte comprueba la sesión
+antes y después de las esperas; no cambia el token de A por el de B. Las pruebas
+locales comprueban rechazo de claves/paquetes de otra cuenta, conservación del
+candidato original y ausencia de importación de `fullhouse-v01` y su alias.
+Cinco procesos independientes verificaron el rechazo del backend sin modo emulador,
+con proyecto real y con endpoints externos de Firestore, Storage o Auth, antes de
+inicializar sus SDK. Pages y el constructor de Staging conservan sus listas de
+recursos públicos; no incluyen el laboratorio ni su almacén durable.
+
+Volvieron a pasar `check`, `check:auth`, `check:history-contract`, `check:remote` y
+`check:remote-client`, las 15 pruebas de durabilidad, las 13 del cliente, las 8 del
+backend simulado y las 194 regresiones públicas. Los recorridos Chromium anteriores
+no se repitieron para esta actualización documental. También se repitió `npm test`:
+534 aprobadas, cero fallos/canceladas/omitidas y seis TODO previos (540 casos).
+No se ejecutaron despliegues,
+servicios reales ni pruebas con información personal.
+
+Con la evidencia del propietario y las verificaciones locales, **3B.2 es apta para
+fusionarse como laboratorio aislado**. No quedan bloqueos técnicos nuevos de esta
+entrega para preparar 3C. Activar servicios reales requerirá una PR separada que
+configure el proyecto y permisos de destino, mantenga CAS/confirmación/recuperación
+y cambie explícitamente las barreras demo, además de autorización del propietario
+para servicios/costes y una política de retención/privacidad antes de usar datos reales.
+
 ## Antes de servicios reales
 
-Reejecutar los recorridos con emuladores completos, validar Node 22 y Firefox/WebKit/dispositivos físicos, aprobar retención/privacidad y el tratamiento de dispositivos compartidos (las copias locales no están cifradas por usuario). Separación por UID no protege frente a XSS, acceso al perfil o código malicioso del mismo origen. Siguen pendientes IAM/antiabuso/App Check, cuotas/costes autorizados y adaptación del cliente demo a proyecto real. La beta pública aún no tiene permiso para activar guardado remoto, Blaze, migraciones ni v2. El backend, reglas, despliegues, autenticación y el Planner publicados permanecen intactos.
+La integración informada por el propietario ya cuenta con 7/7 frente a Firestore/Storage emulados. No se dispone de un informe de los recorridos Chromium contra esos emuladores ni de Node 22, Firefox/WebKit o dispositivos físicos; siguen siendo verificaciones pendientes para la activación, sin invalidar el resultado informado. Aprobar retención/privacidad y el tratamiento de dispositivos compartidos (las copias locales no están cifradas por usuario). Separación por UID no protege frente a XSS, acceso al perfil o código malicioso del mismo origen. Siguen pendientes IAM/antiabuso/App Check, cuotas/costes autorizados y adaptación del cliente demo a proyecto real. La beta pública aún no tiene permiso para activar guardado remoto, Blaze, migraciones ni v2. El backend, reglas, despliegues, autenticación y el Planner publicados permanecen intactos.
 
 El público y Staging conservan sus borradores RAM y guardado local actuales. Estas protecciones no están activadas allí. No se ejecutaron despliegues ni servicios reales.
