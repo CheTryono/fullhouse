@@ -1,5 +1,21 @@
 # Base de regresión de Fullhouse
 
+## Preparación real comercial 3C.1, desactivada
+
+`npm run test:remote-staging`: quince casos con puertos de servicio simulados y
+fake-indexeddb: gates, UID/proyecto, Auth/App Check simulado, cuotas, CAS, reservas,
+modo de recuperación, fotografías y reintentos. No representa App Check/IAM reales.
+
+`npm run check:remote-staging:node22`, ejecutado con Node 22 y dependencias de
+`remote/` instaladas: carga el SDK Functions real y comprueba backend apagado y
+rechazo HTTP de App Check ausente, sin llamadas a Firebase real.
+
+`npm run test:remote-staging:rules`: Auth/Firestore/Storage emulados, proyecto demo;
+propietario y otra cuenta verificados, sin privilegios, no pueden leer/escribir
+directamente ni elevar permisos. Su descarga de Firestore está bloqueada en Codex;
+no se declara aprobada. No ejecutar suites que comparten puertos simultáneamente.
+[Resultados y límites](../docs/COMMERCIAL_REAL_STAGING.md).
+
 ## Recuperación comercial 3B.2, aislada
 
 `npm test`: 534 aprobadas, cero fallos y seis TODO previos en 3B.2.

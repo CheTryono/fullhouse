@@ -1,4 +1,5 @@
 import {validData} from '../remote/v1-validator.cjs';
+import {resolveScope,type Scope} from './environment';
 export const PROJECT='demo-fullhouse-remote';
 // Two backups of up to 8 MiB; JSON string escaping can double each one.
 export const JOURNAL_LIMIT=34*1024*1024;
@@ -8,12 +9,13 @@ export interface Receipt {operationId:string;revisionId:string;sequence:number;b
 export interface Pending {kind:'save'|'restore';operationId:string;baseRevision:string|null;backup:string;restoreRevision?:string}
 interface Journal {format:1;project:string;uid:string;confirmed:Revision|null;pending:Pending}
 export interface RemoteApi {
+  readonly project?:string;
   read(id:string|null):Promise<Revision|null>;
   inspect(id:string):Promise<Receipt|null>;
   save(data:{operationId:string;baseRevision:string|null;backup:string}):Promise<Receipt>;
   restore(data:{operationId:string;baseRevision:string|null;restoreRevision:string}):Promise<Receipt>;
 }
-type Store=Pick<Storage,'getItem'|'setItem'|'removeItem'|'key'|'length'>&{ready?:()=>Promise<void>;persist?:(key:string,raw:string)=>Promise<void>;removePersisted?:(key:string,raw:string)=>Promise<void>;archivePersisted?:(key:string,archive:string,raw:string)=>Promise<void>;importLegacy?:(key:string,raw:string,hash:string)=>Promise<void>};
+type Store=Pick<Storage,'getItem'|'setItem'|'removeItem'|'key'|'length'>&{readonly project?:string;readonly uid?:string;ready?:()=>Promise<void>;persist?:(key:string,raw:string)=>Promise<void>;removePersisted?:(key:string,raw:string)=>Promise<void>;archivePersisted?:(key:string,archive:string,raw:string)=>Promise<void>;importLegacy?:(key:string,raw:string,hash:string)=>Promise<void>};
 const empty=JSON.stringify({version:1,goals:[],routines:[],events:[],logs:{}});
 const id=(value:unknown):value is string=>typeof value==='string'&&/^[A-Za-z0-9_-]{16,80}$/.test(value);
 export function canonical(raw:string):string {
@@ -26,9 +28,11 @@ export class RemoteSession {
   durability:'memory'|'writing'|'durable'|'error'='memory';
   private journalRaw:string|null=null;private persisting:Promise<void>|null=null;private storageReady=false;
   private prefix:string;private flight:Promise<void>|null=null;private resolving=false;private opening=false;private listeners=new Set<()=>void>();
-  constructor(readonly uid:string,private store:Store,private api:RemoteApi,private active:()=>boolean,private makeId=()=>crypto.randomUUID(),project=PROJECT){
-    if(project!==PROJECT||!/^[A-Za-z0-9_-]{1,128}$/.test(uid))throw Error('Solo se permite el laboratorio demo por UID.');
-    this.prefix='fullhouse-remote-lab-v1:'+project+':'+uid+':';
+  readonly project:string;readonly preferencePrefix:string;
+  constructor(readonly uid:string,private store:Store,private api:RemoteApi,private active:()=>boolean,private makeId=()=>crypto.randomUUID(),environment:string|Scope=PROJECT){
+    const scope=resolveScope(environment);this.project=scope.project;this.preferencePrefix=scope.preferencePrefix;
+    if(!/^[A-Za-z0-9_-]{1,128}$/.test(uid)||(store.project&&store.project!==this.project)||(store.uid&&store.uid!==uid)||(api.project&&api.project!==this.project))throw Error('Cuenta/entorno remoto incompatible.');
+    this.prefix=scope.prefix+this.project+':'+uid+':';
   }
   onChange(fn:()=>void){this.listeners.add(fn);return()=>this.listeners.delete(fn);}
   private emit(){for(const fn of this.listeners)fn();}
@@ -53,7 +57,7 @@ export class RemoteSession {
   private decode(raw:string,op:string):Journal {
     if(new TextEncoder().encode(raw).length>JOURNAL_LIMIT)throw Error('El paquete supera el límite local de recuperación. Conserva el original.');
     const j=JSON.parse(raw) as Journal,p=j.pending;
-    if(j.format!==1||j.project!==PROJECT||j.uid!==this.uid||!p||p.operationId!==op||!id(op)||!['save','restore'].includes(p.kind)||!(p.baseRevision===null||id(p.baseRevision))||p.baseRevision!==(j.confirmed?.revisionId||null)||(p.kind==='restore'&&!id(p.restoreRevision)))throw Error('El candidato local no pertenece a esta cuenta/base.');
+    if(j.format!==1||j.project!==this.project||j.uid!==this.uid||!p||p.operationId!==op||!id(op)||!['save','restore'].includes(p.kind)||!(p.baseRevision===null||id(p.baseRevision))||p.baseRevision!==(j.confirmed?.revisionId||null)||(p.kind==='restore'&&!id(p.restoreRevision)))throw Error('El candidato local no pertenece a esta cuenta/base.');
     if(canonical(p.backup)!==p.backup)throw Error('El candidato local fue alterado.');
     return j;
   }
@@ -81,7 +85,7 @@ export class RemoteSession {
     const pending:Pending={kind,operationId,baseRevision:this.confirmed?.revisionId||null,backup:canonical(raw),...(kind==='restore'?{restoreRevision}: {})};
     if(kind==='restore'&&!id(restoreRevision))throw Error('Revisión de restauración incompatible.');
     if(this.store.getItem(this.key(operationId))!==null)throw Error('La identidad ya pertenece a otro candidato.');
-    const journal:Journal={format:1,project:PROJECT,uid:this.uid,confirmed:this.confirmed,pending};
+    const journal:Journal={format:1,project:this.project,uid:this.uid,confirmed:this.confirmed,pending};
     const rawJournal=JSON.stringify(journal);
     if(!this.store.persist)this.store.setItem(this.key(operationId),rawJournal);
     this.journalRaw=rawJournal;this.pending=Object.freeze(pending);this.durability=this.store.persist?'memory':'durable';this.phase='pending';this.message='Candidato preparado; comprueba su copia local y confirmación remota.';
@@ -128,5 +132,5 @@ export class RemoteSession {
   async copyLegacy(op:string,raw:string,consent:boolean):Promise<void>{this.requireActive();if(!consent||this.pending||this.busy||!this.store.importLegacy)throw Error('La copia requiere confirmación y ninguna operación en curso.');this.resolving=true;this.emit();try{const j=this.decode(raw,op);await this.checkRevision(j.confirmed);this.requireActive();await this.store.importLegacy(this.key(op),raw,await digest(raw));this.requireActive();this.resolving=false;await this.open(op);}finally{this.resolving=false;this.emit();}}
   exportOriginal(op:string):string{this.requireActive();if(!id(op))throw Error('Identidad incompatible.');const raw=this.store.getItem(this.key(op));if(raw===null)throw Error('Candidato no encontrado.');return raw;}
   listRecoveries():string[]{this.requireActive();const result:string[]=[];for(let n=0;n<this.store.length;n++){const key=this.store.key(n);if(key?.startsWith(this.prefix+'recovery:')){const op=key.slice((this.prefix+'recovery:').length);if(id(op))result.push(op);}}return result.sort();}
-  exportRecovery(op:string):string{this.requireActive();if(!id(op))throw Error('Copia incompatible.');const raw=this.store.getItem(this.prefix+'recovery:'+op);if(!raw)throw Error('Copia no encontrada.');const j=JSON.parse(raw) as Journal;if(j.format!==1||j.uid!==this.uid||j.project!==PROJECT||j.pending.operationId!==op)throw Error('Copia de otra identidad.');return canonical(j.pending.backup);}
+  exportRecovery(op:string):string{this.requireActive();if(!id(op))throw Error('Copia incompatible.');const raw=this.store.getItem(this.prefix+'recovery:'+op);if(!raw)throw Error('Copia no encontrada.');const j=JSON.parse(raw) as Journal;if(j.format!==1||j.uid!==this.uid||j.project!==this.project||j.pending.operationId!==op)throw Error('Copia de otra identidad.');return canonical(j.pending.backup);}
 }

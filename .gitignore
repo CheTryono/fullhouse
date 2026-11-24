@@ -3,6 +3,7 @@ node_modules/
 *.log
 dist-staging/
 dist-remote-lab/
+dist-remote-staging/
 .firebase/
 .env
 .env.*

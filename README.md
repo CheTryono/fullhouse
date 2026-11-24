@@ -44,6 +44,10 @@ originales, separadas por cuenta **solo en ese laboratorio**. La recuperación e
 explícita; no garantiza las teclas o fotos cuya escritura aún no terminó ni cambia
 los borradores de la versión publicada. [Qué sobrevive al cierre y cómo probarlo](docs/COMMERCIAL_DURABLE_WORK.md).
 
+La preparación **3C.1** añade configuración y adaptadores separados para Firebase
+real de staging, con despliegue/backend/cliente desactivados. No cambia este sitio,
+crea recursos ni activa facturación. [Autorizaciones, pruebas y procedimiento](docs/COMMERCIAL_REAL_STAGING.md).
+
 ## Cómo empezar
 
 ### Abrir en tu equipo

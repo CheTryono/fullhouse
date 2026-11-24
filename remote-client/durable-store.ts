@@ -1,14 +1,16 @@
 import {PROJECT,digest} from './session';
+import {resolveScope,type Scope} from './environment';
 export interface DraftRow {key:string;owner:string;id:string;generation:number;raw:string;hash:string}
 export interface PhotoRow {key:string;owner:string;id:string;context:{eventId:string;date:string;stepId:string;baseRevision:string|null};name:string;type:string;size:number;blob:Blob}
 type Fault=(kind:string,tx:IDBTransaction)=>void;
 // Only new commercial laboratory storage. Never opens the historical v2 DBs.
 export class DurableWorkStore {
   private db:IDBDatabase|null=null;private opening:Promise<void>|null=null;private cache=new Map<string,string>();
-  readonly prefix:string;readonly owner:string;
-  constructor(readonly uid:string,private factory?:IDBFactory,private name='fullhouse-lab-work-v1',private fault?:Fault,project=PROJECT){
-    if(project!==PROJECT||!/^[A-Za-z0-9_-]{1,128}$/.test(uid)||!name.startsWith('fullhouse-lab-'))throw Error('Almacén limitado al laboratorio demo por UID.');
-    this.prefix='fullhouse-remote-lab-v1:'+project+':'+uid+':';this.owner=project+':'+uid;
+  readonly prefix:string;readonly owner:string;readonly project:string;
+  constructor(readonly uid:string,private factory?:IDBFactory,private name='fullhouse-lab-work-v1',private fault?:Fault,environment:string|Scope=PROJECT){
+    const scope=resolveScope(environment);this.project=scope.project;
+    if(!/^[A-Za-z0-9_-]{1,128}$/.test(uid)||(this.project===PROJECT?!name.startsWith('fullhouse-lab-'):name!==scope.database))throw Error('Almacén limitado al laboratorio demo por UID.');
+    this.prefix=scope.prefix+this.project+':'+uid+':';this.owner=this.project+':'+uid;
   }
   private scoped(key:string){if(!key.startsWith(this.prefix))throw new DOMException('El registro pertenece a otra cuenta','SecurityError');}
   ready():Promise<void>{

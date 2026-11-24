@@ -1,0 +1,14 @@
+{
+  "projectId": "fullhouse-staging",
+  "appId": "1:664973716762:web:c8407ddc2d0dc3ef8090a3",
+  "bucket": "fullhouse-staging.firebasestorage.app",
+  "database": "(default)",
+  "edition": "STANDARD",
+  "region": "us-central1",
+  "runtime": "nodejs22",
+  "serviceAccount": "fullhouse-remote-runtime@fullhouse-staging.iam.gserviceaccount.com",
+  "origins": ["https://fullhouse-staging.web.app", "https://fullhouse-staging.firebaseapp.com"],
+  "deploymentAuthorized": false,
+  "remoteEnabled": false,
+  "limits": {"rpcPerMinute": 60, "rpcPerDay": 1000, "operationsPerDay": 100, "operationsTotal": 500, "reservedBytes": 67108864, "downloadBytesPerDay": 134217728}
+}
