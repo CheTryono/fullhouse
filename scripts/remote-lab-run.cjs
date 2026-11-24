@@ -27,7 +27,7 @@ const {buildRemoteLab}=require('./build-remote-lab.cjs');
  await new Promise(resolve=>web.listen(5012,'127.0.0.1',resolve));servers.push(web);console.log('Laboratorio privado: http://127.0.0.1:5012 · lab_A@example.test / lab_B@example.test · contraseña sintética: Synthetic-Password-2030!');
  if(process.argv.includes('--serve')){console.log('Solo datos sintéticos. Ctrl+C para cerrar.');return;}
  try{
-  const files=process.argv.includes('--browser')?['tests/browser/remote-planner.cjs']:['--test','--test-concurrency=1','tests/remote/planner.cjs'];
+  const files=process.argv.includes('--browser')?[process.argv.includes('--durable')?'tests/browser/durable-work.cjs':'tests/browser/remote-planner.cjs']:['--test','--test-concurrency=1','tests/remote/planner.cjs'];
   const child=spawn(process.execPath,files,{cwd:path.resolve(__dirname,'..'),stdio:'inherit',env:{...process.env,FULLHOUSE_REMOTE_DATA_MODE:simulated?'simulated':'emulators'}});
   const code=await new Promise((resolve,reject)=>{child.on('error',reject);child.on('exit',resolve);});process.exitCode=code??1;
  }finally{for(const s of servers)await new Promise(resolve=>s.close(resolve));await deleteApp(admin);}

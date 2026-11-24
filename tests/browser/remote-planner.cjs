@@ -38,11 +38,11 @@ async function data(page){return frame(page).locator('body').evaluate(()=>mounte
   const original=held.frames().find(f=>f.url().endsWith('/planner.html'));
   await frame(held).locator('body').evaluate(()=>{
     const Native=FileReader,wait=accountWorkspace.persistence.waitForSession;accountWorkspace.persistence.waitForSession=()=>{window.photoWaiting=true;return wait();};
-    window.FileReader=class extends Native{readAsDataURL(file){window.resumePhotoRead=()=>super.readAsDataURL(file);}};
+    window.FileReader=class extends Native{readAsDataURL(file){window.resumePhotoRead=()=>super.readAsDataURL(file);window.FileReader=Native;}};
     const canvas=document.createElement('canvas');canvas.width=canvas.height=1;canvas.getContext('2d').fillRect(0,0,1,1);const raw=atob(canvas.toDataURL('image/png').split(',')[1]),bytes=Uint8Array.from(raw,c=>c.charCodeAt(0));
-    window.photoJob=mountedPlanner.saveEvidence(mountedPlanner.state.data.events[0],'2030-01-07','',new File([bytes],'synthetic.png',{type:'image/png'}));window.FileReader=Native;
+    window.photoJob=mountedPlanner.saveEvidence(mountedPlanner.state.data.events[0],'2030-01-07','',new File([bytes],'synthetic.png',{type:'image/png'}));
   });
-  await held.evaluate(()=>FullhouseRemoteLab.simulateSessionLoss());await held.locator('#login').waitFor({state:'visible'});await loginHere(held,'lab_B');const beforeB=await data(held);
+  await original.waitForFunction(()=>typeof window.resumePhotoRead==='function');await held.evaluate(()=>FullhouseRemoteLab.simulateSessionLoss());await held.locator('#login').waitFor({state:'visible'});await loginHere(held,'lab_B');const beforeB=await data(held);
   await original.evaluate(()=>window.resumePhotoRead());await original.waitForFunction(()=>window.photoWaiting===true);assert.deepEqual(await data(held),beforeB);
   await held.getByRole('button',{name:'Cerrar sesión',exact:true}).click();await held.locator('#login').waitFor({state:'visible'});await loginHere(held,'lab_A');await phase(held,'confirmed');await original.evaluate(()=>window.photoJob);await phase(held,'confirmed');assert.equal((await data(held)).logs['photo-event@2030-01-07'].evidences.length,1);
   await held.getByRole('button',{name:'Cerrar sesión',exact:true}).click();await held.locator('#login').waitFor({state:'visible'});await loginHere(held,'lab_B');await phase(held,'confirmed');assert.deepEqual(await data(held),beforeB);

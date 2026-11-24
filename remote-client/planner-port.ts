@@ -4,7 +4,7 @@ export function plannerPort(session:RemoteSession,source:Pick<Storage,'getItem'|
   const preference=(name:string)=>{if(name==='botanica-planificador-v01')throw Error('No se importa el alias local en una cuenta.');return 'fullhouse-remote-lab-pref:'+PROJECT+':'+session.uid+':'+name;};
   return Object.freeze({
     storage:{getItem(name:string){check();if(name==='fullhouse-v01'){if(!session.ready)throw Error('La carga remota no está comprobada.');return session.workingRaw;}return source.getItem(preference(name));},setItem(name:string,value:string){check();if(name==='fullhouse-v01'){session.stage(value);schedule(()=>{void session.retry();});}else source.setItem(preference(name),value);}},
-    persistence:{blocked:()=>session.blocked(),hasPending:()=>session.hasPending,queuedMessage:'Cambios pendientes de confirmación remota. Conservamos el candidato en este navegador.',waitForSession},
+    persistence:{blocked:()=>session.blocked(),hasPending:()=>session.hasPending,queuedMessage:'Cambios pendientes de confirmación remota. Consulta el estado de la copia local antes de cerrar.',waitForSession},
     registerPlanner(planner:any){check();if(planner)register(planner);}
   });
 }

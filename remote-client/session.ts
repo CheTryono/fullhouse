@@ -1,5 +1,7 @@
 import {validData} from '../remote/v1-validator.cjs';
 export const PROJECT='demo-fullhouse-remote';
+// Two backups of up to 8 MiB; JSON string escaping can double each one.
+export const JOURNAL_LIMIT=34*1024*1024;
 export type Phase='pending'|'confirming'|'confirmed'|'error'|'conflict';
 export interface Revision {revisionId:string;backup:string;backupHash:string}
 export interface Receipt {operationId:string;revisionId:string;sequence:number;baseRevision:string|null;backupHash:string}
@@ -11,7 +13,7 @@ export interface RemoteApi {
   save(data:{operationId:string;baseRevision:string|null;backup:string}):Promise<Receipt>;
   restore(data:{operationId:string;baseRevision:string|null;restoreRevision:string}):Promise<Receipt>;
 }
-type Store=Pick<Storage,'getItem'|'setItem'|'removeItem'|'key'|'length'>;
+type Store=Pick<Storage,'getItem'|'setItem'|'removeItem'|'key'|'length'>&{ready?:()=>Promise<void>;persist?:(key:string,raw:string)=>Promise<void>;removePersisted?:(key:string,raw:string)=>Promise<void>;archivePersisted?:(key:string,archive:string,raw:string)=>Promise<void>;importLegacy?:(key:string,raw:string,hash:string)=>Promise<void>};
 const empty=JSON.stringify({version:1,goals:[],routines:[],events:[],logs:{}});
 const id=(value:unknown):value is string=>typeof value==='string'&&/^[A-Za-z0-9_-]{16,80}$/.test(value);
 export function canonical(raw:string):string {
@@ -21,6 +23,8 @@ export function canonical(raw:string):string {
 export async function digest(raw:string):Promise<string>{const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(raw));return Array.from(new Uint8Array(bytes),x=>x.toString(16).padStart(2,'0')).join('');}
 export class RemoteSession {
   phase:Phase='pending';message='Consultando la cuenta…';confirmed:Revision|null=null;observed:Revision|null=null;pending:Pending|null=null;ready=false;
+  durability:'memory'|'writing'|'durable'|'error'='memory';
+  private journalRaw:string|null=null;private persisting:Promise<void>|null=null;private storageReady=false;
   private prefix:string;private flight:Promise<void>|null=null;private resolving=false;private opening=false;private listeners=new Set<()=>void>();
   constructor(readonly uid:string,private store:Store,private api:RemoteApi,private active:()=>boolean,private makeId=()=>crypto.randomUUID(),project=PROJECT){
     if(project!==PROJECT||!/^[A-Za-z0-9_-]{1,128}$/.test(uid))throw Error('Solo se permite el laboratorio demo por UID.');
@@ -38,11 +42,16 @@ export class RemoteSession {
   }
   listPending():string[]{
     this.requireActive();const result:string[]=[];
+    if(this.store.ready&&!this.storageReady)return result;
     for(let n=0;n<this.store.length;n++){const key=this.store.key(n);if(key?.startsWith(this.prefix+'pending:')){const op=key.slice((this.prefix+'pending:').length);if(!id(op))throw Error('Hay una identidad local incompatible. Conserva los originales.');result.push(op);}}
     return result.sort(); // Sorting is for presentation, never authority/selection.
   }
   private load(op:string):Journal {
     const raw=this.store.getItem(this.key(op));if(raw===null)throw Error('No encontramos el candidato solicitado.');
+    return this.decode(raw,op);
+  }
+  private decode(raw:string,op:string):Journal {
+    if(new TextEncoder().encode(raw).length>JOURNAL_LIMIT)throw Error('El paquete supera el límite local de recuperación. Conserva el original.');
     const j=JSON.parse(raw) as Journal,p=j.pending;
     if(j.format!==1||j.project!==PROJECT||j.uid!==this.uid||!p||p.operationId!==op||!id(op)||!['save','restore'].includes(p.kind)||!(p.baseRevision===null||id(p.baseRevision))||p.baseRevision!==(j.confirmed?.revisionId||null)||(p.kind==='restore'&&!id(p.restoreRevision)))throw Error('El candidato local no pertenece a esta cuenta/base.');
     if(canonical(p.backup)!==p.backup)throw Error('El candidato local fue alterado.');
@@ -51,10 +60,11 @@ export class RemoteSession {
   async open(selected?:string):Promise<void>{
     this.requireActive();if(this.pending||this.busy)throw Error('Resuelve el candidato abierto antes de cargar otro.');this.opening=true;
     try{
+      await this.store.ready?.();this.storageReady=true;this.requireActive();
       const ids=this.listPending();
       if(selected&&!ids.includes(selected))throw Error('El candidato seleccionado no existe.');
       if(ids.length>1&&!selected){this.phase='conflict';this.message='Hay varios candidatos locales. Elige uno por su identidad; conservaremos todos.';return;}
-      if(selected||ids.length===1){const j=this.load(selected||ids[0]);this.confirmed=await this.checkRevision(j.confirmed);this.requireActive();this.pending={...j.pending};this.ready=true;}
+      if(selected||ids.length===1){const op=selected||ids[0],j=this.load(op);this.confirmed=await this.checkRevision(j.confirmed);this.requireActive();this.pending=Object.freeze({...j.pending});this.journalRaw=this.store.getItem(this.key(op));this.durability='durable';this.ready=true;}
       const latest=await this.checkRevision(await this.api.read(null));this.requireActive();this.observed=latest;
       if(this.pending){this.phase=(latest?.revisionId||null)===this.pending.baseRevision?'pending':'conflict';this.message='Candidato recuperado. Inspecciona y reintenta para comprobar si llegó al servidor.';}
       else{this.confirmed=latest;this.ready=true;this.phase='confirmed';this.message=latest?'Revisión recibida y verificada.':'Cuenta vacía comprobada en el servidor.';}
@@ -63,7 +73,7 @@ export class RemoteSession {
   }
   get workingRaw(){return this.pending?.backup||this.confirmed?.backup||empty;}
   get hasPending(){return !!this.pending||!!this.flight||this.resolving;}
-  get busy(){return !!this.flight||this.resolving||this.opening;}
+  get busy(){return !!this.flight||!!this.persisting||this.resolving||this.opening;}
   blocked():string{return !this.active()?'La sesión está inactiva; vuelve a tu cuenta.':!this.ready?'La cuenta aún no está comprobada.':this.hasPending?'Resuelve el candidato pendiente desde el panel remoto antes de guardar otra acción.':'';}
   stage(raw:string,kind:'save'|'restore'='save',restoreRevision?:string):void{
     this.requireActive();const issue=this.blocked();if(issue)throw Error(issue);
@@ -72,8 +82,16 @@ export class RemoteSession {
     if(kind==='restore'&&!id(restoreRevision))throw Error('Revisión de restauración incompatible.');
     if(this.store.getItem(this.key(operationId))!==null)throw Error('La identidad ya pertenece a otro candidato.');
     const journal:Journal={format:1,project:PROJECT,uid:this.uid,confirmed:this.confirmed,pending};
-    this.store.setItem(this.key(operationId),JSON.stringify(journal)); // Durable local candidate BEFORE any request.
-    this.pending=pending;this.phase='pending';this.message='Candidato conservado en este navegador; pendiente de confirmación remota.';this.emit();
+    const rawJournal=JSON.stringify(journal);
+    if(!this.store.persist)this.store.setItem(this.key(operationId),rawJournal);
+    this.journalRaw=rawJournal;this.pending=Object.freeze(pending);this.durability=this.store.persist?'memory':'durable';this.phase='pending';this.message='Candidato preparado; comprueba su copia local y confirmación remota.';
+    if(this.store.persist)void this.persistCandidate().catch(()=>{});this.emit();
+  }
+  private persistCandidate():Promise<void>{
+    if(!this.store.persist)return Promise.resolve();if(this.persisting)return this.persisting;
+    const p=this.pending,raw=this.journalRaw;if(!p||!raw)return Promise.reject(Error('Falta el candidato local.'));
+    this.durability='writing';this.emit();
+    this.persisting=Promise.resolve().then(()=>this.store.persist!(this.key(p.operationId),raw)).then(()=>{this.durability='durable';this.emit();}).catch(e=>{this.durability='error';this.phase='error';this.message='No se confirmó la copia local. El candidato sigue en memoria: expórtalo antes de cerrar.';this.emit();throw e;}).finally(()=>{this.persisting=null;this.emit();});return this.persisting;
   }
   retry():Promise<void>{
     if(this.resolving||this.opening)return Promise.reject(Error('Espera a que termine la recuperación o carga.'));
@@ -83,15 +101,16 @@ export class RemoteSession {
   private async send():Promise<void>{
     const p=this.pending;if(!p)return;
     try{
+      await this.persistCandidate();
       this.requireActive();this.phase='confirming';this.message='Comprobando recibo y confirmando con el servidor…';this.emit();
       const expected=await digest(p.backup);this.requireActive();
       let receipt=await this.api.inspect(p.operationId);this.requireActive();
       if(receipt===null){receipt=p.kind==='restore'?await this.api.restore({operationId:p.operationId,baseRevision:p.baseRevision,restoreRevision:p.restoreRevision!}):await this.api.save({operationId:p.operationId,baseRevision:p.baseRevision,backup:p.backup});this.requireActive();}
       if(!receipt||receipt.operationId!==p.operationId||receipt.revisionId!==p.operationId||receipt.baseRevision!==p.baseRevision||!Number.isSafeInteger(receipt.sequence)||receipt.sequence<1||receipt.backupHash!==expected)throw Error('El recibo no corresponde al candidato enviado.');
       // Storage failure here is uncertain locally, not a remote rollback.
-      this.store.removeItem(this.key(p.operationId));
+      if(this.store.removePersisted){await this.store.removePersisted(this.key(p.operationId),this.journalRaw!);this.requireActive();}else this.store.removeItem(this.key(p.operationId));
       this.confirmed={revisionId:receipt.revisionId,backup:p.backup,backupHash:expected};this.pending=null;this.phase='confirmed';this.message='Guardado confirmado por el servidor y huella verificada.';
-    }catch(e){const code=(e as {code?:string}).code;this.phase=code==='failed-precondition'||code==='already-exists'?'conflict':'error';this.message=this.phase==='conflict'?'Otra revisión entró en conflicto. Tu candidato sigue intacto; no se sobrescribió automáticamente.':'Confirmación no disponible. El commit podría existir: el reintento inspeccionará el recibo y conservará el mismo ID.';}
+    }catch(e){const code=(e as {code?:string}).code;this.phase=code==='failed-precondition'||code==='already-exists'?'conflict':'error';this.message=this.durability==='error'?'Falló la copia local; no se envió este intento. Conserva o exporta el candidato en memoria.':this.phase==='conflict'?'Otra revisión entró en conflicto. Tu candidato sigue intacto; no se sobrescribió automáticamente.':'Confirmación no disponible. El commit podría existir: el reintento inspeccionará el recibo y conservará el mismo ID.';}
     this.emit();
   }
   async preview(revisionId:string):Promise<Revision>{this.requireActive();if(!id(revisionId))throw Error('Identidad de revisión inválida.');const r=await this.checkRevision(await this.api.read(revisionId));this.requireActive();if(!r||r.revisionId!==revisionId)throw Error('No se encontró esa revisión propia.');return r;}
@@ -99,11 +118,14 @@ export class RemoteSession {
   async useServer(consent:boolean):Promise<void>{
     this.requireActive();if(!consent||this.busy)throw Error('Confirma la recuperación cuando no haya peticiones en curso.');this.resolving=true;this.emit();
     try{const latest=await this.checkRevision(await this.api.read(null));this.requireActive();
-    if(this.pending){const key=this.key(this.pending.operationId),raw=this.store.getItem(key);if(raw===null)throw Error('Falta la copia local del candidato.');const archive=this.prefix+'recovery:'+this.pending.operationId,old=this.store.getItem(archive);if(old!==null&&old!==raw)throw Error('La copia de recuperación no coincide.');this.store.setItem(archive,raw);this.store.removeItem(key);}
+    if(this.pending){await this.persistCandidate();this.requireActive();const key=this.key(this.pending.operationId),raw=this.store.getItem(key);if(raw===null)throw Error('Falta la copia local del candidato.');const archive=this.prefix+'recovery:'+this.pending.operationId,old=this.store.getItem(archive);if(old!==null&&old!==raw)throw Error('La copia de recuperación no coincide.');if(this.store.archivePersisted){await this.store.archivePersisted(key,archive,raw);this.requireActive();}else{this.store.setItem(archive,raw);this.store.removeItem(key);}}
     this.confirmed=latest;this.observed=latest;this.pending=null;this.ready=true;this.phase='confirmed';this.message='Versión del servidor cargada por tu indicación. El candidato anterior conserva su copia de recuperación.';
     }finally{this.resolving=false;this.emit();}
   }
   exportCandidate():string{this.requireActive();if(!this.pending)throw Error('No hay candidato pendiente.');return this.pending.backup;}
+  exportPending():string{this.requireActive();if(!this.pending||!this.journalRaw)throw Error('No hay paquete pendiente en memoria.');return this.journalRaw;}
+  async recoverPacket(raw:string,consent:boolean):Promise<void>{if(typeof raw!=='string'||new TextEncoder().encode(raw).length>JOURNAL_LIMIT)throw Error('Paquete demasiado grande.');const j=JSON.parse(raw);await this.copyLegacy(j?.pending?.operationId,raw,consent);}
+  async copyLegacy(op:string,raw:string,consent:boolean):Promise<void>{this.requireActive();if(!consent||this.pending||this.busy||!this.store.importLegacy)throw Error('La copia requiere confirmación y ninguna operación en curso.');this.resolving=true;this.emit();try{const j=this.decode(raw,op);await this.checkRevision(j.confirmed);this.requireActive();await this.store.importLegacy(this.key(op),raw,await digest(raw));this.requireActive();this.resolving=false;await this.open(op);}finally{this.resolving=false;this.emit();}}
   exportOriginal(op:string):string{this.requireActive();if(!id(op))throw Error('Identidad incompatible.');const raw=this.store.getItem(this.key(op));if(raw===null)throw Error('Candidato no encontrado.');return raw;}
   listRecoveries():string[]{this.requireActive();const result:string[]=[];for(let n=0;n<this.store.length;n++){const key=this.store.key(n);if(key?.startsWith(this.prefix+'recovery:')){const op=key.slice((this.prefix+'recovery:').length);if(id(op))result.push(op);}}return result.sort();}
   exportRecovery(op:string):string{this.requireActive();if(!id(op))throw Error('Copia incompatible.');const raw=this.store.getItem(this.prefix+'recovery:'+op);if(!raw)throw Error('Copia no encontrada.');const j=JSON.parse(raw) as Journal;if(j.format!==1||j.uid!==this.uid||j.project!==PROJECT||j.pending.operationId!==op)throw Error('Copia de otra identidad.');return canonical(j.pending.backup);}
