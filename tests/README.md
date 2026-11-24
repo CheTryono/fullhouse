@@ -4,11 +4,13 @@
 
 `npm run test:commercial-preflight`: 22 casos (18 política servidor con puertos
 en memoria, cuatro inventario HTTP inyectado), incluidos en `npm test`. No son
-pruebas Firebase reales. `npm run test:remote-staging:media:emulator`: cuatro casos
-preparados con Firestore/Storage; pendiente en este entorno por descarga del JAR
-bloqueada. Ejecutar también `npm run test:remote-staging:rules` para los nuevos
-intentos sobre derechos/inventario. El 3/3 anterior del propietario no acredita
-esta ampliación. Proyecto demo fijo, sin desplegar ni usar credenciales reales.
+pruebas Firebase reales. El propietario informó desde Cloud Shell **4/4** para
+`npm run test:remote-staging:media:emulator` y **3/3** para
+`npm run test:remote-staging:rules`, incluidos los intentos nuevos sobre
+derechos/inventario; salida 0, sin fallos, canceladas, omitidas ni TODO en ambos.
+No proporcionó SHA/Node/Java. Es evidencia posterior y distinta del 3/3 previo de
+3C.1. Codex conserva su intento bloqueado por la descarga del JAR y no se atribuye
+esas ejecuciones. Proyecto demo fijo, sin desplegar ni usar servicios reales.
 Mediciones sintéticas y orden manual: [ensayo 3C.2](../docs/COMMERCIAL_STAGING_TRIAL.md).
 
 ## Preparación real comercial 3C.1, desactivada

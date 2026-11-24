@@ -20,6 +20,29 @@ garantizada: el límite v1/controles de ensayo pueden alcanzarse antes. No se el
 ningún límite defensivo 3A. Texto confirmado por encima de la cuota tras una baja
 puede conservarse/editarse si no crece; no se trunca ni exige borrar fotografías.
 
+### Revisión de capacidad antes de anunciar los niveles
+
+Se mantienen **sin cambios de código** las cuotas propuestas. 50 MiB es la cota
+histórica acumulada de fuentes únicas confirmadas por UID; 200 referencias incluye
+las retiradas de la revisión actual y 100 fuentes no promete 100 imágenes activas.
+Los 8 MiB se aplican al **JSON v1 completo de cada guardado/importación/restauración**,
+incluido texto, metadata y cada copia de la data URL. Deduplicar el blob en Storage
+no reduce las copias incluidas en un respaldo v1 ni amplía su límite.
+
+Con 2 MiB de texto Premium y las muestras ya medidas, reservando 300 bytes por
+evidencia, cabrían aritméticamente unas **10 imágenes de 599.231 bytes** o **19 de
+315.511 bytes**. Con 1 MiB de texto serían 12 o 23, respectivamente. Son estimaciones
+de cabida sobre muestras, no mediciones nuevas ni mínimos garantizados: otras
+propiedades, referencias repetidas y límites de estructura pueden reducirlas.
+100 imágenes de 599.231 bytes también exceden 50 MiB aun repartidas en revisiones.
+
+Los 64 MiB de reservas conservadoras de staging pueden agotarse antes al repetir
+guardados con fotos; el inventario de medios no cuenta todos los bytes facturables
+de instantáneas/huérfanos/logs/soft delete. Conservar estos límites para el ensayo;
+**no publicitar “100 fotos/50 MiB utilizables en el documento”** ni un coste de
+5 USD garantizado. Aprobar los niveles públicos solo explicando el límite efectivo
+v1 y tras verificar costes. Cambiar el protocolo/límites no forma parte de esta PR.
+
 ## Derecho confiable
 
 Documento privado `billingEntitlements/{uid}` con esquema exacto:
@@ -148,8 +171,13 @@ Es aritmética sobre muestras, no una capacidad prometida de cuenta.
 aislamiento/restauración, inventario corrupto/incompleto, blobs faltantes, revocación
 concurrente, CAS, TX y acuse perdido. Cuatro casos GET completan **22/22**.
 Se conservan **17/17** previos 3C.1; suite general **573 aprobadas + 6 TODO**.
-Cuatro casos nuevos con Firestore/Storage emulados y reglas ampliadas quedan
-pendientes por descarga bloqueada del JAR; no se cuentan como aprobados.
+En el intento inicial de Codex, la descarga bloqueada del JAR impidió ejecutar los
+casos nuevos de emuladores. **Posteriormente el propietario informó en Cloud Shell
+4/4 de medios y 3/3 de reglas ampliadas**, cero fallos/canceladas/omitidas/TODO y
+salida 0 en ambos, en esta rama. No proporcionó SHA ni versiones de runtime. Es
+evidencia de emuladores aportada por el propietario, no una ejecución de Codex ni
+prueba contra servicios reales. Detalle y duraciones en
+[el informe del ensayo](COMMERCIAL_STAGING_TRIAL.md#evidencia-posterior-proporcionada-por-el-propietario).
 
 No hay evidencia de IAM/App Check positivo reales, pagos, coste observado o
 dispositivos físicos. Antes de usuarios: aprobar cuotas/política y ejecutar el

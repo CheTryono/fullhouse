@@ -3,14 +3,22 @@
 - Base 36aae0f (PR #24). us-central1/EE. UU. y objetivo 5 USD/mes aceptados;
   vinculación billing, recursos, deploy y activación siguen sin autorizar.
 - Inventario GET fijo con sesión gcloud local, por defecto solo plan; errores y
-  paginación no se confunden con inexistencia. Inventario/tarifas reales pendientes:
-  sin sesión local y páginas oficiales bloqueadas por 403, sin precios inventados.
+  paginación no se confunden con inexistencia. Propietario informó inventario
+  parcial: proyecto correcto, billing deshabilitado y sin buckets; Firestore,
+  Functions, Run, AR, Build, App Check/reCAPTCHA desconocidos por 403. No se
+  confirman regiones/edición reales; tarifas oficiales siguen pendientes.
 - Política de imágenes del servidor detrás de cierres staging: derechos privados,
   cuotas y referencias por UID, inventario junto a recibo/head en TX. Bajas conservan
   texto/lectura/exportación; importaciones e IDs nuevos no evaden Premium.
 - 22 pruebas nuevas simuladas, 17 previas; suite general 573 aprobadas + 6 TODO.
-  Node 22 verificado, tamaños JPEG medidos en Chromium sintético. Cuatro casos nuevos
-  de emuladores pendientes por descarga del JAR bloqueada; sin pruebas reales.
+  Node 22 verificado, tamaños JPEG medidos en Chromium sintético. Propietario informó
+  después reglas ampliadas 3/3 y medios 4/4 en Cloud Shell, salida 0, sin fallos ni
+  omitidas. Esa evidencia no se atribuye a Codex, cuyo arranque quedó bloqueado por
+  descarga del JAR. Sin pruebas con servicios reales.
+- Revisión documental: cuotas sin cambiar; 50 MiB históricos no amplían el respaldo
+  v1 de 8 MiB. Con 2 MiB de texto cabrían aproximadamente 10 fotos de la muestra
+  mayor, no 100 garantizadas. Preparación lista para fusión desactivada;
+  autorización financiera y primer deploy cerrado requieren decisiones posteriores.
 - Contratos, cuotas propuestas, costes por confirmar y autorizaciones en orden:
   docs/COMMERCIAL_STAGING_TRIAL.md y docs/COMMERCIAL_MEDIA_ENTITLEMENTS.md.
   Planner, Auth/Hosting/Pages, motor v2, 3A, reglas, IAM y barreras intactos.

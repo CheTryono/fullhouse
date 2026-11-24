@@ -19,11 +19,71 @@ sin garantía de tope. Vincular billing, crear recursos y desplegar siguen sin a
   staging **cerrado**. Backend 3A/v1, reglas, IAM, cliente, Planner, Auth/Hosting,
   Pages y controles de despliegue/activación intactos. No hay Stripe ni migración.
 
-**Inventario real pendiente:** no hay gcloud/sesión disponible aquí; el script
+**Intento inicial de Codex:** no hay gcloud/sesión disponible aquí; el script
 termina con código 2 antes de consultar. También `firebase firestore:databases:list
 --project fullhouse-staging --json` rechazó la operación por falta de autenticación.
 El Hosting/Auth existente se conoce por
 el informe del propietario. firebaseConfig no acredita que exista una base/bucket.
+El propietario ejecutó después el inventario en Cloud Shell; sus resultados se
+registran a continuación y sustituyen el estado de inventario totalmente pendiente.
+
+## Evidencia posterior proporcionada por el propietario
+
+Informe recibido el **24 noviembre 2026**, rama
+`feat/commercial-staging-trial-media-policy`. No se proporcionaron SHA probado ni
+versiones de Node/Java; no se infieren del nombre de la rama. **Codex no ejecutó
+estas pruebas ni consultó estos recursos reales.** Se conserva por separado la
+evidencia local anterior y su bloqueo de descarga.
+
+| Comando ejecutado por el propietario en Google Cloud Shell | Pruebas | Aprobadas | Fallos / canceladas / omitidas / TODO | Duración (ms) | Salida |
+| --- | ---: | ---: | --- | ---: | ---: |
+| `npm run test:remote-staging:rules` | 3 | 3 | 0 / 0 / 0 / 0 | 5589.06735 | 0 |
+| `npm run test:remote-staging:media:emulator` | 4 | 4 | 0 / 0 / 0 / 0 | 9008.544936 | 0 |
+
+Son Auth/Firestore/Storage **emulados**, incluidos los intentos ampliados sobre
+derechos/inventario y las operaciones de medios con Firestore/Storage emulados.
+No son los 22 casos locales con puertos simulados/HTTP inyectado ni los 17 previos.
+Tampoco demuestran IAM, App Check positivo, tarifas o persistencia Firebase real.
+
+### Clasificación del inventario informado
+
+`npm run inspect:remote-staging -- --run` informó `complete:false`. El propietario
+no proporcionó el código de salida de este comando. No se infiere éxito completo
+de las pruebas anteriores. Alcance: solo metadatos; Run/Build/AR limitados a
+us-central1, sin IAM, documentos de usuario, objetos ni secretos.
+
+| Recurso / configuración | Clasificación en la consulta informada | Compatibilidad con 3C.2 |
+| --- | --- | --- |
+| Proyecto `fullhouse-staging`, número `664973716762` | **Existente**, `observed` | ID y número coinciden con la configuración/app oficial preparada |
+| Facturación | **Estado observado: deshabilitada**, `billingEnabled:false` | Compatible con preparación sin activar; no es autorización para Blaze ni prueba de la moneda/cuenta de pago |
+| Buckets del proyecto | **Ausentes en el listado observado**, `buckets:[]` | El bucket esperado `fullhouse-staging.firebasestorage.app` no se encontró. No hay ubicación, clase ni privacidad de un bucket existente que validar |
+| Bases Firestore | **Desconocidas**, HTTP 403 | No se confirma existencia, edición Standard/Native, nombre `(default)` ni región |
+| Functions (listado de ubicaciones) | **Desconocidas**, HTTP 403 | Región, runtime Node 22 y configuración efectiva no verificables |
+| Cloud Run en us-central1 | **Desconocido**, HTTP 403 | No demuestra que falten servicios ni que sus límites sean compatibles |
+| Artifact Registry en us-central1 | **Desconocido**, HTTP 403 | Repositorios, ubicación efectiva, tamaño y limpieza pendientes de verificar |
+| Cloud Build en us-central1 | **Desconocido**, HTTP 403 | Builds/configuración no verificables; no equivale a ausencia de costes |
+| App Check / reCAPTCHA Enterprise | **Desconocidos**, HTTP 403 en ambas consultas | No se confirma proveedor, dominios, clave pública, cuotas ni protección activa |
+| APIs habilitadas | **Existentes las incluidas en la lista**, `observed` | La lista no acredita recursos, uso, costes ni permisos de despliegue |
+
+La lista incluye `storage.googleapis.com`, `datastore.googleapis.com`,
+`identitytoolkit.googleapis.com`, `firebasehosting.googleapis.com`, Logging y
+Monitoring, entre otras. No incluye `firestore.googleapis.com`,
+`cloudfunctions.googleapis.com`, `run.googleapis.com`,
+`artifactregistry.googleapis.com`, `cloudbuild.googleapis.com`,
+`firebaseappcheck.googleapis.com` ni `recaptchaenterprise.googleapis.com` como
+habilitadas. **Ausencia en esa lista significa que no se observaron habilitadas,
+no que sus recursos estén ausentes.** Datastore API habilitada no demuestra que
+exista Firestore `(default)`. El inventario no conserva la causa detallada de cada
+403: no se atribuye automáticamente a falta de API o a IAM. No se habilita ninguna
+API para resolverlo durante esta actualización.
+
+**Conclusión de compatibilidad:** identidad de proyecto correcta; objetivos de
+configuración en código compatibles con la decisión de us-central1/Standard/Node 22.
+La compatibilidad de recursos reales **no está demostrada**: el bucket no aparece
+y las demás ubicaciones/ediciones/configuraciones relevantes son desconocidas.
+Antes de crear recursos, revisar esos desconocidos en Console con el propietario;
+si siguen sin poder inspeccionarse, planificar una habilitación explícita de API
+tras autorización, sin asumir que se puede crear un recurso sustituto sin conflicto.
 
 ## Precios, cuotas y región: verificación pendiente
 
@@ -127,18 +187,50 @@ nuevos casos (18 medios con puertos simulados, cuatro inventario con HTTP inyect
 `check:remote-client`, `check:history-contract` y `check:remote-staging:node22`;
 este último comprueba SDK gcfv2 cerrado y rechazo HTTP loopback 401 sin tokens.
 
-Nueva suite `test:remote-staging:media:emulator`: cuatro casos preparados,
-**no ejecutados**; arranque código 1 al fallar descarga del JAR de Firestore.
-Se amplía el test de reglas con intentos sobre derechos/inventario: pendiente de
-ejecutar `test:remote-staging:rules` en Cloud Shell. El **3/3 del propietario de
-3C.1** acredita la versión anterior, no esos intentos añadidos. No cambia su autoría.
+En el intento inicial de Codex, `test:remote-staging:media:emulator` no llegó a
+ejecutar sus cuatro casos: arranque código 1 al fallar la descarga del JAR.
+El informe posterior del propietario acredita **4/4 de medios y 3/3 de reglas
+ampliadas** en Cloud Shell, con salida 0 en ambos. Se mantiene la distinción frente
+al **3/3 de 3C.1** informado anteriormente, que correspondía a la versión previa.
 
 Chromium **156.0.8078.79**: mediciones canvas sintéticas en el contrato de medios.
 No hay cambios UI y no se repitieron sus suites Chromium. Firebase real, IAM,
 App Check positivo, Firefox/WebKit y dispositivos físicos no probados en 3C.2.
 No se declara resuelto BUG-05 ni se conecta v2.
 
-**Revisable como preparación, no lista para activar:** faltan inventario/tarifas,
-emuladores nuevos/reglas ampliadas, autorizaciones de billing/servicios/despliegue,
-IAM/App Check reales y política de privacidad/retención/eliminación aprobada.
-Antes de cobrar Premium faltará el backend de pagos y pruebas de su ciclo de derechos.
+### Cierre documental de esta revisión
+
+Codex repitió con Node **22.23.5**: `check`, `test:commercial-preflight` (**22/22**),
+`test:remote-staging` (**17/17**), `check:remote-client` y
+`check:remote-staging:node22`, todos correctos. La suite general anterior
+**573 aprobadas + 6 TODO** se conserva; no se repitió por esta actualización solo
+documental. No se repitieron los emuladores ni las pruebas Chromium.
+Se verifican `deploymentAuthorized:false`, `remoteEnabled:false`, cliente
+`enabled:false`/`appCheckSiteKey:null`, hooks de bloqueo, SDK cerrado antes de Admin
+y ausencia de importación remota en los constructores de Hosting. Código, reglas,
+IAM, configuraciones, backend y cliente permanecen idénticos a `59e415e`.
+
+**3C.2 está lista para fusionarse exclusivamente como preparación desactivada**,
+con la evidencia del propietario correctamente atribuida. No está lista para
+activación ni para aceptar datos personales. Los emuladores ya no son un bloqueo
+pendiente de esta entrega; permanecen inventario parcial, tarifas vigentes,
+autorizaciones de billing/servicios/despliegue, IAM/App Check reales y política de
+privacidad/retención/eliminación. Antes de cobrar Premium faltará el backend de pagos.
+
+### Procedimiento mínimo siguiente
+
+1. Revisar en Console los recursos desconocidos, posibles ubicaciones y edición;
+   confirmar tarifas/moneda y costes secundarios. Registrar el SHA del próximo
+   ensayo. No crear ni habilitar recursos durante esta inspección.
+2. Obtener autorización financiera **separada** para vincular Blaze solo a
+   `fullhouse-staging`; la aceptación de región y objetivo 5 USD no la sustituye.
+3. El propietario vincula la cuenta aprobada y configura enseguida alertas reales
+   a **1/3/5 USD** (20/60/100% de 5 USD) y prevista al 100%, con destinatarios
+   verificados, antes de crear servicios. No son un hard cap.
+4. Autorizar por separado APIs/recursos privados/IAM/App Check, con us-central1
+   para Firestore, Storage y Functions; volver a inspeccionar antes de crear Firestore/bucket para evitar duplicados o
+   ubicaciones incompatibles. No conceder Owner/Editor al runtime.
+5. Preparar otra PR autorizada para el **primer deploy cerrado**, artefacto con
+   hashes y backend/cliente apagados; revisar IAM y rechazos Auth/App Check/reglas.
+   Ningún cambio de barreras ni deploy ocurre en esta actualización. El ensayo
+   positivo con UIDs ficticios seguirá requiriendo autorización posterior.
