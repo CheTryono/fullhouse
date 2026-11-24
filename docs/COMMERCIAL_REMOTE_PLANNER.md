@@ -161,14 +161,64 @@ quita credenciales heredadas y fuerza el proyecto demo y endpoints loopback.
 - Regresiones públicas Chromium: guardado pendiente (cuota/acceso, 1280/390), límites
   del día/dependencias (1280/390) y guardas/copia histórica (cinco paletas, 1280/390)
   aprobadas. No son pruebas de teléfonos físicos, Firefox ni WebKit.
-- La nueva suite completa `test:remote:planner` no arrancó: la descarga del JAR de
-  Firestore sigue bloqueada por la red del entorno. Se debe ejecutar en Cloud Shell
-  antes de declarar comprobada 3B con Firestore/Storage. Las 9 pruebas de **3A**
-  comunicadas por el propietario son evidencia heredada, no una ejecución de 3B.
+- El intento de la suite completa `test:remote:planner` en Codex no arrancó por
+  el bloqueo de red al descargar el JAR de Firestore. Se conserva ese resultado
+  local; la ejecución completa posterior de Cloud Shell informada por el
+  propietario se registra por separado a continuación. Las 9 pruebas de **3A**
+  son evidencia heredada distinta de las 6 pruebas completas de **3B**.
 - No se oculta el bloqueo con TODO ni se atribuye al BUG-05 conocido. La reproducción
   pública original de BUG-05 conserva su comprobación y pasa por las guardas v1.
 
-Antes del lanzamiento faltan: suite completa 3B, runtime Node 22, IAM y App Check/
+### Suite completa 3B en Cloud Shell · informe del propietario
+
+El propietario comunicó la ejecución de `npm run test:remote:planner` sobre la
+rama `feat/commercial-remote-planner-v1`, contra los emuladores completos de
+Firebase (Auth, Functions, Firestore y Storage), con este resumen:
+
+| Resultado informado | Valor |
+| --- | --- |
+| Pruebas | 6 |
+| Suites | 0 |
+| Aprobadas | 6 |
+| Fallos | 0 |
+| Canceladas | 0 |
+| Omitidas | 0 |
+| TODO | 0 |
+| Duración de la suite | 14904.806899 ms |
+| Salida del script | 0, ejecución satisfactoria |
+
+Esta evidencia procede del resumen facilitado por el propietario; Codex no
+reejecutó esta suite completa en su entorno. Es independiente de los seis
+recorridos con **almacenamiento simulado** descritos antes. No se informó el SHA
+exacto probado ni las versiones de Node/Java de Cloud Shell; no se infieren de
+estos resultados. La duración informada no es una medición de latencia de guardado
+ni una comparación controlada de rendimiento.
+
+### Revisión local al registrar el informe
+
+Codex revisó la rama en `729ecb2`. La lógica y dependencias del backend 3A, el
+validador ejecutable, las reglas de Firestore/Storage y las configuraciones de
+despliegue coinciden con `origin/main` (`89540d8`). En `remote/` la única adición
+previa de 3B es `v1-validator.d.cts`, una declaración de tipos sin cambios de runtime.
+Esta actualización modifica únicamente documentación.
+
+Volvieron a pasar `check`, `check:remote`, `check:remote-client`, `check:auth` y
+`check:history-contract`, las 13 pruebas de cliente, las 8 de contrato/servicio y
+las 194 regresiones públicas. Se reejecutó además `npm test`: 519 aprobadas,
+cero fallos, cero canceladas/omitidas y seis TODO previos (525 casos).
+
+Cinco procesos Node confirmaron el rechazo de carga del backend sin modo emulador,
+con un proyecto real aunque exista el flag de emulación, o con endpoints no
+locales de Firestore, Storage o Auth. Las pruebas del cliente también rechazan
+proyectos reales y orígenes no locales. El código y los recursos existentes de
+staging conservan la ruta local y no incluyen el cliente remoto del laboratorio.
+No se ejecutaron comandos de despliegue ni se alteraron estas barreras.
+
+Con el resultado de Cloud Shell informado por el propietario y las verificaciones
+locales, la PR es apta para fusionarse **como integración aislada**. No autoriza
+activar el almacenamiento remoto en usuarios ni demuestra servicios o cuotas reales.
+
+Antes del lanzamiento faltan: runtime Node 22, IAM y App Check/
 antiabuso, cuotas reales, retención y privacidad aprobadas, configuración/Blaze
 autorizados, y adaptación final del cliente remoto fuera del laboratorio.
 
