@@ -1,5 +1,10 @@
 # Comercial 3B · integración asíncrona v1, solo laboratorio
 
+**Continuación 3B.2:** el laboratorio utiliza ahora el [almacén durable comercial](COMMERCIAL_DURABLE_WORK.md)
+para candidatos, borradores y originales fotográficos. Las descripciones de
+localStorage/RAM y cifras siguientes documentan la entrega 3B fusionada; sus
+resultados, incluido el informe del propietario, no certifican los nuevos cambios.
+
 Base `89540d8` (PR #21 / 3A fusionada). Rama de revisión `feat/commercial-remote-planner-v1`.
 El planificador publicado y el acceso de staging conservan su almacenamiento
 local. La nueva integración se ejecuta solo en loopback, proyecto fijo

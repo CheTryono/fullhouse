@@ -1,5 +1,7 @@
 import {validData} from '../remote/v1-validator.cjs';
 export const PROJECT='demo-fullhouse-remote';
+// Two backups of up to 8 MiB; JSON string escaping can double each one.
+export const JOURNAL_LIMIT=34*1024*1024;
 export type Phase='pending'|'confirming'|'confirmed'|'error'|'conflict';
 export interface Revision {revisionId:string;backup:string;backupHash:string}
 export interface Receipt {operationId:string;revisionId:string;sequence:number;baseRevision:string|null;backupHash:string}
@@ -49,6 +51,7 @@ export class RemoteSession {
     return this.decode(raw,op);
   }
   private decode(raw:string,op:string):Journal {
+    if(new TextEncoder().encode(raw).length>JOURNAL_LIMIT)throw Error('El paquete supera el límite local de recuperación. Conserva el original.');
     const j=JSON.parse(raw) as Journal,p=j.pending;
     if(j.format!==1||j.project!==PROJECT||j.uid!==this.uid||!p||p.operationId!==op||!id(op)||!['save','restore'].includes(p.kind)||!(p.baseRevision===null||id(p.baseRevision))||p.baseRevision!==(j.confirmed?.revisionId||null)||(p.kind==='restore'&&!id(p.restoreRevision)))throw Error('El candidato local no pertenece a esta cuenta/base.');
     if(canonical(p.backup)!==p.backup)throw Error('El candidato local fue alterado.');
@@ -120,6 +123,8 @@ export class RemoteSession {
     }finally{this.resolving=false;this.emit();}
   }
   exportCandidate():string{this.requireActive();if(!this.pending)throw Error('No hay candidato pendiente.');return this.pending.backup;}
+  exportPending():string{this.requireActive();if(!this.pending||!this.journalRaw)throw Error('No hay paquete pendiente en memoria.');return this.journalRaw;}
+  async recoverPacket(raw:string,consent:boolean):Promise<void>{if(typeof raw!=='string'||new TextEncoder().encode(raw).length>JOURNAL_LIMIT)throw Error('Paquete demasiado grande.');const j=JSON.parse(raw);await this.copyLegacy(j?.pending?.operationId,raw,consent);}
   async copyLegacy(op:string,raw:string,consent:boolean):Promise<void>{this.requireActive();if(!consent||this.pending||this.busy||!this.store.importLegacy)throw Error('La copia requiere confirmación y ninguna operación en curso.');this.resolving=true;this.emit();try{const j=this.decode(raw,op);await this.checkRevision(j.confirmed);this.requireActive();await this.store.importLegacy(this.key(op),raw,await digest(raw));this.requireActive();this.resolving=false;await this.open(op);}finally{this.resolving=false;this.emit();}}
   exportOriginal(op:string):string{this.requireActive();if(!id(op))throw Error('Identidad incompatible.');const raw=this.store.getItem(this.key(op));if(raw===null)throw Error('Candidato no encontrado.');return raw;}
   listRecoveries():string[]{this.requireActive();const result:string[]=[];for(let n=0;n<this.store.length;n++){const key=this.store.key(n);if(key?.startsWith(this.prefix+'recovery:')){const op=key.slice((this.prefix+'recovery:').length);if(id(op))result.push(op);}}return result.sort();}

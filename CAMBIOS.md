@@ -1,3 +1,22 @@
+# Comercial · PR 3B.2: recuperación durable, solo en laboratorio
+
+- Base 5955fb9, PR #22 fusionada. IndexedDB comercial `fullhouse-lab-work-v1`
+  por proyecto demo/UID; no importa módulos históricos v2 ni cambia el Planner publicado.
+- Candidato estable en RAM → transacción local completada → petición remota →
+  recibo verificado. Cuota/aborto preservan confirmado y pendiente; acuse incierto
+  exige inspección del mismo recibo. Paquete exportable con identidad/base, incluso
+  si solo queda en RAM. Recuperación/copia 3B localStorage explícitas y sin borrar fuentes.
+- Checkpoints de formularios y notas, CAS y hash; recuperación condicionada a
+  cuenta/base/datos/build/zona. Revisiones de otro día y texto numérico sin confirmar
+  se recuperan manualmente, sin reasignación. Los últimos cambios antes de `complete`
+  aún pueden perderse. Copia de originales Blob antes de compresión y descarga
+  explícita, sin readjuntar fotos automáticamente tras recarga.
+- Quince pruebas nuevas de recuperación, trece previas del cliente y regresiones
+  públicas; evidencia Chromium/emuladores y limitaciones en
+  docs/COMMERCIAL_DURABLE_WORK.md. No se equiparan backend simulado y Firestore real.
+- Backend 3A, reglas, app.tsx/app.js, autenticación, Hosting y workflows intactos.
+  Sin facturación, migraciones, activación remota, merge ni despliegue.
+
 # Comercial · PR 3B inicial: integración asíncrona solo en laboratorio
 
 - Base 89540d8 (PR #21 fusionada), rama feat/commercial-remote-planner-v1. Cliente

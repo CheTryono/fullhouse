@@ -39,6 +39,11 @@ La primera integración 3B permite usar el Planner real en un laboratorio asínc
 con pendientes recuperables, confirmaciones y conflictos. El Fullhouse publicado
 sigue guardando localmente. [Uso del laboratorio y límites](docs/COMMERCIAL_REMOTE_PLANNER.md).
 
+La entrega 3B.2 prepara copias IndexedDB de candidatos grandes, borradores y fotos
+originales, separadas por cuenta **solo en ese laboratorio**. La recuperación es
+explícita; no garantiza las teclas o fotos cuya escritura aún no terminó ni cambia
+los borradores de la versión publicada. [Qué sobrevive al cierre y cómo probarlo](docs/COMMERCIAL_DURABLE_WORK.md).
+
 ## Cómo empezar
 
 ### Abrir en tu equipo

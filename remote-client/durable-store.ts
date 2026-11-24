@@ -6,7 +6,7 @@ type Fault=(kind:string,tx:IDBTransaction)=>void;
 export class DurableWorkStore {
   private db:IDBDatabase|null=null;private opening:Promise<void>|null=null;private cache=new Map<string,string>();
   readonly prefix:string;readonly owner:string;
-  constructor(readonly uid:string,private factory:IDBFactory=indexedDB,private name='fullhouse-lab-work-v1',private fault?:Fault,project=PROJECT){
+  constructor(readonly uid:string,private factory?:IDBFactory,private name='fullhouse-lab-work-v1',private fault?:Fault,project=PROJECT){
     if(project!==PROJECT||!/^[A-Za-z0-9_-]{1,128}$/.test(uid)||!name.startsWith('fullhouse-lab-'))throw Error('Almacén limitado al laboratorio demo por UID.');
     this.prefix='fullhouse-remote-lab-v1:'+project+':'+uid+':';this.owner=project+':'+uid;
   }
@@ -14,7 +14,7 @@ export class DurableWorkStore {
   ready():Promise<void>{
     if(this.db)return Promise.resolve();if(this.opening)return this.opening;
     this.opening=new Promise<void>((resolve,reject)=>{
-      let request:IDBOpenDBRequest;try{request=this.factory.open(this.name,1);}catch(e){reject(e);return;}
+      let request:IDBOpenDBRequest;try{request=(this.factory??globalThis.indexedDB).open(this.name,1);}catch(e){reject(e);return;}
       let abandoned=false;
       request.onupgradeneeded=()=>{for(const name of ['journals','drafts','photos']){const store=request.result.createObjectStore(name,{keyPath:'key'});store.createIndex('owner','owner');}};
       request.onblocked=()=>{abandoned=true;reject(Error('IndexedDB está bloqueado por otra conexión. No se borró la base.'));};
@@ -23,7 +23,7 @@ export class DurableWorkStore {
         const db=request.result;if(abandoned){db.close();return;}
         db.onversionchange=()=>{db.close();if(this.db===db)this.db=null;};
         db.onclose=()=>{if(this.db===db)this.db=null;};
-        const tx=db.transaction('journals','readonly'),get=tx.objectStore('journals').index('owner').getAll(this.owner);let entries:Array<{key:string;raw:string}>=[];
+        let tx:IDBTransaction,get:IDBRequest;try{for(const name of ['journals','drafts','photos'])if(!db.objectStoreNames.contains(name))throw Error('Esquema local incompleto.');tx=db.transaction('journals','readonly');get=tx.objectStore('journals').index('owner').getAll(this.owner);}catch(e){db.close();reject(e);return;}let entries:Array<{key:string;raw:string}>=[];
         get.onsuccess=()=>{entries=get.result;};tx.onabort=()=>{db.close();reject(tx.error||Error('No pudimos leer las copias locales.'));};
         tx.oncomplete=()=>{try{const cache=new Map<string,string>();for(const row of entries){this.scoped(row.key);if(typeof row.raw!=='string')throw Error('Hay un registro local incompatible. Conservamos la base.');cache.set(row.key,row.raw);}this.cache=cache;this.db=db;resolve();}catch(e){db.close();reject(e);}};
       };
@@ -51,15 +51,15 @@ export class DurableWorkStore {
   }
   async removePersisted(key:string,raw:string):Promise<void>{
     this.scoped(key);
-    await this.write(['journals'],'remove',(tx,fail)=>{const store=tx.objectStore('journals'),get=store.get(key);get.onsuccess=()=>{if(get.result&&get.result.raw!==raw){fail(Error('El candidato cambió; no se eliminará.'));return;}store.delete(key);};});this.cache.delete(key);
+    await this.write(['journals'],'remove',(tx,fail)=>{const store=tx.objectStore('journals'),get=store.get(key);get.onsuccess=()=>{if(get.result&&(get.result.owner!==this.owner||get.result.raw!==raw)){fail(Error('El candidato cambió; no se eliminará.'));return;}store.delete(key);};});this.cache.delete(key);
   }
   async archivePersisted(key:string,archive:string,raw:string):Promise<void>{
     this.scoped(key);this.scoped(archive);
-    await this.write(['journals'],'archive',(tx,fail)=>{const store=tx.objectStore('journals'),a=store.get(key),b=store.get(archive);let count=0;const check=()=>{if(++count!==2)return;if((a.result&&a.result.raw!==raw)||(b.result&&b.result.raw!==raw)||(!a.result&&!b.result)){fail(Error('Las copias locales no coinciden.'));return;}if(!b.result)store.add({key:archive,owner:this.owner,raw});store.delete(key);};a.onsuccess=b.onsuccess=check;});this.cache.set(archive,raw);this.cache.delete(key);
+    await this.write(['journals'],'archive',(tx,fail)=>{const store=tx.objectStore('journals'),a=store.get(key),b=store.get(archive);let count=0;const check=()=>{if(++count!==2)return;if((a.result&&(a.result.owner!==this.owner||a.result.raw!==raw))||(b.result&&(b.result.owner!==this.owner||b.result.raw!==raw))||(!a.result&&!b.result)){fail(Error('Las copias locales no coinciden.'));return;}if(!b.result)store.add({key:archive,owner:this.owner,raw});store.delete(key);};a.onsuccess=b.onsuccess=check;});this.cache.set(archive,raw);this.cache.delete(key);
   }
   async importLegacy(key:string,raw:string,sourceHash:string):Promise<void>{
-    this.scoped(key);const marker=this.prefix+'legacy:'+key.slice((this.prefix+'pending:').length);
-    await this.write(['journals'],'legacy',(tx,fail)=>{const s=tx.objectStore('journals'),get=s.get(key),mark=s.get(marker);let n=0;const check=()=>{if(++n!==2)return;if((get.result&&get.result.raw!==raw)||(mark.result&&mark.result.raw!==sourceHash)){fail(Error('Existe otra versión de ese paquete.'));return;}if(!get.result)s.add({key,owner:this.owner,raw});if(!mark.result)s.add({key:marker,owner:this.owner,raw:sourceHash});};get.onsuccess=mark.onsuccess=check;});this.cache.set(key,raw);this.cache.set(marker,sourceHash);
+    this.scoped(key);if(!key.startsWith(this.prefix+'pending:'))throw Error('No es un candidato anterior.');const marker=this.prefix+'legacy:'+key.slice((this.prefix+'pending:').length);
+    await this.write(['journals'],'legacy',(tx,fail)=>{const s=tx.objectStore('journals'),get=s.get(key),mark=s.get(marker);let n=0;const check=()=>{if(++n!==2)return;if((get.result&&(get.result.owner!==this.owner||get.result.raw!==raw))||(mark.result&&(mark.result.owner!==this.owner||mark.result.raw!==sourceHash))){fail(Error('Existe otra versión de ese paquete.'));return;}if(!get.result)s.add({key,owner:this.owner,raw});if(!mark.result)s.add({key:marker,owner:this.owner,raw:sourceHash});};get.onsuccess=mark.onsuccess=check;});this.cache.set(key,raw);this.cache.set(marker,sourceHash);
   }
   async drafts():Promise<DraftRow[]>{await this.ready();return this.readAll<DraftRow>('drafts');}
   private readAll<T>(name:string):Promise<T[]>{return new Promise((resolve,reject)=>{const tx=this.db!.transaction(name,'readonly'),get=tx.objectStore(name).index('owner').getAll(this.owner);let values:T[]=[];get.onsuccess=()=>{values=get.result;};tx.oncomplete=()=>resolve(values);tx.onabort=()=>reject(tx.error);});}

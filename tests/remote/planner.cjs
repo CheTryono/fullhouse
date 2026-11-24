@@ -2,6 +2,7 @@
 const {test,before}=require('node:test'),assert=require('node:assert/strict');
 const {RemoteSession,plannerPort,emulatorApi,localStore}=require('../helpers/remote-client.cjs'),{app,emptyData,DAY,routine,event,step}=require('../helpers/app.cjs');
 const PROJECT='demo-fullhouse-remote';
+const {load}=require('../helpers/remote-client.cjs'),{DurableWorkStore}=load('durable-store.ts'),{IDBFactory}=require('fake-indexeddb');
 let a,b;let seq=0;const makeId=()=> 'planner_operation_'+String(++seq).padStart(18,'0');
 async function user(uid){const r=await fetch('http://127.0.0.1:9098/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=demo-key',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:uid+'@example.test',password:'Synthetic-Password-2030!',returnSecureToken:true})});const json=await r.json();assert(json.idToken);return{uid,emailVerified:true,getIdToken:async()=>json.idToken};}
 const raw=note=>JSON.stringify({...emptyData(),dayReviews:{[DAY]:{note,closedAt:'2030-01-07T12:00:00Z'}}});
@@ -34,4 +35,9 @@ test('changing identity after HTTP dispatch cannot apply A response to B',async(
  let current=a,finish;const native=fetch;
  const request=async(url,options)=>{const response=await native(url,options);if(String(url).endsWith('/saveRemoteV1'))await new Promise(resolve=>{finish=resolve;});return response;};
  const api=emulatorApi(PROJECT,'localhost',()=>current,a.uid,request),store=localStore(),s=new RemoteSession(a.uid,store,api,()=>current===a,makeId);await s.open();s.stage(raw('A after switch'));const pending=s.retry();while(!finish)await new Promise(r=>setImmediate(r));current=b;finish();await pending;assert.equal(s.phase,'error');assert(s.pending);current=a;await s.retry();assert.equal(s.phase,'confirmed');
+});
+test('3B.2 durable outbox reopens with original UID/base/ID and exact v1 photos over HTTP',async()=>{
+ const factory=new IDBFactory(),store=new DurableWorkStore(a.uid,factory,'fullhouse-lab-http'),api=emulatorApi(PROJECT,'localhost',()=>a,a.uid),offline={...api,save:async()=>{throw Error('Synthetic network outage');}};
+ const s=await session(a,store,offline),data=JSON.parse(s.workingRaw);data.dayReviews={...data.dayReviews,[DAY]:{note:'Durable HTTP candidate',closedAt:DAY}};const backup=JSON.stringify(data);s.stage(backup);await s.retry();assert.equal(s.phase,'error');assert.equal(s.durability,'durable');const id=s.pending.operationId,base=s.pending.baseRevision;store.close();
+ const nextStore=new DurableWorkStore(a.uid,factory,'fullhouse-lab-http'),next=await session(a,nextStore,api);assert.equal(next.pending.operationId,id);assert.equal(next.pending.baseRevision,base);assert.equal(next.workingRaw,backup);await next.retry();assert.equal(next.phase,'confirmed');assert.equal((await next.preview(id)).backup,backup);nextStore.close();
 });

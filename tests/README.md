@@ -1,5 +1,22 @@
 # Base de regresión de Fullhouse
 
+## Recuperación comercial 3B.2, aislada
+
+`npm run test:remote-durable`: 15 pruebas Node con fake-indexeddb y el Planner real
+para candidatos, abortos, CAS, formularios/notas, días distintos, aislamiento y
+recuperación explícita. Son distintas de las pruebas de navegador con IndexedDB
+real y de las pruebas contra emuladores Firebase completos.
+
+`npm run test:remote:durable:browser:simulated` utiliza Auth emulado y backend de
+datos simulado, más IndexedDB real en Chromium. Prueba candidato de unos 12 MB,
+PNG grande real, cierre/reapertura, recuperación explícita e aislamiento. El
+ensayo de cuota usa un origen separado y perfil temporal persistente, reiniciado
+antes de reducir la cuota por CDP: `node tests/browser/durable-quota.cjs`.
+
+`npm run test:remote:durable:browser` usa los emuladores completos; requiere Java 21,
+Playwright y descargas de Firebase disponibles. No ejecutar simultáneamente suites
+de emuladores que comparten puertos. [Evidencia, límites y comandos](../docs/COMMERCIAL_DURABLE_WORK.md).
+
 ## Cliente remoto comercial 3B, aislado
 
 `npm run test:remote-client`: 13 aprobadas. `npm test`: 519 aprobadas y seis TODO
