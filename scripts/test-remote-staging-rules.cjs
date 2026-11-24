@@ -1,0 +1,6 @@
+'use strict';
+const {spawn}=require('node:child_process'),fs=require('node:fs'),path=require('node:path'),os=require('node:os');
+const config=fs.mkdtempSync(path.join(os.tmpdir(),'fullhouse-staging-rules-')),env={...process.env,GCLOUD_PROJECT:'demo-fullhouse-remote',CI:'1',NO_UPDATE_NOTIFIER:'1',METADATA_SERVER_DETECTION:'none',XDG_CONFIG_HOME:config,FIREBASE_EMULATORS_PATH:path.join(os.tmpdir(),'fullhouse-emulators')};
+for(const k of ['GOOGLE_APPLICATION_CREDENTIALS','FIREBASE_TOKEN','FIREBASE_CONFIG','GOOGLE_CLOUD_PROJECT','CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE','FIREBASE_AUTH_EMULATOR_HOST','FIRESTORE_EMULATOR_HOST','FIREBASE_STORAGE_EMULATOR_HOST','STORAGE_EMULATOR_HOST'])delete env[k];
+const child=spawn(process.execPath,[require.resolve('firebase-tools/lib/bin/firebase.js'),'emulators:exec','--project','demo-fullhouse-remote','--config','firebase.remote-staging-emulators.json','--only','auth,firestore,storage','node --test tests/remote/staging-rules.cjs'],{cwd:path.resolve(__dirname,'..'),env,stdio:'inherit'});
+for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>child.kill(signal));child.on('error',e=>{console.error(e.message);process.exitCode=1;});child.on('exit',code=>{fs.rmSync(config,{recursive:true,force:true});process.exitCode=code??1;});

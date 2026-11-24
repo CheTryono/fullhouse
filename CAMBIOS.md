@@ -1,3 +1,21 @@
+# Comercial · 3C.1: preparación real de staging, desactivada
+
+- Base b06c691 (PR #23). Configuración privada separada para fullhouse-staging,
+  sin Hosting; artefacto con hashes y hooks de predeploy bloqueados por defecto.
+- Gateway callable Node 22 que reutiliza el backend/validador v1 sin cambiar 3A.
+  Auth verificado, App Check, hasta tres UIDs de ensayo, admisión/cuotas por cuenta,
+  reservas idempotentes, límite de descarga y modo de recuperación de solo lectura.
+- Factory cliente preparatoria con proyecto/app/bucket/origen y claims Auth
+  comprobados. Namespace durable por entorno; se conservan diario, candidato,
+  CAS y recibos. No se conecta al planificador, ni se importan fuentes locales.
+- Reglas prototipo de denegación total para staging y roles IAM propuestos.
+  Facturación, regiones/recursos existentes y tarifas requieren comprobación humana;
+  documentación oficial inaccesible por 403. No se habilitan servicios ni costes.
+- Pruebas/configuración, decisiones de autorización, política de datos propuesta y
+  procedimiento de despliegue/reversión: docs/COMMERCIAL_REAL_STAGING.md.
+- app.tsx/app.js, Auth, Hosting, Pages y motor histórico v2 sin cambios. Sin deploy,
+  migraciones, borrado, activación pública ni merge.
+
 # Comercial · PR 3B.2: recuperación durable, solo en laboratorio
 
 - Base 5955fb9, PR #22 fusionada. IndexedDB comercial `fullhouse-lab-work-v1`

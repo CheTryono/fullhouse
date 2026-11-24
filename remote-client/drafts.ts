@@ -1,4 +1,4 @@
-import {PROJECT,digest,canonical,RemoteSession} from './session';
+import {digest,canonical,RemoteSession} from './session';
 import {DurableWorkStore,type DraftRow} from './durable-store';
 const fields=['page','selectedDate','month','modal','goalDraft','routineDraft','eventDraft','activeEventId','detailPath','progressValue','progressNote','progressStatus','progressGoalId','reviewDraft','evidenceCaption','returnToSchedule','scheduleContextNote'] as const;
 interface Snapshot {format:'fullhouse-local-draft-v1';project:string;uid:string;build:string;zone:string;day:string;baseRevision:string|null;candidateId:string|null;workingHash:string;hasWork:boolean;state:Record<string,any>;notes:[string,string][];initialDraft:string;pendingSchedule:unknown;pendingScheduleBaseline:string;numericEdits:Array<{index:number;label:string;value:string;committed:string}>;localPending:unknown}
@@ -21,7 +21,7 @@ export class DraftCheckpoints {
     const edits=Array.from(this.doc?.querySelectorAll<HTMLInputElement>('input[data-committed-value]')||[]).flatMap((input,index)=>input.value!==input.getAttribute('data-committed-value')?[{index,label:input.getAttribute('aria-label')||input.name||'Campo numérico',value:input.value,committed:input.getAttribute('data-committed-value')||''}]:[]);
     const hasWork=!!p.hasUnsavedChanges()||edits.length>0;
     // Capture one synchronous view before hashing. A later edit schedules another checkpoint.
-    const snapshot=JSON.parse(JSON.stringify({format:'fullhouse-local-draft-v1',project:PROJECT,uid:this.session.uid,build:this.build,zone:this.zone,day:this.day(),baseRevision:this.session.confirmed?.revisionId||null,candidateId:this.session.pending?.operationId||null,workingHash:'',hasWork,state:hasWork?Object.fromEntries(fields.map(k=>[k,s[k]])): {},notes:hasWork?Array.from(p.noteDrafts.entries()):[],initialDraft:hasWork?p.initialDraft:'',pendingSchedule:hasWork?p.pendingSchedule:null,pendingScheduleBaseline:hasWork?p.pendingScheduleBaseline:'',numericEdits:hasWork?edits:[],localPending:hasWork?s.pending:null})) as Snapshot;
+    const snapshot=JSON.parse(JSON.stringify({format:'fullhouse-local-draft-v1',project:this.session.project,uid:this.session.uid,build:this.build,zone:this.zone,day:this.day(),baseRevision:this.session.confirmed?.revisionId||null,candidateId:this.session.pending?.operationId||null,workingHash:'',hasWork,state:hasWork?Object.fromEntries(fields.map(k=>[k,s[k]])): {},notes:hasWork?Array.from(p.noteDrafts.entries()):[],initialDraft:hasWork?p.initialDraft:'',pendingSchedule:hasWork?p.pendingSchedule:null,pendingScheduleBaseline:hasWork?p.pendingScheduleBaseline:'',numericEdits:hasWork?edits:[],localPending:hasWork?s.pending:null})) as Snapshot;
     if(raw!==this.dataRaw){this.dataHash=await digest(raw);this.dataRaw=raw;}snapshot.workingHash=this.dataHash;return snapshot;
   }
   flush():Promise<void>{
@@ -46,7 +46,7 @@ export class DraftCheckpoints {
     if(!consent||this.session.blocked()||this.planner.hasUnsavedChanges())throw Error('La recuperación requiere una sesión activa, confirmación y ningún trabajo abierto.');
     if(row.owner!==this.store.owner||await digest(row.raw)!==row.hash)throw Error('La copia no pertenece a esta cuenta o no coincide con su huella.');
     const snapshot=JSON.parse(row.raw) as Snapshot;
-    if(snapshot.format!=='fullhouse-local-draft-v1'||snapshot.project!==PROJECT||snapshot.uid!==this.session.uid||snapshot.build!==this.build||snapshot.zone!==this.zone||!snapshot.hasWork||!snapshot.state||!Array.isArray(snapshot.notes)||snapshot.notes.some(x=>!Array.isArray(x)||x.length!==2||x.some(v=>typeof v!=='string')))throw Error('Copia incompatible; expórtala para revisión.');
+    if(snapshot.format!=='fullhouse-local-draft-v1'||snapshot.project!==this.session.project||snapshot.uid!==this.session.uid||snapshot.build!==this.build||snapshot.zone!==this.zone||!snapshot.hasWork||!snapshot.state||!Array.isArray(snapshot.notes)||snapshot.notes.some(x=>!Array.isArray(x)||x.length!==2||x.some(v=>typeof v!=='string')))throw Error('Copia incompatible; expórtala para revisión.');
     const currentRaw=canonical(JSON.stringify(this.planner.state.data)),hash=await digest(currentRaw),base=this.session.confirmed?.revisionId||null;
     if(this.session.blocked()||this.planner.hasUnsavedChanges()||canonical(JSON.stringify(this.planner.state.data))!==currentRaw)throw Error('La sesión o el trabajo cambió durante la recuperación. Conserva la copia.');
     if(hash!==snapshot.workingHash||!(snapshot.baseRevision===base||snapshot.candidateId===base))throw Error('La base o los datos cambiaron. No reasignaremos este borrador; conserva la exportación.');

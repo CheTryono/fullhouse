@@ -1,0 +1,30 @@
+{
+  "functions": [
+    {
+      "source": "dist-remote-staging",
+      "codebase": "remote-staging-v1",
+      "runtime": "nodejs22",
+      "predeploy": [
+        "node scripts/check-remote-staging-deploy.cjs"
+      ]
+    }
+  ],
+  "firestore": [
+    {
+      "database": "(default)",
+      "rules": "remote-staging/firestore.rules",
+      "predeploy": [
+        "node scripts/check-remote-staging-deploy.cjs"
+      ]
+    }
+  ],
+  "storage": [
+    {
+      "bucket": "fullhouse-staging.firebasestorage.app",
+      "rules": "remote/storage.rules",
+      "predeploy": [
+        "node scripts/check-remote-staging-deploy.cjs"
+      ]
+    }
+  ]
+}

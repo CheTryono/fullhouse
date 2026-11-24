@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Server-only model: users/{uid}/{storage,revisions,operations}, plus
+    // stagingControl/remoteV1 and stagingAccess/{uid}/reservations/{operationId}.
+    // Head/receipts/revisions use the validated remote v1 contract. Access flags,
+    // usage counters and reservation hashes are controlled by server/IAM only.
+    // Web clients use the authenticated callable; no direct SDK queries needed.
+    match /{document=**} { allow read, write: if false; }
+  }
+}

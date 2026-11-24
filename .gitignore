@@ -3,9 +3,11 @@ node_modules/
 *.log
 dist-staging/
 dist-remote-lab/
+dist-remote-staging/
 .firebase/
 .env
 .env.*
 !.env.example
 staging/firebase-config.local.json
+staging/remote-config.local.json
 .firebaserc

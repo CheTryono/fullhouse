@@ -22,13 +22,17 @@
     "test:remote-client": "node --test tests/remote-client.test.cjs",
     "test:remote-durable": "node --test tests/durable-work.test.cjs",
     "build:remote-lab": "node scripts/build-remote-lab.cjs",
+    "build:remote-staging": "node scripts/build-remote-staging.cjs",
+    "test:remote-staging": "node --test tests/commercial-staging.test.cjs",
     "test:remote:planner": "node scripts/test-remote-emulators.cjs --planner",
     "test:remote:planner:simulated": "node scripts/test-remote-emulators.cjs --planner --simulated-data",
     "test:remote:planner:browser": "node scripts/test-remote-emulators.cjs --planner --browser",
     "test:remote:planner:browser:simulated": "node scripts/test-remote-emulators.cjs --planner --browser --simulated-data",
     "test:remote:durable:browser": "node scripts/test-remote-emulators.cjs --planner --browser --durable",
     "test:remote:durable:browser:simulated": "node scripts/test-remote-emulators.cjs --planner --browser --durable --simulated-data",
-    "dev:remote": "node scripts/test-remote-emulators.cjs --planner --serve"
+    "dev:remote": "node scripts/test-remote-emulators.cjs --planner --serve",
+    "test:remote-staging:rules": "node scripts/test-remote-staging-rules.cjs",
+    "check:remote-staging:node22": "node scripts/check-remote-staging-node22.cjs"
   },
   "engines": {
     "node": ">=22"
