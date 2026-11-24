@@ -266,7 +266,55 @@ sin App Check. Los informes del propietario de 3A/3B/3B.2 no certifican esta ada
 | `check:remote-staging:node22` | SDK real v2, opciones de capacidad y handler cerrado; HTTP loopback sin App Check recibe 401 |
 | Esquemas de ambos configs nuevos | Aceptados por el JSON Schema del CLI fijado 15.37.0; no es un dry-run cloud |
 | Chromium 156 · 3B y 3B.2 | 1280/390, Auth real en emulador, datos simulados, IDB real: dos cuentas, conflictos, foto asíncrona, paquete 12 MB, PNG 7,87 MB, cierre, cuota y recuperación; 0 errores JS |
-| Nuevas reglas · Auth/Firestore/Storage emulados | Bloqueado **antes de ejecutar**: descarga del JAR Firestore. No aprobado; comando preparado para Cloud Shell |
+| Nuevas reglas · intento local anterior de Codex | Bloqueado **antes de ejecutar**: descarga del JAR Firestore. Este intento local no se declara aprobado |
+| Nuevas reglas · Cloud Shell, informe del propietario | **3/3 aprobadas**, cero fallos/canceladas/omitidas/TODO; `npm run test:remote-staging:rules`, salida 0. Evidencia atribuida abajo |
+
+### Reglas en Cloud Shell · evidencia proporcionada por el propietario
+
+El propietario comunicó la ejecución de `npm run test:remote-staging:rules` sobre
+`feat/commercial-real-staging-preparation` en Google Cloud Shell con este resumen:
+
+| Resultado informado | Valor |
+| --- | --- |
+| Pruebas | 3 |
+| Suites | 0 |
+| Aprobadas | 3 |
+| Fallos | 0 |
+| Canceladas | 0 |
+| Omitidas | 0 |
+| TODO | 0 |
+| Duración | 4344.562951 ms |
+| Salida del script | 0, ejecución satisfactoria |
+
+Codex **no ejecutó estas pruebas en Cloud Shell**. Se conserva por separado su
+intento local bloqueado y las demás verificaciones anteriores. No se proporcionó
+el SHA probado ni las versiones de Node/Java; no se infieren de la rama.
+
+El comando preparado utiliza Auth, Firestore y Storage **emulados**, en el proyecto
+demo y endpoints loopback. Los tres casos comprueban la denegación de acceso directo
+para anónimo, propietario verificado y otra cuenta verificada, incluidas operaciones
+de escritura y elevación de permisos. Es evidencia distinta de los 17 casos de
+servicio simulado/fake-indexeddb y de las pruebas Chromium anteriores. No demuestra
+IAM, App Check positivo ni funcionamiento con servicios reales.
+
+Al registrar el informe, Codex revisó `5ca7e6f`, coincidente con la cabeza remota:
+`deploymentAuthorized` y `remoteEnabled` siguen en **false**; el cliente de ejemplo
+mantiene `enabled:false` y `appCheckSiteKey:null`, y la factory no se importa desde
+Auth/Hosting publicados. Los hooks de todos los servicios reales siguen bloqueados
+y la configuración demo continúa rechazando cualquier deploy. Se repitieron
+`test:remote-staging` (**17/17**), `check:remote-client` y la comprobación SDK local
+con Node **22.23.5**: handler cerrado y HTTP sin App Check rechazado con 401. No se
+repitieron la suite general ni Chromium para esta actualización documental.
+Backend, cliente, reglas, configuración y despliegues no se modifican.
+
+**3C.1 está lista para fusionarse exclusivamente como preparación desactivada**.
+Para 3C.2, primero confirmar en Console recursos existentes, regiones y tarifas,
+y obtener autorización expresa para facturación/servicios y presupuesto de
+`fullhouse-staging`. Esa autorización todavía no está concedida. El primer
+despliegue posterior deberá mantener backend y cliente cerrados, conforme al
+procedimiento anterior; esta actualización no cambia ninguna bandera.
+
+### Limitaciones y verificaciones anteriores que se conservan
 
 La revisión reprodujo un defecto de la primera factory de esta rama: validaba el
 proyecto al enviar, después de abrir IDB. Con un UID idéntico de otro proyecto y
@@ -280,9 +328,11 @@ v2. El viewport móvil de Chromium no demuestra Android/iPhone físicos; Firefox
 WebKit y dispositivos físicos no se probaron. Los resultados anteriores del
 propietario se conservan con su autoría y no sustituyen estas pruebas nuevas.
 
-Pendientes de entorno: descarga
-FireStore Emulator bloqueada, tarifas oficiales inaccesibles y ausencia de sesión
-Firebase CLI. Los tres escenarios de reglas (anónimo, propietario verificado y otra
-cuenta verificada) están preparados, pero no se declaran aprobados sin ejecutarse.
+El bloqueo de descarga de Firestore Emulator sigue siendo una limitación local de
+Codex; el informe del propietario aporta la ejecución satisfactoria de los tres
+escenarios de reglas en Cloud Shell. Siguen pendientes las tarifas oficiales y la
+sesión Firebase CLI para una futura operación autorizada, además de IAM y App Check
+positivo reales. Esta actualización no activa Blaze, Firestore, Storage, Functions
+ni App Check.
 No se ha probado Node22 en Cloud Functions desplegado ni navegador/dispositivo real
 contra este backend. 3C.1 entrega preparación revisable, **no autorización de activación**.
