@@ -3,7 +3,7 @@ const assert=require('node:assert/strict'),path=require('node:path'),{spawnSync}
 assert.equal(process.versions.node.split('.')[0],'22','Ejecuta esta comprobación con Node 22.');
 require('./build-remote-staging.cjs').build();
 const env={...process.env,GCLOUD_PROJECT:'fullhouse-staging',NODE_PATH:path.resolve(__dirname,'../remote/node_modules')};
-for(const k of Object.keys(env))if(/EMULATOR/.test(k)||['GOOGLE_CLOUD_PROJECT','GOOGLE_APPLICATION_CREDENTIALS','FIREBASE_TOKEN','FIREBASE_CONFIG','FULLHOUSE_REMOTE_STAGING_ENABLED'].includes(k))delete env[k];
+for(const k of Object.keys(env))if(/EMULATOR/.test(k)||k.startsWith('FIREBASE_DEBUG')||['GOOGLE_CLOUD_PROJECT','GOOGLE_APPLICATION_CREDENTIALS','FIREBASE_TOKEN','FIREBASE_CONFIG','FULLHOUSE_REMOTE_STAGING_ENABLED'].includes(k))delete env[k];
 const source=`
  const assert=require('node:assert/strict'),http=require('node:http'),express=require('express'),fn=require('./dist-remote-staging/index.cjs').remoteV1;
  (async()=>{

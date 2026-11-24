@@ -1,7 +1,7 @@
 {
-  "functions": [{"source":"remote","codebase":"remote-v1","runtime":"nodejs22"}],
-  "firestore": {"rules":"remote/firestore.rules"},
-  "storage": {"rules":"remote/storage.rules"},
+  "functions": [{"source":"remote","codebase":"remote-v1","runtime":"nodejs22","predeploy":["node scripts/block-emulator-deploy.cjs"]}],
+  "firestore": {"rules":"remote/firestore.rules","predeploy":["node scripts/block-emulator-deploy.cjs"]},
+  "storage": {"rules":"remote/storage.rules","predeploy":["node scripts/block-emulator-deploy.cjs"]},
   "emulators": {
     "auth": {"host":"127.0.0.1","port":9098},
     "firestore": {"host":"127.0.0.1","port":8088},

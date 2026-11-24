@@ -9,7 +9,7 @@ function settingsCheck(s){
 }
 function runtimeCheck(env,s,version=process.versions.node){
  settingsCheck(s);if(version.split('.')[0]!=='22')throw Error('El backend real requiere Node 22.');
- if(env.GCLOUD_PROJECT!==PROJECT||(env.GOOGLE_CLOUD_PROJECT&&env.GOOGLE_CLOUD_PROJECT!==PROJECT)||Object.keys(env).some(k=>/EMULATOR/.test(k)&&env[k]))throw Error('No se permite cruzar staging con proyectos/endpoints de emulación.');
+ if(env.GCLOUD_PROJECT!==PROJECT||(env.GOOGLE_CLOUD_PROJECT&&env.GOOGLE_CLOUD_PROJECT!==PROJECT)||Object.keys(env).some(k=>(/EMULATOR/.test(k)||k.startsWith('FIREBASE_DEBUG'))&&env[k]))throw Error('No se permite cruzar staging con emulación o depuración que altere la verificación de tokens.');
 }
 function preflight(method,input){
  if(method==='save'||method==='restore'){
@@ -34,7 +34,9 @@ function createHandler({db,service,settings:s,env,clock=Date.now}){
   const checked=snap=>{
    const [c,a]=snap;if(!c.exists||c.data().enabled!==true||!a.exists||a.data().enabled!==true)fail('permission-denied','Acceso de staging no autorizado.');
    if(['save','restore'].includes(method)&&c.data().writesEnabled!==true)fail('unavailable','Staging está en modo de recuperación; no se permiten guardados.');
-   const value=a.data(),q=value.usage||{};for(const k of ['minute','minuteRpc','day','dayRpc','dayOperations','totalOperations','reservedBytes','dayReadBytes'])if(q[k]!==undefined&&(!Number.isSafeInteger(q[k])||q[k]<0))fail('data-loss','El control de capacidad requiere revisión.');
+   const value=a.data(),q=value.usage??{},keys=['minute','minuteRpc','day','dayRpc','dayOperations','totalOperations','reservedBytes','dayReadBytes'];
+   if(value.usage!==undefined&&(!value.usage||typeof q!=='object'||Array.isArray(q)||Object.keys(q).length!==keys.length||keys.some(k=>!Object.hasOwn(q,k))))fail('data-loss','El control de capacidad está incompleto; no se reiniciará.');
+   for(const k of keys)if(q[k]!==undefined&&(!Number.isSafeInteger(q[k])||q[k]<0))fail('data-loss','El control de capacidad requiere revisión.');
    return {value,usage:{minute,minuteRpc:q.minute===minute?q.minuteRpc||0:0,day,dayRpc:q.day===day?q.dayRpc||0:0,dayOperations:q.day===day?q.dayOperations||0:0,totalOperations:q.totalOperations||0,reservedBytes:q.reservedBytes||0,dayReadBytes:q.day===day?q.dayReadBytes||0:0}};
   };
   // Charge request admission before parsing/hashing large backups. Failures count.

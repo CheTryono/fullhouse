@@ -2,7 +2,7 @@
 
 ## Preparación real comercial 3C.1, desactivada
 
-`npm run test:remote-staging`: quince casos con puertos de servicio simulados y
+`npm run test:remote-staging`: diecisiete casos con puertos de servicio simulados y
 fake-indexeddb: gates, UID/proyecto, Auth/App Check simulado, cuotas, CAS, reservas,
 modo de recuperación, fotografías y reintentos. No representa App Check/IAM reales.
 

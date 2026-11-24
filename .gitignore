@@ -9,4 +9,5 @@ dist-remote-staging/
 .env.*
 !.env.example
 staging/firebase-config.local.json
+staging/remote-config.local.json
 .firebaserc

@@ -11,6 +11,8 @@ siguen usando sus controles y guardado local anteriores.
   `(default)` y bucket **nombrados explícitamente**. No incluye Hosting. Hooks de
   predeploy en Functions, Firestore y Storage; todos rechazan el despliegue mientras
   `remote-staging/settings.json` tenga `deploymentAuthorized: false`.
+  La configuración demo anterior también recibe hooks que **siempre** rechazan
+  deploy; no cambian sus reglas, backend ni puertos, ni la ejecución de emuladores.
 - `build:remote-staging`: artefacto privado ignorado en Git, lista cerrada de archivos,
   dependencias/lock exactos de 3A, servicio y validador v1 sin modificaciones. Hashes
   del código, configuración y reglas; el gate detecta artefactos/configuración obsoletos.
@@ -23,8 +25,13 @@ siguen usando sus controles y guardado local anteriores.
 - `remote-client/staging.ts`: factory preparatoria, **no importada** por los
   constructores de Pages/Staging. Su configuración de ejemplo está desactivada y
   sin clave pública App Check. No abre IndexedDB ni envía peticiones con esa configuración.
-  En una prueba habilitada exige proyecto/app/bucket/origen exactos y Auth con
-  aud/iss/sub del proyecto/UID esperados. El servidor vuelve a verificar los tokens.
+  La factory es asíncrona: en una prueba habilitada exige proyecto/app/bucket/origen
+  exactos y Auth con aud/iss/sub esperados **antes de crear/abrir el almacén local**.
+  Devuelve `active()` para que el futuro bootstrap oculte/pause el workspace al
+  cambiar el objeto de Auth, incluso con un UID idéntico. Una nueva sesión debe
+  volver a validar la identidad; puede recuperar sus IDs desde el mismo diario.
+  El servidor vuelve a verificar los tokens. No se siguen redirecciones ni se
+  envían cookies en el transporte remoto.
 - 3B/3B.2 admiten una capacidad de entorno validada: namespace y base IndexedDB
   `fullhouse-staging-work-v1` separados del demo. El comportamiento demo por defecto,
   sus claves y sus diarios existentes no cambian. Recuperar un paquete de otro
@@ -88,7 +95,8 @@ no ampliar a Owner. No se crean roles/bindings con esta PR.
 
 Tras habilitarse expresamente, el backend requiere simultáneamente:
 
-1. Proyecto real exacto, Node 22 y **ninguna variable de emulador**.
+1. Proyecto real exacto, Node 22 y **ninguna variable de emulador/Firebase debug**.
+   Se rechazan los flags SDK que podrían omitir la verificación de tokens.
 2. ID token validado por el SDK callable; correo verificado y App Check con el appId oficial.
 3. UID en `FULLHOUSE_STAGING_TEST_UIDS` (máximo **tres**, separados por coma, sin espacios).
    Es una lista de cuentas ficticias elegidas por el propietario, no autoinscripción.
@@ -213,11 +221,28 @@ hashes. Cualquier cambio de código/configuración requiere recompilar y revisar
 Es una barrera contra errores, no contra alguien que modifique intencionalmente el
 código o use otro config. La configuración actual **rechaza** el comando.
 
+Para el primer deploy cerrado no se crea archivo de activación. En una PR posterior
+que habilite el backend, el propietario podrá preparar **fuera de Git**, después
+del build, `dist-remote-staging/.env.fullhouse-staging` con exactamente dos líneas:
+
+```dotenv
+FULLHOUSE_REMOTE_STAGING_ENABLED=1
+FULLHOUSE_STAGING_TEST_UIDS=UID_SINTETICO_A,UID_SINTETICO_B
+```
+
+El hook solo acepta esas dos variables no secretas y hasta tres UIDs únicos;
+no permite tokens, credenciales ni variables adicionales. Los valores del ejemplo
+deben sustituirse por UIDs reales de las cuentas ficticias autorizadas. El fichero
+no existe en esta entrega y no se copia automáticamente desde otro entorno.
+
 Primer deploy cerrado: probar App Check ausente/inválido, Auth de otro proyecto y
 confirmar que no se crean documentos. Tras nueva autorización, habilitar backend,
 variable de entorno, control y hasta tres UIDs ficticios; conectar cliente/App Check
 en una PR específica, sin importaciones automáticas. Probar A/B, dos sesiones,
-cuota, red, acuse perdido, recarga/fotos grandes, conflicto y restauración completa.
+cuota, red, acuse perdido, recarga/fotos grandes, conflicto y restauración completa,
+incluida la expansión del respaldo JSON en el tamaño HTTP real de la pasarela.
+Conservar/exportar también los datos locales de cuenta que ya existan en Staging;
+no asociarlos automáticamente al activar el cliente remoto.
 
 Reversión operativa: poner `writesEnabled:false` conserva read/inspect para recuperar
 recibos y exportar; `enabled:false` cierra toda la API ante un incidente de acceso.
@@ -233,7 +258,29 @@ App Check positivo real, regiones, latencia o cuotas del proveedor. El script No
 carga el SDK real, prueba el handler apagado y rechaza por HTTP loopback una llamada
 sin App Check. Los informes del propietario de 3A/3B/3B.2 no certifican esta adaptación.
 
-Resultados finales se registran al cerrar la PR. Pendientes de entorno: descarga
+| Comprobación ejecutada | Resultado |
+| --- | --- |
+| Node **22.23.5**, suite completa `node --test tests/*.test.cjs` (equivalente a `npm test`) | **551 aprobadas, 0 fallos/canceladas/omitidas, 6 TODO previos** (557 casos) |
+| `test:remote-staging` | **17/17**, guardas, cuotas, fotos v1, CAS, contextos, reintento y configuración de activación; puertos simulados/fake-indexeddb |
+| `check`, `check:auth`, `check:remote`, `check:remote-client`, `check:history-contract` | Aprobadas; TypeScript/app.js siguen sincronizados sin escribirlos |
+| `check:remote-staging:node22` | SDK real v2, opciones de capacidad y handler cerrado; HTTP loopback sin App Check recibe 401 |
+| Esquemas de ambos configs nuevos | Aceptados por el JSON Schema del CLI fijado 15.37.0; no es un dry-run cloud |
+| Chromium 156 · 3B y 3B.2 | 1280/390, Auth real en emulador, datos simulados, IDB real: dos cuentas, conflictos, foto asíncrona, paquete 12 MB, PNG 7,87 MB, cierre, cuota y recuperación; 0 errores JS |
+| Nuevas reglas · Auth/Firestore/Storage emulados | Bloqueado **antes de ejecutar**: descarga del JAR Firestore. No aprobado; comando preparado para Cloud Shell |
+
+La revisión reprodujo un defecto de la primera factory de esta rama: validaba el
+proyecto al enviar, después de abrir IDB. Con un UID idéntico de otro proyecto y
+un diario pendiente podía marcarse la sesión local como lista. Se corrigió antes
+de conectar la factory: la nueva regresión comprueba rechazo previo a cualquier
+apertura de IDB y revocación de la concesión anterior, sin cambiar el formato v1.
+No afectaba al Planner publicado ni a 3B.2: la factory nueva nunca estuvo conectada.
+
+Se conservan las guardas PR #19 y los seis TODO; no se declara resuelto el historial
+v2. El viewport móvil de Chromium no demuestra Android/iPhone físicos; Firefox,
+WebKit y dispositivos físicos no se probaron. Los resultados anteriores del
+propietario se conservan con su autoría y no sustituyen estas pruebas nuevas.
+
+Pendientes de entorno: descarga
 FireStore Emulator bloqueada, tarifas oficiales inaccesibles y ausencia de sesión
 Firebase CLI. Los tres escenarios de reglas (anónimo, propietario verificado y otra
 cuenta verificada) están preparados, pero no se declaran aprobados sin ejecutarse.
