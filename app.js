@@ -806,7 +806,7 @@ class Planner extends React.Component {
         this.setTheme = (theme) => { putPreference(THEME_STORE, theme); this.setState({ theme }); };
         this.changeDurationDisplay = (durationDisplay) => { putPreference(DURATION_STORE, durationDisplay); this.setState({ durationDisplay }); };
         this.dur = (m) => durationText(m, this.state.durationDisplay);
-        this.playCheckSound = () => { if (!this.state.soundsOn)
+        this.playCheckSound = () => { var _a; if (!this.state.soundsOn || ((_a = accountWorkspace === null || accountWorkspace === void 0 ? void 0 : accountWorkspace.persistence) === null || _a === void 0 ? void 0 : _a.hasPending()))
             return; try {
             const w = window, AC = w.AudioContext || w.webkitAudioContext;
             if (!AC)
@@ -858,7 +858,7 @@ class Planner extends React.Component {
             return !!this.state.pending || this.editingNumber() || this.dirtyDraft() || this.noteDrafts.size > 0 || (!!this.pendingSchedule && JSON.stringify(this.pendingSchedule) !== this.pendingScheduleBaseline) ||
                 (this.state.page === 'hoy' && this.state.reviewDraft !== (((_b = (_a = this.state.data.dayReviews) === null || _a === void 0 ? void 0 : _a[today()]) === null || _b === void 0 ? void 0 : _b.note) || ''));
         };
-        this.beforeUnload = (event) => { if (this.hasUnsavedChanges()) {
+        this.beforeUnload = (event) => { var _a; if (this.hasUnsavedChanges() || ((_a = accountWorkspace === null || accountWorkspace === void 0 ? void 0 : accountWorkspace.persistence) === null || _a === void 0 ? void 0 : _a.hasPending())) {
             event.preventDefault();
             event.returnValue = '';
         } };
@@ -876,7 +876,7 @@ class Planner extends React.Component {
                     this.noteDrafts.set(id, text); }, onDiscard: () => this.askConfirm('Descartar borrador de nota', 'Esta nota todavía no se ha guardado. ¿Quieres descartar lo que escribiste?', 'Descartar borrador', true) };
         };
         this.save = (data, message = 'Cambios guardados', replaceAll = false) => {
-            var _a;
+            var _a, _b, _c;
             if (this.state.recovery) {
                 this.notice('Guardado bloqueado para proteger la información original. Descarga el original o vuelve a intentar la lectura.');
                 return false;
@@ -885,9 +885,14 @@ class Planner extends React.Component {
                 this.notice('Ya hay cambios pendientes. Esta nueva acción no se añadió; reinténtala después de resolver la copia pendiente.');
                 return false;
             }
+            const blocked = (_a = accountWorkspace === null || accountWorkspace === void 0 ? void 0 : accountWorkspace.persistence) === null || _a === void 0 ? void 0 : _a.blocked();
+            if (blocked) {
+                this.notice(blocked);
+                return false;
+            }
             let raw = null, valid = false;
             try {
-                raw = (_a = JSON.stringify(data)) !== null && _a !== void 0 ? _a : null;
+                raw = (_b = JSON.stringify(data)) !== null && _b !== void 0 ? _b : null;
                 if (raw === null)
                     throw Error('Datos incompletos');
                 const candidate = JSON.parse(raw);
@@ -903,7 +908,7 @@ class Planner extends React.Component {
                 }
                 plannerStorage.setItem(STORE, raw);
                 this.setState({ data: candidate });
-                this.notice(message);
+                this.notice(((_c = accountWorkspace === null || accountWorkspace === void 0 ? void 0 : accountWorkspace.persistence) === null || _c === void 0 ? void 0 : _c.queuedMessage) || message);
                 return true;
             }
             catch (err) {
@@ -913,9 +918,15 @@ class Planner extends React.Component {
             }
         };
         this.retryPending = () => {
+            var _a, _b;
             const pending = this.state.pending;
             if (!pending || this.state.recovery)
                 return;
+            const blocked = (_a = accountWorkspace === null || accountWorkspace === void 0 ? void 0 : accountWorkspace.persistence) === null || _a === void 0 ? void 0 : _a.blocked();
+            if (blocked) {
+                this.notice(blocked);
+                return;
+            }
             try {
                 if (!pending.valid || pending.raw === null)
                     throw Error('Respaldo incompatible');
@@ -924,7 +935,7 @@ class Planner extends React.Component {
                     throw Error('Respaldo incompatible');
                 plannerStorage.setItem(STORE, pending.raw);
                 this.setState({ data, pending: null });
-                this.notice('Cambios pendientes guardados correctamente');
+                this.notice(((_b = accountWorkspace === null || accountWorkspace === void 0 ? void 0 : accountWorkspace.persistence) === null || _b === void 0 ? void 0 : _b.queuedMessage) || 'Cambios pendientes guardados correctamente');
             }
             catch (err) {
                 this.notice('Los cambios siguen pendientes. El último estado guardado no se ha modificado. Puedes exportarlos para conservarlos.');
@@ -1591,7 +1602,9 @@ class Planner extends React.Component {
             if (this.save(next))
                 this.close(true);
         };
+        this.waitForWorkspaceSession = () => { var _a; return (_a = accountWorkspace === null || accountWorkspace === void 0 ? void 0 : accountWorkspace.persistence) === null || _a === void 0 ? void 0 : _a.waitForSession(); };
         this.saveEvidence = async (e, date, stepId, file) => {
+            var _a;
             if (!file || !file.type.startsWith('image/')) {
                 this.notice('Selecciona una imagen válida.');
                 return;
@@ -1609,6 +1622,9 @@ class Planner extends React.Component {
                     this.notice('La fotografía ocupa mucho almacenamiento local. Prueba con una imagen más pequeña.');
                     return;
                 }
+                const waiting = (_a = this.waitForWorkspaceSession) === null || _a === void 0 ? void 0 : _a.call(this);
+                if (waiting)
+                    await waiting;
                 const data = this.state.data, k = key(e, date), old = data.logs[k] || { completed: false, checkedSteps: [] };
                 const evidence = { id: uid(), kind: 'image', src, caption: '', stepId: stepId || undefined, createdAt: new Date().toISOString() };
                 this.save({ ...data, logs: { ...data.logs, [k]: { ...old, evidences: [...(old.evidences || []), evidence] } } }, 'Imagen añadida al registro');
@@ -1782,7 +1798,12 @@ class Planner extends React.Component {
             this.notice('Respaldo descargado. Guárdalo en un lugar seguro.');
         };
         this.importData = async (ev) => {
-            var _a;
+            var _a, _b;
+            const blocked = (_a = accountWorkspace === null || accountWorkspace === void 0 ? void 0 : accountWorkspace.persistence) === null || _a === void 0 ? void 0 : _a.blocked();
+            if (blocked) {
+                this.notice(blocked);
+                return;
+            }
             if (this.state.pending) {
                 this.notice('Primero reintenta, exporta o descarta los cambios pendientes antes de importar.');
                 return;
@@ -1792,18 +1813,29 @@ class Planner extends React.Component {
                 return;
             }
             const input = ev.target; // React 16 releases the event while confirmation is open.
-            const f = (_a = input.files) === null || _a === void 0 ? void 0 : _a[0];
+            const f = (_b = input.files) === null || _b === void 0 ? void 0 : _b[0];
             if (!f)
                 return;
             if (!(await this.askConfirm('Restaurar respaldo', 'Esto sustituirá todos los datos actuales de este navegador. Exporta una copia antes de continuar.', 'Restaurar datos', true))) {
                 input.value = '';
                 return;
             }
+            const importBase = (accountWorkspace === null || accountWorkspace === void 0 ? void 0 : accountWorkspace.persistence) ? JSON.stringify(this.state.data) : null;
             const fail = (message) => this.notice(message + ' Tus datos anteriores siguen intactos.');
             const reader = new FileReader();
             reader.onerror = () => fail('No pudimos leer el archivo. Intenta seleccionarlo de nuevo.');
             reader.onabort = () => fail('La lectura del respaldo se interrumpió.');
             reader.onload = () => {
+                var _a, _b;
+                const blocked = (_a = accountWorkspace === null || accountWorkspace === void 0 ? void 0 : accountWorkspace.persistence) === null || _a === void 0 ? void 0 : _a.blocked();
+                if (blocked) {
+                    this.notice(blocked);
+                    return;
+                }
+                if (importBase !== null && importBase !== JSON.stringify(this.state.data)) {
+                    this.notice('Los datos cambiaron mientras leíamos el respaldo. Conserva el archivo y vuelve a confirmar su importación.');
+                    return;
+                }
                 if (this.state.pending || this.state.recovery) {
                     this.notice('La importación se ha detenido para proteger los cambios pendientes o el original.');
                     return;
@@ -1831,7 +1863,7 @@ class Planner extends React.Component {
                     return;
                 }
                 this.setState({ data, page: 'inicio', modal: null });
-                this.notice('Respaldo restaurado');
+                this.notice(((_b = accountWorkspace === null || accountWorkspace === void 0 ? void 0 : accountWorkspace.persistence) === null || _b === void 0 ? void 0 : _b.queuedMessage) || 'Respaldo restaurado');
             };
             try {
                 reader.readAsText(f);

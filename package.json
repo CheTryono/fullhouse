@@ -17,7 +17,15 @@
     "test:auth:emulator": "node scripts/test-auth-staging.cjs",
     "check:remote": "node scripts/build-remote-validator.cjs --check && node --check remote/contract.cjs && node --check remote/service.cjs && node --check remote/index.cjs",
     "test:remote": "node --test tests/remote-unit.test.cjs",
-    "test:remote:emulator": "node scripts/test-remote-emulators.cjs"
+    "test:remote:emulator": "node scripts/test-remote-emulators.cjs",
+    "check:remote-client": "tsc -p remote-client/tsconfig.json",
+    "test:remote-client": "node --test tests/remote-client.test.cjs",
+    "build:remote-lab": "node scripts/build-remote-lab.cjs",
+    "test:remote:planner": "node scripts/test-remote-emulators.cjs --planner",
+    "test:remote:planner:simulated": "node scripts/test-remote-emulators.cjs --planner --simulated-data",
+    "test:remote:planner:browser": "node scripts/test-remote-emulators.cjs --planner --browser",
+    "test:remote:planner:browser:simulated": "node scripts/test-remote-emulators.cjs --planner --browser --simulated-data",
+    "dev:remote": "node scripts/test-remote-emulators.cjs --planner --serve"
   },
   "engines": {
     "node": ">=22"
