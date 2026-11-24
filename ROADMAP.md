@@ -13,7 +13,8 @@ No es un compromiso de fechas ni autorización de despliegue.
 | ✅ | PR comercial 3A: contrato/backend v1 aislado | PR #21 fusionada, main 89540d8; 9/9 emuladores en Cloud Shell según propietario; sin servicios reales |
 | ✅ | PR comercial 3B inicial: integración asíncrona aislada | PR #22 fusionada, main 5955fb9; propietario informó 6/6 en Cloud Shell. 13 pruebas de cliente; público sigue local |
 | ✅ | PR comercial 3B.2: candidatos y borradores durables (laboratorio) | PR #23 fusionada, main b06c691; propietario informó 7/7 con emuladores completos. Sin v2 ni activación pública. Resultados: docs/COMMERCIAL_DURABLE_WORK.md |
-| 🔄 | Comercial 3C.1: preparación de Firebase real | Base b06c691 (PR #23 fusionada). Backend/configuración y adapter preparados, activación y despliegue bloqueados. Decisiones, pruebas y costes pendientes de confirmar: docs/COMMERCIAL_REAL_STAGING.md |
+| ✅ | Comercial 3C.1: preparación de Firebase real | PR #24 fusionada, main 36aae0f. Backend/adapter preparados y bloqueados. Evidencia: docs/COMMERCIAL_REAL_STAGING.md |
+| 🔄 | Comercial 3C.2: preflight de ensayo y medios Premium | Preparación lista para revisión/fusión desactivada: propietario informó reglas 3/3 y medios 4/4 en Cloud Shell. Inventario parcial: billing deshabilitado, sin buckets, demás recursos relevantes desconocidos por 403; tarifas y autorizaciones pendientes. docs/COMMERCIAL_STAGING_TRIAL.md |
 | ⬜ | Activación remota y revisión de capacidad/privacidad | Autorizar servicios/costes/IAM; verificar runtime, cola local y suite completa antes de conectar usuarios |
 | ⬜ | UX antes del lanzamiento: avisos de protección histórica | Explicar antes del rechazo qué fecha/registro impide reprogramar y cómo continuar con copia; conservar borradores. No cambiar motor en PR 2 |
 | ⬜ | Suscripciones, información pública y validación de lanzamiento | Condicionado a aislamiento, recuperación y decisiones comerciales |

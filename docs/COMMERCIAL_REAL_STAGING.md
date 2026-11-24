@@ -1,5 +1,11 @@
 # Comercial 3C.1 · preparación real de staging, desactivada
 
+**Continuación 3C.2:** PR #24 fusionada, main `36aae0f`. El propietario aceptó
+us-central1/EE. UU. y objetivo 5 USD/mes; billing, recursos, deploy y activación
+siguen sin autorizar. Inventario/ensayo en [COMMERCIAL_STAGING_TRIAL.md](COMMERCIAL_STAGING_TRIAL.md)
+y política de medios en [COMMERCIAL_MEDIA_ENTITLEMENTS.md](COMMERCIAL_MEDIA_ENTITLEMENTS.md).
+Los resultados/propuestas originales y su atribución se conservan a continuación.
+
 Base `b06c691`, PR #23 fusionada. Solo `fullhouse-staging`; no Stellar Warriors,
 Pages, producción ni historial v2. No se han creado recursos, vinculado facturación,
 desplegado reglas/Functions ni migrado datos. Authentication y Hosting existentes

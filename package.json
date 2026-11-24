@@ -32,7 +32,10 @@
     "test:remote:durable:browser:simulated": "node scripts/test-remote-emulators.cjs --planner --browser --durable --simulated-data",
     "dev:remote": "node scripts/test-remote-emulators.cjs --planner --serve",
     "test:remote-staging:rules": "node scripts/test-remote-staging-rules.cjs",
-    "check:remote-staging:node22": "node scripts/check-remote-staging-node22.cjs"
+    "check:remote-staging:node22": "node scripts/check-remote-staging-node22.cjs",
+    "inspect:remote-staging": "node scripts/inspect-remote-staging.cjs",
+    "test:commercial-preflight": "node --test tests/commercial-inventory.test.cjs tests/commercial-media.test.cjs",
+    "test:remote-staging:media:emulator": "node scripts/test-remote-staging-rules.cjs --media"
   },
   "engines": {
     "node": ">=22"
