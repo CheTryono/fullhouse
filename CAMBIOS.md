@@ -1,3 +1,25 @@
+# Comercial · 3C.3: IAM y despliegue cerrado preparados, sin ejecutar
+
+- Base f1cd384 (PR #25/3C.2). Se registra el informe del propietario: Blaze,
+  presupuesto ~100 MXN/alertas, recursos us-central1, deny-all, App Check y roles
+  runtime creados; no se confunde con inspección o prueba IAM de Codex.
+- Auditoría de solo lectura: identidad, roles reales, condición, edición/región,
+  políticas y permisos del inspector; no modifica IAM ni habilita APIs. Grants
+  heredados/deny/PAB y condición efectiva quedan pendientes de la prueba real.
+- Cuatro permisos Firestore y dos Storage conservados. CLI 15.37.0 comprueba
+  cloudfunctions.functions.setIamPolicy en primer HTTPS; propuesta separada para
+  operador, no para runtime, sin grants automáticos.
+- Prueba sintética preparada con impersonación temporal en RAM, UUID/recibos
+  estables, TX/rollback y archivos privados. Bloqueada hasta autorización separada;
+  no se ejecuta contra recursos reales, no activa controles ni borra archivos.
+- Preparación local del artefacto cerrado y procedimiento de auditoría, identidades
+  build/agentes, autorización, validación y reversión: docs/COMMERCIAL_IAM_CLOSED_DEPLOY.md.
+  Gate, backend, cliente, reglas, Hosting/Pages, Planner, datos locales y v2 intactos.
+- Node 22: 14/14 casos nuevos simulados; suite general 587 aprobadas, 0 fallos y
+  seis TODO; compilación, contratos, cliente y SDK cerrado correctos. Auditor real
+  sin sesión gcloud y prueba efectiva real pendiente de autorización. No se
+  atribuyen a Codex los emuladores 3C.2 informados por el propietario.
+
 # Comercial · 3C.2: ensayo y medios preparados, sin activar
 
 - Base 36aae0f (PR #24). us-central1/EE. UU. y objetivo 5 USD/mes aceptados;

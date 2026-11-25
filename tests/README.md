@@ -1,5 +1,15 @@
 # Base de regresión de Fullhouse
 
+## Comercial 3C.3: IAM y deploy cerrado, sin ejecutar en Firebase real
+
+`npm run test:remote-staging:iam`: 14 casos de políticas HTTP/puertos simulados,
+precondiciones, identidad SDK explícita sin red, TX/recibos/rollback y rechazos
+fuera del prefijo. No demuestra permisos IAM reales. Auditor por defecto solo plan;
+`--run` de auditor es de lectura. La prueba runtime hace escrituras sintéticas y
+requiere autorización separada explícita; no se ejecutó contra recursos reales.
+`npm run prepare:remote-staging:closed` prepara un artefacto local sin cambiar gates.
+[Procedimiento y límites](../docs/COMMERCIAL_IAM_CLOSED_DEPLOY.md).
+
 ## Comercial 3C.2: preflight y medios, desactivados
 
 `npm run test:commercial-preflight`: 22 casos (18 política servidor con puertos

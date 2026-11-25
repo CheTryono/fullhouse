@@ -9,6 +9,11 @@
     "stage": "BETA",
     "includedPermissions": ["storage.objects.get", "storage.objects.create"]
   },
+  "deployerFirstHttpsPolicy": {
+    "title": "Fullhouse staging first HTTPS policy check",
+    "stage": "BETA",
+    "includedPermissions": ["cloudfunctions.functions.setIamPolicy"]
+  },
   "deployerInvokerPolicy": {
     "title": "Fullhouse staging callable invocation policy",
     "stage": "BETA",
