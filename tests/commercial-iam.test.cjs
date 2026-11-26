@@ -32,10 +32,19 @@ test('CEL prefix is exact, preserves spaces inside literals, rejects OR and inco
 test('wrong database/bucket/identity/privacy never passes the static audit',()=>{
  for(const mutate of [f=>f.account.email='other',f=>f.database.locationId='europe-west1',f=>f.database.databaseEdition='ENTERPRISE',f=>f.bucket.iamConfiguration.publicAccessPrevention='inherited',f=>f.bucket.iamConfiguration.uniformBucketLevelAccess.enabled=false]){const f=fixture();mutate(f);assert.equal(iam.assess(f).directPolicy,'review-required');}
 });
+test('owner-reported legacy REGIONAL bucket is Standard regional only with the required location and privacy',()=>{
+ const f=fixture();f.bucket.storageClass='REGIONAL';f.bucket.softDeletePolicy={retentionDurationSeconds:'604800'};assert.equal(iam.assess(f).directPolicy,'matches-minimal-proposal');
+ for(const storageClass of ['NEARLINE','COLDLINE','ARCHIVE','MULTI_REGIONAL']){f.bucket.storageClass=storageClass;assert.equal(iam.assess(f).directPolicy,'review-required');}
+ f.bucket.storageClass='REGIONAL';f.bucket.location='EUROPE-WEST1';assert.equal(iam.assess(f).directPolicy,'review-required');f.bucket.location='US-CENTRAL1';f.bucket.iamConfiguration.publicAccessPrevention='inherited';assert.equal(iam.assess(f).directPolicy,'review-required');
+});
+test('service-account getIamPolicy uses the official POST endpoint; an old GET returning 404 is not proof of absence',async()=>{
+ let seen;const http=fakeHttp(fixture(),(url,options)=>{if(url.includes('/serviceAccounts/')&&url.includes(':getIamPolicy?')){seen=options;return options.method==='POST'?{ok:true,json:async()=>({version:3,bindings:[]})}:{ok:false,status:404};}return null;});
+ const result=await iam.audit({token:'synthetic',fetcher:http});assert.equal(seen.method,'POST');assert.equal(result.observations.find(x=>x.name==='accountPolicy').status,'observed');assert.deepEqual(result.runtimeImpersonationPolicy,{version:3,bindings:[]});
+});
 test('read-only audit uses fixed GET/getIamPolicy/testIamPermissions only, policy version 3 and redacted report',async()=>{
  const calls=[],http=fakeHttp(fixture(),()=>null),r=await iam.audit({token:'synthetic-secret',fetcher:async(url,options)=>{calls.push({url,options});return http(url,options);}});
  assert.equal(r.assessment.directPolicy,'matches-minimal-proposal');assert.equal(r.buildSelection.verifiedForNextDeploy,false);assert.equal(r.deployer.firstHttpsPolicyVerified,false);assert.equal(r.deployer.runtimeActAsVerified,false);assert(r.deployer.notGrantedAtProjectCheck.includes('cloudfunctions.functions.setIamPolicy'));
- for(const {url,options}of calls){assert.equal(options.redirect,'error');assert.equal(options.credentials,'omit');assert(!/:setIamPolicy|:enable|:generateAccessToken/.test(url));if(options.method==='POST')assert(/:(getIamPolicy|testIamPermissions)$/.test(url));else assert.equal(options.method,'GET');}
+ for(const {url,options}of calls){assert.equal(options.redirect,'error');assert.equal(options.credentials,'omit');assert(!/:setIamPolicy|:enable|:generateAccessToken/.test(url));if(options.method==='POST')assert(/:(getIamPolicy|testIamPermissions)(?:\?|$)/.test(url));else assert.equal(options.method,'GET');}
  const policy=calls.find(x=>x.url.endsWith(':getIamPolicy'));assert.equal(JSON.parse(policy.options.body).options.requestedPolicyVersion,3);assert.equal(JSON.stringify(r).includes('synthetic-secret'),false);
 });
 test('403/404/unreadable data stay unknown, wrong project stops and external roles are not followed',async()=>{
@@ -43,6 +52,15 @@ test('403/404/unreadable data stay unknown, wrong project stops and external rol
  const r=await iam.audit({token:'test',fetcher:async(u,o)=>{calls.push(u);return base(u,o);}});assert.equal(r.complete,false);assert.equal(r.assessment.bucketBindings,null);assert(calls.every(x=>!x.includes('stellar-warriors')));assert(r.observations.some(x=>x.http===403));
  const stopped=await iam.audit({token:'test',fetcher:async()=>({ok:true,json:async()=>({projectId:'other',name:'projects/1'})})});assert.equal(stopped.observations.length,1);
  const denied=await iam.audit({token:'never-print',fetcher:async()=>{throw Error('never-print');}});assert.equal(JSON.stringify(denied).includes('never-print'),false);
+});
+test('unverified service queries report safe ErrorInfo codes without turning 403 into resource absence',async()=>{
+ const http=fakeHttp(fixture(),url=>{
+  const service=url.includes('cloudfunctions.googleapis.com')?'cloudfunctions.googleapis.com':url.includes('cloudbuild.googleapis.com')?'cloudbuild.googleapis.com':url.includes('run.googleapis.com')?'run.googleapis.com':null;if(!service)return null;
+  return {ok:false,status:403,json:async()=>({error:{status:'PERMISSION_DENIED',message:'private diagnostic, token synthetic-do-not-print',details:[{'@type':'type.googleapis.com/google.rpc.ErrorInfo',reason:service==='cloudfunctions.googleapis.com'?'SERVICE_DISABLED':'IAM_PERMISSION_DENIED',metadata:{service,consumer:'private-account',token:'synthetic-do-not-print'}}]}})};
+ });
+ const r=await iam.audit({token:'synthetic-do-not-print',fetcher:http});assert.equal(r.complete,false);assert.equal(r.observations.find(x=>x.name==='function').reason,'SERVICE_DISABLED');assert.equal(r.observations.find(x=>x.name==='buildDefault').reason,'IAM_PERMISSION_DENIED');
+ for(const name of ['function','buildDefault','deployerRun']){const o=r.observations.find(x=>x.name===name);assert.equal(o.status,'unknown');assert.equal(o.http,403);assert.equal(o.rpcStatus,'PERMISSION_DENIED');}
+ assert.equal(JSON.stringify(r).includes('synthetic-do-not-print'),false);assert.equal(JSON.stringify(r).includes('private-account'),false);
 });
 test('real runtime probe is blocked by default and never accepts another project or an active/emulated environment',()=>{
  assert.equal(probe.plan().mode,'PLAN_ONLY');for(const id of ['../outside','short','11111111-2222-4333-7444-555555555555'])assert.throws(()=>probe.identities(id));

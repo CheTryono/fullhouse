@@ -42,7 +42,7 @@
     "test:remote-staging:iam": "node --test tests/commercial-iam.test.cjs"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=24.15.0 <25"
   },
   "devDependencies": {
     "esbuild": "0.28.2",
@@ -54,8 +54,6 @@
     "firebase": "13.4.0"
   },
   "overrides": {
-    "firebase": {
-      "@grpc/grpc-js": "1.14.7"
-    }
+    "@grpc/grpc-js": "1.14.7"
   }
 }

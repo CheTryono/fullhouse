@@ -21,7 +21,9 @@ function assess({projectPolicy,bucketPolicy,roles={},account,database,bucket}){
  if([projectPolicy,bucketPolicy].some(x=>x?.bindings?.some(y=>y.members?.some(z=>['allUsers','allAuthenticatedUsers'].includes(z)))))issues.push('Hay grants públicos en proyecto/bucket; revisar sin modificarlos.');
  if(account?.email!==RUNTIME||account?.projectId!==PROJECT||account?.disabled===true||account?.disabled!==undefined&&typeof account.disabled!=='boolean')issues.push('Identidad runtime habilitada no verificada.');
  if(database?.name!==`projects/${PROJECT}/databases/(default)`||database?.locationId!=='us-central1'||database?.type!=='FIRESTORE_NATIVE'||database?.databaseEdition!=='STANDARD')issues.push('Firestore Standard/Native/default/us-central1 no verificado.');
- if(bucket?.name!==BUCKET||bucket?.location?.toLowerCase()!=='us-central1'||bucket?.storageClass!=='STANDARD'||bucket?.iamConfiguration?.uniformBucketLevelAccess?.enabled!==true||bucket?.iamConfiguration?.publicAccessPrevention!=='enforced')issues.push('Bucket/región/clase/privacidad no verificados.');
+ // REGIONAL is the legacy equivalent of Standard regional. Location/privacy
+ // remain exact requirements; this does not accept MULTI_REGIONAL/cold classes.
+ if(bucket?.name!==BUCKET||bucket?.location?.toLowerCase()!=='us-central1'||!['STANDARD','REGIONAL'].includes(bucket?.storageClass)||bucket?.iamConfiguration?.uniformBucketLevelAccess?.enabled!==true||bucket?.iamConfiguration?.publicAccessPrevention!=='enforced')issues.push('Bucket/región/clase/privacidad no verificados.');
  return {directPolicy:issues.length?'review-required':'matches-minimal-proposal',runtime:RUNTIME,projectBindings:p?.map(x=>({role:x.role,condition:x.condition?.expression||null}))??null,bucketBindings:b?.map(x=>({role:x.role,condition:x.condition?.expression||null}))??null,issues,effectiveAccess:'UNVERIFIED: requires approved synthetic runtime probe',limits:['No org/folder inheritance, group membership, deny policies or principal access boundaries evaluated.','A matching CEL expression is not proof that Storage evaluates it as expected.','No permission changes, token impersonation or data writes in this audit.']};
 }
 const requests=Object.freeze({
@@ -29,7 +31,7 @@ const requests=Object.freeze({
  account:['GET',`https://iam.googleapis.com/v1/projects/${PROJECT}/serviceAccounts/${RUNTIME}`],
  projectPolicy:['POST',`https://cloudresourcemanager.googleapis.com/v1/projects/${PROJECT}:getIamPolicy`,{options:{requestedPolicyVersion:3}}],
  bucketPolicy:['GET',`https://storage.googleapis.com/storage/v1/b/${BUCKET}/iam?optionsRequestedPolicyVersion=3`],
- accountPolicy:['GET',`https://iam.googleapis.com/v1/projects/${PROJECT}/serviceAccounts/${RUNTIME}:getIamPolicy?options.requestedPolicyVersion=3`],
+ accountPolicy:['POST',`https://iam.googleapis.com/v1/projects/${PROJECT}/serviceAccounts/${RUNTIME}:getIamPolicy?options.requestedPolicyVersion=3`],
  database:['GET',`https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)`],
  bucket:['GET',`https://storage.googleapis.com/storage/v1/b/${BUCKET}?projection=noAcl`],
  function:['GET',`https://cloudfunctions.googleapis.com/v2/projects/${PROJECT}/locations/us-central1/functions/remoteV1`],
@@ -42,7 +44,16 @@ function plan(){return {project:PROJECT,runtime:RUNTIME,mode:'READ_ONLY',request
 async function audit({token,fetcher=fetch}){
  if(typeof token!=='string'||!token.trim()||/[\r\n]/.test(token))throw Error('Falta una sesión gcloud local autorizada.');
  const observations=[];
- async function get(name,[method,url,body]){try{const r=await fetcher(url,{method,headers:{authorization:'Bearer '+token,'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{}),redirect:'error',credentials:'omit',signal:AbortSignal.timeout(15000)});if(!r.ok){observations.push({name,status:'unknown',http:r.status});return null;}const v=await r.json();observations.push({name,status:'observed'});return v;}catch{observations.push({name,status:'unknown',reason:'Consulta no disponible; no se modifica nada.'});return null;}}
+ async function get(name,[method,url,body]){try{const r=await fetcher(url,{method,headers:{authorization:'Bearer '+token,'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{}),redirect:'error',credentials:'omit',signal:AbortSignal.timeout(15000)});if(!r.ok){
+  const observation={name,status:'unknown',http:r.status};
+  // Keep only non-sensitive RPC/ErrorInfo codes. Never echo raw messages/metadata.
+  try{const error=(await r.json())?.error;if(typeof error?.status==='string'&&/^[A-Z_]{1,64}$/.test(error.status))observation.rpcStatus=error.status;
+   const info=error?.details?.find?.(x=>x?.['@type']==='type.googleapis.com/google.rpc.ErrorInfo');
+   if(typeof info?.reason==='string'&&/^[A-Z_]{1,64}$/.test(info.reason))observation.reason=info.reason;
+   if(info?.metadata?.service===new URL(url).hostname)observation.service=info.metadata.service;
+  }catch{/* Missing/non-JSON errors still remain unknown with their HTTP status. */}
+  observations.push(observation);return null;
+ }const v=await r.json();observations.push({name,status:'observed'});return v;}catch{observations.push({name,status:'unknown',reason:'Consulta no disponible; no se modifica nada.'});return null;}}
  const project=await get('project',requests.project);
  if(project?.projectId!==PROJECT||project?.name!==`projects/${NUMBER}`)return {project:PROJECT,complete:false,observations,reason:'Identidad/número no verificables. Se detiene el análisis.'};
  const values={};for(const [name,request]of Object.entries(requests))if(name!=='project')values[name]=await get(name,request);

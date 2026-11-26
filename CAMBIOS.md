@@ -1,5 +1,24 @@
 # Comercial · 3C.3: IAM y despliegue cerrado preparados, sin ejecutar
 
+- Revisión Cloud Shell del propietario: reproducido npm ci EUSAGE con Node
+  22.23.5/npm 10.9.9. Override gRPC global conserva 1.14.7 y todas las versiones
+  resueltas de raíz; toolchain web declara Node 24.15+ de la rama 24, conforme a
+  SDK web/herramientas. Functions sigue Node 22. Admin/Functions no se actualizan;
+  solo database-compat 2.1.7/database 1.1.5 transitivos compatibles, dentro del rango
+  de Admin, para que la instalación backend estricta también pase.
+- Auditor: REGIONAL heredado admite equivalencia Standard solo en us-central1
+  con privacidad exigida; no se modifica el bucket. getIamPolicy de SA corregido
+  de GET a POST. Otros 403 conservan estado desconocido y códigos seguros para
+  diagnóstico, sin activar APIs ni ampliar IAM. Evidencia real atribuida al dueño
+  y procedimiento de repetición: docs/COMMERCIAL_IAM_CLOSED_DEPLOY.md.
+- Nuevas regresiones de clase/método/errores y compatibilidad de locks; gate,
+  backend, cliente y configuraciones reales permanecen cerrados y sin cambios.
+- Instalaciones nuevas sin node_modules previos y engine-strict: raíz Node
+  24.22.1/npm 10.9.9 y backend Node 22.23.5/npm 10.9.9, ambas salida 0. En esa
+  copia: IAM 17/17, suite general 592 aprobadas/0 fallos/6 TODO, compilación,
+  cliente/contratos, build web demo y SDK cerrado Node 22 correctos. Sin prueba
+  sintética con escrituras ni repetición de consultas IAM reales.
+
 - Base f1cd384 (PR #25/3C.2). Se registra el informe del propietario: Blaze,
   presupuesto ~100 MXN/alertas, recursos us-central1, deny-all, App Check y roles
   runtime creados; no se confunde con inspección o prueba IAM de Codex.
