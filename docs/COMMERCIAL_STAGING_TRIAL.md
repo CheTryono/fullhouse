@@ -1,5 +1,11 @@
 # Comercial 3C.2 · ensayo real preparado, sin activar
 
+**Estado posterior 3C.3:** PR #25 fusionada. El propietario confirmó Blaze,
+presupuesto aproximado 100 MXN con alertas, Firestore/bucket us-central1, deny-all,
+App Check y roles runtime. Ver [auditoría y deploy cerrado](COMMERCIAL_IAM_CLOSED_DEPLOY.md).
+Los informes anteriores se conservan como evidencia histórica de 3C.2; no describen
+el estado posterior ni constituyen comprobaciones IAM de Codex.
+
 Base `36aae0f`, PR #24 incorporada. Revisión: **24 noviembre 2026**.
 El propietario acepta **us-central1, EE. UU.**, y objetivo **5 USD/mes para staging**,
 sin garantía de tope. Vincular billing, crear recursos y desplegar siguen sin autorizar.

@@ -7,5 +7,6 @@
   "dependencies": {
     "firebase-admin": "14.5.1",
     "firebase-functions": "7.4.0"
-  }
+  },
+  "overrides": {"@firebase/database-compat": "2.1.7"}
 }

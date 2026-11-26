@@ -35,10 +35,14 @@
     "check:remote-staging:node22": "node scripts/check-remote-staging-node22.cjs",
     "inspect:remote-staging": "node scripts/inspect-remote-staging.cjs",
     "test:commercial-preflight": "node --test tests/commercial-inventory.test.cjs tests/commercial-media.test.cjs",
-    "test:remote-staging:media:emulator": "node scripts/test-remote-staging-rules.cjs --media"
+    "test:remote-staging:media:emulator": "node scripts/test-remote-staging-rules.cjs --media",
+    "audit:remote-staging:iam": "node scripts/audit-remote-staging-iam.cjs",
+    "probe:remote-staging:runtime": "node scripts/probe-remote-staging-runtime.cjs",
+    "prepare:remote-staging:closed": "node scripts/prepare-remote-staging-closed.cjs",
+    "test:remote-staging:iam": "node --test tests/commercial-iam.test.cjs"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=24.15.0 <25"
   },
   "devDependencies": {
     "esbuild": "0.28.2",
@@ -50,8 +54,6 @@
     "firebase": "13.4.0"
   },
   "overrides": {
-    "firebase": {
-      "@grpc/grpc-js": "1.14.7"
-    }
+    "@grpc/grpc-js": "1.14.7"
   }
 }

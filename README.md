@@ -26,7 +26,10 @@ npm ci
 npm run dev:auth
 ```
 
-Node 22+. Abrir http://127.0.0.1:5000; solo cuentas sintéticas. Cada cuenta verificada
+Herramientas/compilación web: **Node 24.15+ de la rama 24**. Backend `remote/` y
+Functions: **Node 22**, con instalación separada. [Instalación reproducible y
+versiones](docs/COMMERCIAL_IAM_CLOSED_DEPLOY.md#instalación-limpia-y-runtimes).
+Abrir http://127.0.0.1:5000; solo cuentas sintéticas. Cada cuenta verificada
 abre un espacio local separado por proyecto/UID. No se importa `fullhouse-v01` ni su
 alias. **Los datos de cuenta aún no se guardan en la nube ni sincronizan dispositivos.**
 [Configuración personal de Firebase, pruebas y límites](docs/COMMERCIAL_AUTH_STAGING.md).
