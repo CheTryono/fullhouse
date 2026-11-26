@@ -5,7 +5,127 @@ Se conservan `deploymentAuthorized:false`, `remoteEnabled:false`, cliente
 `enabled:false`/`appCheckSiteKey:null`, controles, cuotas, CAS, recibos y respaldos v1.
 No cambia Planner, Hosting, Pages, fuentes locales ni historial experimental v2.
 
-## Revisión posterior: instalación y auditoría real del propietario
+## Cierre de PR #26: último informe del propietario
+
+El propietario repitió las pruebas y la auditoría real desde Google Cloud Shell
+en `feat/commercial-iam-closed-deploy`, tras las correcciones de instalación,
+REGIONAL y POST. **Esta evidencia es del propietario, no una ejecución de Codex.**
+No comunicó SHA exacto, versiones de Node/npm, duraciones ni códigos de salida en
+esta repetición; no se infieren de las verificaciones anteriores.
+
+| Resultado comunicado | Evidencia |
+| --- | --- |
+| Pruebas IAM | **17 ejecutadas, 17 aprobadas, 0 fallos, 0 omitidas** |
+| Suite general | **598 casos, 592 aprobados, 0 fallos, 6 TODO previos** |
+| Asignaciones directas y recursos | **Aprobados en el alcance del auditor**: `directPolicy:matches-minimal-proposal`, `issues:[]` |
+| Firestore | `(default)`, Standard/Native, us-central1 verificado |
+| Bucket | `fullhouse-staging.firebasestorage.app`, REGIONAL, US-CENTRAL1, acceso uniforme y prevención de acceso público correctos |
+| Roles runtime | Cuatro permisos Firestore y dos Storage con la condición exacta `users/`, correctos |
+| Política de la SA | `accountPolicy` ahora **observado**, con el POST corregido |
+| Desplegador | `cloudfunctions.functions.setIamPolicy` e `iam.serviceAccounts.actAs` confirmados |
+| Auditoría global | **Incompleta**: `complete:false`; acceso efectivo runtime sin probar, identidad de build sin identificar |
+
+**No hay un cambio de los roles IAM actuales justificado por estos resultados.**
+Se conservan roles, bindings y condición del runtime y los permisos confirmados del
+desplegador. La propuesta adicional de primer HTTPS no requiere un grant nuevo:
+el operador ya tiene ese permiso. La posible concesión temporal de impersonación
+para una prueba futura es independiente, solo si falta al operador; no amplía los
+roles del runtime ni es un requisito nuevo de la aplicación.
+
+La aprobación directa comprueba las asignaciones/condición y parámetros observados.
+No demuestra todavía que `objects.create/get` funcionen con la identidad runtime,
+ni evalúa herencia, grupos, deny/PAB, App Check positivo o el despliegue completo.
+No se presenta como una aprobación global de IAM ni como autorización de deploy.
+
+### APIs deshabilitadas y orden de preparación autorizado posteriormente
+
+| Consulta del propietario | API | Estado informado / lo que no se puede concluir |
+| --- | --- | --- |
+| `function` | `cloudfunctions.googleapis.com` | HTTP 403, **SERVICE_DISABLED**; existencia de funciones no verificada |
+| `buildDefault` | `cloudbuild.googleapis.com` | HTTP 403, **SERVICE_DISABLED**; ejecutor de build desconocido, no ausente |
+| `deployerRun` | `run.googleapis.com` | HTTP 403, **SERVICE_DISABLED**; no demuestra ausencia del servicio ni falta del permiso sobre el recurso futuro |
+
+La razón SERVICE_DISABLED ya identifica el bloqueo de consulta comunicado; no se
+atribuye por defecto a roles insuficientes. **No se habilitó ninguna API desde esta
+PR.** Estado de `iamcredentials.googleapis.com` y `artifactregistry.googleapis.com`
+no proporcionado en este informe: comprobarlo primero con lectura de Service Usage
+o Console, sin clasificarlas como deshabilitadas por asociación.
+
+Preparar dos autorizaciones separadas, siempre para `fullhouse-staging`:
+
+1. **Prueba mínima runtime:** verificar Firestore/Storage ya observados e IAM
+   Credentials. Autorizar habilitar **solo IAMCredentials si falta**, más la
+   impersonación temporal si es necesaria y la ejecución sintética descrita abajo.
+   Esta prueba directa de SDK no necesita habilitar Functions, Cloud Build ni Run,
+   crear un builder, desplegar una función o abrir el backend.
+2. **Primer despliegue cerrado, después:** revisar las APIs activas y solicitar
+   autorización de habilitaciones pendientes. Orden operativo propuesto:
+   **Artifact Registry si falta → Cloud Build → Cloud Run → Cloud Functions**.
+   Es un orden para inspeccionar dependencias, no una garantía de que no se activen
+   dependencias adicionales. Revisar los cambios propuestos antes de aceptarlos.
+   Tras habilitar Build, repetir su consulta y distinguir el default candidato del
+   ejecutor realmente seleccionado; revisar fuentes, repositorio, logs y agentes.
+   Tras Run/Functions, repetir el auditor y revisar los estados que sigan desconocidos.
+
+Solo un operador con autorización para habilitar servicios debe realizar esas
+acciones. No conceder serviceusage.services.enable al runtime ni usar Owner/Editor
+como solución. Habilitar APIs puede provisionar identidades administradas: revisar
+sus roles concretos sin trasladarlos al runtime. No ejecutar deploy/dry-run para
+que el CLI active dependencias automáticamente. No crear un recurso o relajar el
+auditor únicamente para obtener `complete:true` antes del primer despliegue.
+
+Las habilitaciones no autorizan builds, funciones, repositorios o acceso de usuarios.
+Esos recursos, los logs y las escrituras sintéticas pueden consumir cuota/coste y
+retener datos; mantener alertas de ~100 MXN, que no son un tope de gasto. No se
+deshabilitan APIs automáticamente como mecanismo de limpieza/reversión.
+
+### Siguiente paso mínimo: autorización limitada de prueba sintética
+
+Antes de ejecutar nada, el propietario debe aprobar conjuntamente el alcance:
+
+1. Comprobar IAMCredentials y el permiso **`iam.serviceAccounts.getAccessToken` del
+   operador sobre** `fullhouse-remote-runtime@fullhouse-staging.iam.gserviceaccount.com`.
+   Consultar `deployer.runtimePermissions`/política de SA con lectura; tener actAs
+   no implica getAccessToken. Si ya está concedido adecuadamente, **no añadir roles**.
+2. Si falta, autorizar un rol personalizado de **un solo permiso getAccessToken**
+   y un binding **solo sobre esa SA y para el operador elegido**, nunca sobre todo
+   el proyecto ni sobre el runtime como beneficiario. Añadir condición temporal
+   `request.time < timestamp("FECHA_RFC3339_APROBADA")`, por ejemplo una ventana de
+   30 minutos, y registrar el binding exacto y los accesos previos. No usar Token
+   Creator a nivel proyecto, Owner/Editor ni claves privadas JSON.
+3. Autorizar explícitamente ejecutar el probe con Node 22 y un UUID conservado:
+   dos revisiones/recibos, metadata con acceso disabled y un PNG sintético 1×1.
+   La prueba negativa podría dejar un archivo diminuto fuera de `users/` si IAM
+   estuviera demasiado abierto. Conservar resultados/fase/recibos y datos de prueba;
+   no borrar ni reintentar con identidades nuevas automáticamente. El comando de
+   la sección 2 sigue siendo **futuro y bloqueado**, no una instrucción para ejecutarlo ahora.
+4. Tras la prueba, retirar **solo el binding temporal añadido**, conservando roles
+   y permisos anteriores. Si el rol personalizado se creó exclusivamente para
+   este ensayo, su retirada posterior requiere comprobar que no tenga otros usos;
+   eliminar el binding basta para retirar esa concesión. No sobrescribir políticas
+   IAM completas ni deshabilitar la SA runtime como rutina de cierre.
+
+Los tokens de IAMCredentials duran **900 segundos** y permanecen en RAM.
+Retirar/expirar el binding impide nuevas emisiones bajo esa concesión, **no revoca
+instantáneamente tokens ya emitidos**. Cerrar el proceso y dejar vencer esos tokens;
+verificar después la retirada con lectura de IAM. Si existían otros grants de
+impersonación, este retiro no los elimina ni demuestra revocación global.
+No se comparte ni guarda ningún token en Git o ChatGPT. Esta autorización no
+incluiría deploy, activación de usuarios o cambio de `remoteEnabled`.
+
+**PR #26 puede fusionarse como preparación desactivada.** Se mantienen
+`deploymentAuthorized:false`, `remoteEnabled:false`, cliente `enabled:false` y sin
+conexión al Planner. Esta actualización es solo documental, sin API/IAM/recursos,
+probe real, merge ni deploy. El siguiente paso es solicitar esa autorización mínima,
+no habilitar primero toda la infraestructura de despliegue.
+
+Verificación local de esta actualización: Codex repitió **17/17** pruebas IAM con
+Node **24.22.1**, comprobó el rechazo del hook incluso con variable de consentimiento
+y verificó las tres banderas apagadas. No repitió la suite general ni la auditoría
+real. Los 592 aprobados/6 TODO de la repetición de Cloud Shell siguen atribuidos al
+propietario. Código, dependencias, IAM propuesto y configuración idénticos a `a7d56d2`.
+
+## Revisión anterior: instalación y primera auditoría del propietario (histórico)
 
 Informe recibido el **25 noviembre 2026**, misma rama. El propietario ejecutó
 la auditoría real en Cloud Shell: confirma proyecto/SA correctos, rol Firestore
@@ -141,14 +261,14 @@ insuficiente de la raíz. Esas pruebas quedan activas. La evidencia anterior Nod
 de la primera entrega se conserva abajo como histórica, no como prueba de que todos
 los engines del lock anterior fueran compatibles.
 
-**Estado de aprobación:** con los metadatos aportados, el bucket REGIONAL y los
+**Estado de aprobación en aquella revisión (superado por el cierre de PR #26):** con los metadatos aportados, el bucket REGIONAL y los
 roles directos son compatibles con la propuesta. Los fixtures corregidos lo
 comprueban. La auditoría completa **sigue parcial** hasta repetir el POST correcto
 y aclarar las consultas desconocidas. Acceso efectivo con runtime, builder real y
 políticas heredadas siguen sin demostrarse; la prueba con escrituras requiere
 autorización separada. No se declara aprobado un deploy.
 
-## Estado aportado por el propietario
+## Estado inicial aportado por el propietario
 
 Para `fullhouse-staging`, el propietario confirma Blaze, presupuesto aproximado
 **100 MXN/mes con alertas**, Firestore `(default)` Standard/Native us-central1,
@@ -161,8 +281,10 @@ condición de prefijo `users/`.
 
 Es **informe del propietario**, no inspección ni prueba IAM ejecutada por Codex.
 Actualiza el estado histórico de 3C.2 (billing apagado/sin buckets en aquel momento).
-No demuestra aún permisos efectivos, edición/localización observadas por API,
-configuración completa de App Check, soft delete o las identidades de build.
+Ese informe inicial no demostraba permisos efectivos, edición/localización
+observadas por API, configuración completa de App Check, soft delete o builder.
+La auditoría posterior del cierre arriba sí acredita recursos/asignaciones directas;
+el acceso efectivo y la identidad de build permanecen pendientes.
 100 MXN es el presupuesto comunicado, no una conversión garantizada de 5 USD ni
 un límite duro de gasto. No se activó ni modificó billing desde esta PR.
 
@@ -409,10 +531,11 @@ v1, reglas, UI o persistencia; los tests nuevos prueban herramientas preparatori
 No se declara resuelto BUG-05 ni se activa v2.
 Firefox/WebKit/dispositivos físicos y Functions desplegado no probados aquí.
 
-**Bloqueos vigentes antes de desplegar:** repetir el POST corregido y aclarar las
-consultas desconocidas, condición efectiva/prueba sintética autorizada, build
-elegido/agentes y resto de acceso administrativo, políticas organizativas/URLs
-públicas, APIs/retención/costes, autorización explícita y cambio revisado del gate.
-El permiso de primer HTTPS y actAs del runtime **ya fueron confirmados por el
-propietario**, no se presentan como grants nuevos necesarios. La PR sigue siendo
-preparación y no habilita el primer deploy.
+**Bloqueos vigentes antes de desplegar:** autorización de APIs pendientes (Functions,
+Build y Run informadas SERVICE_DISABLED), condición efectiva/prueba sintética
+autorizada, build elegido/agentes y resto de acceso administrativo, políticas
+organizativas/URLs públicas, retención/costes, autorización explícita y cambio
+revisado del gate. El POST de accountPolicy **ya fue observado correctamente**;
+primer HTTPS y actAs del runtime también confirmados. No justifican grants nuevos.
+Las asignaciones directas están aprobadas en su alcance; la auditoría global sigue
+incompleta. La PR puede fusionarse como preparación desactivada, sin habilitar deploy.
