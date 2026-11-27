@@ -7,6 +7,13 @@ No cambia Planner, Hosting, Pages, fuentes locales ni historial experimental v2.
 
 ## Estado posterior a PR #26
 
+Después de PR #27, el propietario confirmó siete APIs ENABLED y default
+Compute/Editor. El transporte Firebase fijado no selecciona builder dedicado;
+el hook ahora se bloquea incluso si se abre solo el flag de deploy. Los comandos
+de deploy siguientes son **históricos, no el procedimiento operativo vigente**.
+Seguir [ejecutor dedicado](COMMERCIAL_DEDICATED_BUILD.md); no retirar Editor ni
+usar opciones Firebase inventadas.
+
 PR #26 ya fusionada en `f196350`. El propietario completó después la prueba
 `SYNTHETIC_IAM_PROBE_PASSED`, run `c955a4a6-a4ac-4138-a415-51efb2ce3cc9`, y retiró
 el binding temporal de impersonación. Resultado, datos retenidos, diagnóstico de

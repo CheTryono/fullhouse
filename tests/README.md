@@ -1,5 +1,18 @@
 # Base de regresión de Fullhouse
 
+## Ejecutor dedicado de Cloud Build, sin deploy
+
+`npm run test:remote-staging:build`: ocho casos con el conversor y esquema reales
+del CLI 15.37.0, peticiones IAM simuladas y hook con autorización abierta solo en
+memoria. Demuestra que esa ruta no selecciona builder y permanece bloqueada.
+Incluye rechazo de default Compute/legacy, runtime como builder, 403/404,
+separación de identidades y plan no ejecutable. No representa un build real.
+
+`npm run plan:remote-staging:build` es solo local; `--run` se rechaza. El auditor
+readonly añade metadata/política/actAs de la SA propuesta y distingue default con
+Editor de selección explícita. El propietario informó siete APIs ENABLED, sin
+repetición de consultas reales de Codex. [Procedimiento manual y garantías](../docs/COMMERCIAL_DEDICATED_BUILD.md).
+
 ## Comercial 3C.3: IAM y deploy cerrado, sin ejecutar en Firebase real
 
 `npm run test:remote-staging:iam`: 20 casos de políticas HTTP/puertos simulados,

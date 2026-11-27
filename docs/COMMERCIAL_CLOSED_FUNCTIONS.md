@@ -6,6 +6,12 @@ despliegue, habilitación de APIs, cambios IAM ni limpieza de datos.**
 `deploymentAuthorized:false`, `remoteEnabled:false` y cliente `enabled:false`
 continúan vigentes. Planner público sigue local/v1, sin motor histórico v2.
 
+**Actualización posterior a PR #27:** fusionada en `06d77e9`. El propietario
+informó siete APIs habilitadas y default Compute con Editor. Firebase CLI fijado
+no selecciona builder dedicado: el hook añade un bloqueo independiente del flag.
+La secuencia de deploy anterior no puede utilizarse como estaba; seguir
+[ejecutor dedicado y siguiente autorización](COMMERCIAL_DEDICATED_BUILD.md).
+
 ## 1. Evidencia real del propietario
 
 El propietario ejecutó el probe en Google Cloud Shell sobre `f196350`, con Node
@@ -108,10 +114,11 @@ nombre canónico y devuelve salida 2 si las APIs están deshabilitadas/no verifi
 faltan observaciones o las asignaciones directas no coinciden. **Ni salida 0 ni
 `complete:true` son autorización de despliegue o aprobación global de IAM.**
 
-Última auditoría real comunicada: asignaciones directas aprobadas, pero Functions,
-Build y Run devolvieron `403 SERVICE_DISABLED`. No hay inventario posterior de esas
-APIs en esta entrega. El probe prueba acceso a datos; no prueba que aquellas APIs
-se hayan habilitado. Estado de AR/Eventarc/PubSub requiere lectura. Un 403/404 sigue
+La auditoría anterior informó Functions, Build y Run `403 SERVICE_DISABLED`.
+**El nuevo informe del propietario confirma ahora las siete APIs ENABLED** y
+asignaciones directas aprobadas. Default Build es Compute/Editor, no el ejecutor
+aprobado de la próxima compilación. Este estado no fue consultado por Codex.
+Un 403/404 sigue
 siendo desconocido respecto a existencia de recursos; no se crea nada para volver
 el informe completo. No se ejecutó el auditor real desde Codex.
 
@@ -133,7 +140,7 @@ Scheduler, Tasks o nuevos servicios comerciales para este código.
 | --- | --- |
 | Runtime `fullhouse-remote-runtime@…` | Mantener los roles de datos probados. No requiere deploy, build, lista, delete ni Token Creator |
 | Operador de despliegue | `cloudfunctions.functions.setIamPolicy` y actAs sobre runtime ya confirmados por propietario. Revisar permisos de creación/actualización de función, carga de fuente y política del servicio Run; no se conceden automáticamente |
-| Ejecutor real de Build | **Todavía desconocido.** Default de Build es candidato, no selección confirmada. Identificarlo tras habilitar la API y comprobar la selección antes del deploy; no reutilizar el runtime |
+| Ejecutor real de Build | Default observado por el propietario: Compute con Editor. **No aprobado para el deploy**. Proponer SA dedicada y transporte explícito; no reutilizar runtime ni retirar Editor sin revisar dependencias |
 | Functions service agent | `service-664973716762@gcf-admin-robot.iam.gserviceaccount.com`, revisar `roles/cloudfunctions.serviceAgent` |
 | Build service agent | `service-664973716762@gcp-sa-cloudbuild.iam.gserviceaccount.com`, revisar `roles/cloudbuild.serviceAgent`; no confundirlo con el ejecutor |
 | Run service agent | `service-664973716762@serverless-robot-prod.iam.gserviceaccount.com`, revisar `roles/run.serviceAgent` |
@@ -162,11 +169,10 @@ necesita propuesta con identidad, recurso, permiso faltante y autorización sepa
 1. **Ahora, sin cambios:** repetir el auditor actualizado en Cloud Shell. Revisar
    APIs, cuenta runtime, roles y binding temporal retirado. No repetir el probe
    solo para obtener otra traza. Conservar resultados sanitizados.
-2. **Siguiente autorización mínima:** habilitar exclusivamente APIs faltantes y
-   revisar sus identidades: AR si falta → Build → Run → Functions; contemplar
-   Eventarc/PubSub que el CLI exige y Storage ya usado. Revisar dependencias antes
-   de aceptar. Esta autorización no incluye un build/deploy ni acceso de usuarios.
-   No se otorga `serviceusage.services.enable` al runtime.
+2. Las siete APIs ya fueron habilitadas según el propietario; no repetirlo.
+   **Siguiente autorización mínima actual:** crear solo la SA dedicada de build,
+   sin claves ni roles, según el procedimiento enlazado arriba. No incluye build,
+   deploy, retiro de Editor o acceso de usuarios.
 3. **Después de las habilitaciones:** repetir lectura. Identificar builder real,
    agentes y sus scopes de fuentes/AR/logs. Si falta algo, presentar el grant mínimo
    al propietario. Revisar política de organización sobre invocación `allUsers`
@@ -176,20 +182,15 @@ necesita propuesta con identidad, recurso, permiso faltante y autorización sepa
    conservar SHA, hash del manifiesto y revisar allowlist de archivos. Ninguna
    credencial, diagnóstico o laboratorio entra en el artefacto. No cambiar las
    dependencias por errores de acceso.
-5. **Autorización distinta para el despliegue:** aprobar coste/alcance, APIs,
-   identidades y artefacto. Solo entonces revisar un cambio limitado de
-   `deploymentAuthorized`, manteniendo `remoteEnabled:false`, cliente apagado y
-   allowlist de cuentas vacía. **Esta PR no realiza ese cambio.** El hook actual
-   rechaza el deploy incluso con la variable de consentimiento.
-6. **Comando futuro, todavía bloqueado y no ejecutado:** con Node 22 y el operador
-   autorizado, solo ese codebase. No usar `--force`, no desplegar reglas ni Hosting:
-
-   ```sh
-   env GCLOUD_PROJECT=fullhouse-staging \
-     FULLHOUSE_AUTHORIZE_STAGING_DEPLOY=fullhouse-staging \
-     npx firebase deploy --project fullhouse-staging \
-       --config firebase.remote-staging.json --only functions:remote-staging-v1
-   ```
+5. **Transporte y autorización distinta para el despliegue:** el CLI 15.37.0 no
+   envía selección de builder. Preparar una ruta explícita Cloud Functions v2
+   revisada por separado, con checks previos a escritura y todos los parámetros
+   cerrados. **Cambiar solo deploymentAuthorized ya no basta**. Backend, cliente
+   y allowlist siguen apagados. Esta preparación no implementa esa otra ruta.
+6. El comando Firebase propuesto anteriormente queda retirado del procedimiento
+   operativo hasta disponer de una selección segura. No reemplazarlo con flags
+   inventados. `npm run plan:remote-staging:build` permite inspeccionar el bloqueo
+   localmente sin desplegar reglas, Hosting ni Functions.
 
 El CLI puede habilitar APIs, crear fuentes/builds/repositorios y ajustar IAM durante
 `deploy`; **no es un dry-run ni auditoría**. Detenerse ante cambios no autorizados.
