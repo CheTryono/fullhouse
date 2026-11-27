@@ -30,6 +30,22 @@ test('resource preflight separates uploader from builder and never requires an e
 test('first-trial preflight blocks unknown agents, missing upload/actAs, divergent project and an existing function',()=>{
  g.assertAudit(fixture.audit());for(const mutate of [a=>a.project='other',a=>a.gcloudResources.basicInputsVerified=false,a=>a.buildSelection.dedicated.operatorActAsVerified=false,a=>a.buildSelection.dedicated.ownerOrEditorDirectGrant=true,a=>a.managedIdentities.buildAgent.directProjectRoles=[],a=>a.function={name:id.FUNCTION},a=>a.observations[0].http=403,a=>a.deployer.projectPermissions=[]]){const a=fixture.audit();mutate(a);assert.throws(()=>g.assertAudit(a));}
 });
+test('Functions standard service agent role reported by the owner is accepted exactly',()=>{
+ const a=fixture.audit();a.managedIdentities.functions.directProjectRoles=[{role:'roles/cloudfunctions.standardServiceAgent',condition:null}];assert.doesNotThrow(()=>g.assertAudit(a));
+});
+test('Functions agent without an observed role remains blocked',()=>{
+ for(const roles of [undefined,null,[]]){const a=fixture.audit();a.managedIdentities.functions.directProjectRoles=roles;assert.throws(()=>g.assertAudit(a),/Agentes administrados no verificados/);}
+ const a=fixture.audit();delete a.managedIdentities.functions;assert.throws(()=>g.assertAudit(a),/Agentes administrados no verificados/);
+});
+test('legacy, broad, unrelated and lookalike roles cannot replace the current Functions service agent role',()=>{
+ for(const role of ['roles/cloudfunctions.serviceAgent','roles/cloudfunctions.admin','roles/owner','roles/editor','roles/viewer','roles/run.serviceAgent','roles/cloudbuild.serviceAgent','roles/cloudfunctions.standardServiceAgentExtra',`projects/${id.PROJECT}/roles/cloudfunctions.standardServiceAgent`]){const a=fixture.audit();a.managedIdentities.functions.directProjectRoles=[{role}];assert.throws(()=>g.assertAudit(a),/Agentes administrados no verificados/,role);}
+});
+test('standard role must be unconditional and attached to the Functions agent; Build and Run checks stay mandatory',()=>{
+ const current=()=>{const a=fixture.audit();a.managedIdentities.functions.directProjectRoles=[{role:'roles/cloudfunctions.standardServiceAgent'}];return a;};
+ const conditional=current();conditional.managedIdentities.functions.directProjectRoles[0].condition='true';assert.throws(()=>g.assertAudit(conditional),/Agentes administrados no verificados/);
+ const misplaced=current();misplaced.managedIdentities.functions.directProjectRoles=[];misplaced.managedIdentities.buildAgent.directProjectRoles.push({role:'roles/cloudfunctions.standardServiceAgent'});assert.throws(()=>g.assertAudit(misplaced),/Agentes administrados no verificados/);
+ for(const kind of ['buildAgent','run']){const a=current();a.managedIdentities[kind].directProjectRoles=[];assert.throws(()=>g.assertAudit(a),/Agentes administrados no verificados/);}
+});
 test('readback verifies both function and actual Build identity, capacity, closed variables, release and public callable policy',()=>{
  const p=g.prepare({out:temp(),env:{}});assert.equal(g.verifyReadback(fixture.readback(p)).mode,'CLOSED_RELEASE_METADATA_VERIFIED');
  for(const mutate of [v=>delete v.build.serviceAccount,v=>v.build.serviceAccount=`projects/${id.PROJECT}/serviceAccounts/${id.NUMBER}-compute@developer.gserviceaccount.com`,v=>v.fn.buildConfig.dockerRepository='other',v=>v.fn.serviceConfig.serviceAccountEmail=id.BUILD_EMAIL,v=>v.fn.serviceConfig.availableCpu='1',v=>v.fn.serviceConfig.environmentVariables.FULLHOUSE_REMOTE_STAGING_ENABLED='1',v=>v.fn.labels['fullhouse-release']='other',v=>v.build.status='FAILURE',v=>v.invoker.bindings=[],v=>v.build.results.images[0].name='other',v=>v.build.results.images[0].digest='invalid',v=>v.build.sourceProvenance.resolvedStorageSource.generation='0']){const v=fixture.readback(p);mutate(v);assert.throws(()=>g.verifyReadback(v));}

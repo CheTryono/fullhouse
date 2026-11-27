@@ -123,7 +123,7 @@ para conseguirlo. La configuración efectiva del primer job sigue pendiente.
 | Identidad | Función / revisión |
 | --- | --- |
 | Operador | Conservar los permisos Functions/Run y actAs de runtime ya revisados. Para usar el builder seleccionado, comprobar **iam.serviceAccounts.actAs sobre esa SA exacta**; si falta, proponer `roles/iam.serviceAccountUser` solo en ella. No Token Creator ni claves. No dar actAs de proyecto o sobre Compute por comodidad |
-| Functions agent | `service-664973716762@gcf-admin-robot.iam.gserviceaccount.com`, rol gestionado `roles/cloudfunctions.serviceAgent`; orquesta fuente/build/despliegue. Revisar asignación y restricciones del mismo proyecto |
+| Functions agent | `service-664973716762@gcf-admin-robot.iam.gserviceaccount.com`, rol gestionado `roles/cloudfunctions.standardServiceAgent`; orquesta fuente/build/despliegue. Revisar asignación y restricciones del mismo proyecto |
 | Build agent | `service-664973716762@gcp-sa-cloudbuild.iam.gserviceaccount.com`, `roles/cloudbuild.serviceAgent`; infraestructura y uso de la identidad de build. **No es el ejecutor**. En el mismo proyecto, revisar su rol gestionado antes de proponer grants de tokens adicionales |
 | Run agent | `service-664973716762@serverless-robot-prod.iam.gserviceaccount.com`, `roles/run.serviceAgent`; operación/imagen/runtime del servicio, no compilación |
 | Eventarc / PubSub agents | `service-664973716762@gcp-sa-eventarc.iam.gserviceaccount.com` / `service-664973716762@gcp-sa-pubsub.iam.gserviceaccount.com`, revisar roles gestionados correspondientes. El bootstrap del CLI ya fue observado; no añade triggers ni exige al runtime Eventarc Receiver, Publisher o Token Creator por este callable HTTP |

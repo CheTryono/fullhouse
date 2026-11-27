@@ -1,5 +1,15 @@
 # Comercial · procedimiento gcloud de primer ensayo cerrado, desactivado
 
+- Corrección de revisión PR #29: el preflight exige el rol vigente exacto
+  roles/cloudfunctions.standardServiceAgent del agente Functions, informado por
+  el propietario en la auditoría real. No cambia IAM; el rol legacy por sí solo
+  ya no sustituye esa asignación. Build/Run y las tres barreras siguen intactos.
+  Cuatro regresiones verifican aceptación, ausencia, roles incorrectos y
+  condición/asociación. Regenerar planes/hashes tras actualizar el control.
+- Corrección verificada: gcloud 13/13 en Node 24 y 22; suite general 618 aprobados,
+  0 fallos y seis TODO (624 casos); compilación y ensayo SDK offline correctos.
+  Sin auditoría real ni cambios en Google Cloud; configuración y gates intactos.
+
 - Base ef897a9 (PR #28). Recursos y grants acotados ya confirmados por el
   propietario; no se recrean, modifican ni se retira Editor de Compute.
 - SDK oficial 592.0.0 comprobado contra manifiesto de Google: prueba offline del

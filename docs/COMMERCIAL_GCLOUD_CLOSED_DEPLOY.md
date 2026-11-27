@@ -89,13 +89,46 @@ incluir expresamente ese cambio IAM del endpoint; **no se ejecuta ahora**.
 
 ## Permisos: qué está confirmado y qué falta
 
+### Corrección de la revisión de PR #29
+
+El propietario informó que la auditoría real observó en el agente de Functions
+`roles/cloudfunctions.standardServiceAgent`, rol vigente según la documentación
+actual de Google indicada en la revisión. Codex no repitió esa consulta real.
+La validación anterior exigía el identificador obsoleto
+`roles/cloudfunctions.serviceAgent`; era un error del contrato local de preflight.
+
+`assertAudit()` exige ahora **exactamente standardServiceAgent**, observado sin
+condición en el agente Functions. El rol antiguo por sí solo, Admin, Editor,
+Owner, roles de otros agentes y nombres parecidos no sustituyen esa asignación.
+Se mantienen las exigencias separadas de Build/Run y todos los demás controles.
+No se cambian bindings, cuentas o capacidades del proyecto. La corrección no
+elimina automáticamente ningún grant antiguo que pudiera existir.
+
+Cuatro regresiones cubren aceptación, ausencia, roles incorrectos y
+condición/asociación al agente. Antes de la corrección fallaban los dos casos que
+demostraban rechazo del rol vigente y aceptación del antiguo; tras ella se exige
+el resultado correcto. **Regenerar el plan/hash después de actualizar la rama**:
+la implementación del control forma parte de la identidad de release.
+
+Verificación de esta corrección, ejecutada por Codex:
+
+- Suite gcloud: **13/13** con Node 24.22.1 y **13/13** con Node 22.23.5.
+- `npm test`: **624 casos, 618 aprobados, 0 fallos y seis TODO previos**, 43.891 s.
+- `npm run check`: correcto, fuente/app.js sincronizados sin escribirlos.
+- SDK oficial 592.0.0 offline repetido con el nuevo hash: opciones/ZIP correctos,
+  cero intentos de red. No se repitieron auditoría real, emuladores o navegador.
+- Configuración, IAM propuesto, cuentas y flags intactos respecto a `8e2d721`;
+  deployment/backend/cliente continúan false. Ningún despliegue o cambio en Google.
+
+La tabla de la entrega original más abajo se conserva como evidencia anterior.
+
 | Identidad | Alcance / revisión mínima |
 | --- | --- |
 | Builder dedicado | Conservar Viewer en fuentes, Writer en repositorio y Logging Writer del propietario; no datos de usuarios, delete, Owner o Editor |
 | Operador que sube el ZIP | **`storage.objects.create` en el bucket de fuentes**. ActAs y el Viewer del builder no lo conceden. Si falta, proponer Object Creator solo en ese bucket, tras autorización; no Object Admin ni permisos de borrado |
 | Operador de deploy | ActAs sobre builder y runtime; Functions get/create/sourceCodeSet; `serviceusage.services.use` en staging por el proyecto de cuota explícito; permisos de política de invocación Run sobre el servicio. Verificar sin ampliar a todo el proyecto por un test condicionado desconocido |
 | Inspector posterior | `cloudbuild.builds.get`, lectura de metadata/política Run y acceso a logs. No equivale a Cloud Build Editor |
-| Functions service agent | Rol gestionado `roles/cloudfunctions.serviceAgent`; orquesta build/servicio y puede copiar fuentes. Revisar su binding, no trasladarlo al builder |
+| Functions service agent | Rol gestionado `roles/cloudfunctions.standardServiceAgent`; orquesta build/servicio y puede copiar fuentes. Revisar su binding, no trasladarlo al builder |
 | Build service agent | `roles/cloudbuild.serviceAgent`, separado del ejecutor. No volver a dar Token Creator al operador ni utilizar el token del antiguo probe |
 | Run service agent | `roles/run.serviceAgent`, operación/pull de imagen; no es el builder |
 | Eventarc/PubSub | Conservar lo observado. Este deploy es HTTP, sin triggers: no añadir Event Receiver/Publisher/Token Creator al runtime |
@@ -219,7 +252,7 @@ Build, AR, fuentes/retención, Run, logs y solicitudes pueden costar incluso con
 backend apagado y min 0/max 1. Los ~100 MXN/alertas no son un límite de gasto.
 No se autorizan recursos/cargos desde esta preparación.
 
-## Resultados de esta PR
+## Resultados de la entrega original (antes de la corrección)
 
 | Ejecución de Codex sobre el código final | Resultado |
 | --- | --- |

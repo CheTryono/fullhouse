@@ -50,7 +50,7 @@ function assessResources(v){
 }
 function assertAudit(audit){
  if(audit?.project!==identity.PROJECT||audit.assessment?.directPolicy!=='matches-minimal-proposal'||audit.closedFunctionsPreparation?.apiCheck!=='all-observed-enabled'||audit.buildSelection?.dedicated?.identityVerified!==true||audit.buildSelection.dedicated.operatorActAsVerified!==true||audit.buildSelection.dedicated.ownerOrEditorDirectGrant!==false||audit.deployer?.runtimeActAsVerified!==true||audit.gcloudResources?.basicInputsVerified!==true)throw Error('Preflight incompleto/incompatible; no se permite subir ni desplegar.');
- for(const [kind,role]of [['functions','roles/cloudfunctions.serviceAgent'],['buildAgent','roles/cloudbuild.serviceAgent'],['run','roles/run.serviceAgent']])if(!audit.managedIdentities?.[kind]?.directProjectRoles?.some(b=>b.role===role&&!b.condition))throw Error('Agentes administrados no verificados; no se modifican permisos.');
+ for(const [kind,role]of [['functions','roles/cloudfunctions.standardServiceAgent'],['buildAgent','roles/cloudbuild.serviceAgent'],['run','roles/run.serviceAgent']])if(!audit.managedIdentities?.[kind]?.directProjectRoles?.some(b=>b.role===role&&!b.condition))throw Error('Agentes administrados no verificados; no se modifican permisos.');
  if(audit.function!==null||!audit.observations?.some(o=>o.name==='function'&&o.http===404)||!['cloudfunctions.functions.get','cloudfunctions.functions.create','cloudfunctions.functions.sourceCodeSet','serviceusage.services.use'].every(p=>audit.deployer.projectPermissions?.includes(p)))throw Error('Solo primer ensayo cerrado: revisar recurso y permisos de lectura/creación/subida/cuota, sin actualizar funciones existentes.');
 }
 function verifyReadback({fn,build,invoker,plan}){

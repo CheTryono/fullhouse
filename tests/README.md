@@ -2,10 +2,16 @@
 
 ## Primer ensayo cerrado gcloud, todavía bloqueado
 
-`npm run test:remote-staging:gcloud`: nueve pruebas con metadata y ejecutor
+`npm run test:remote-staging:gcloud`: trece pruebas con metadata y ejecutor
 simulados, artefactos locales, preflight, hashes, rechazo de fallback, pérdida de
 acuse/lectura y ausencia de reintento. Una autorización se abre **solo en una copia
 sintética temporal**, nunca en la configuración del repositorio.
+
+Incluye cuatro regresiones de PR #29: Functions exige exactamente el rol actual
+`roles/cloudfunctions.standardServiceAgent` sin condición. Se rechazan ausencia,
+legacy por sí solo, roles amplios/parecidos, asignación a otro agente y falta de
+los roles independientes Build/Run. El informe real corresponde al propietario;
+estos casos usan metadata sintética, sin cambios IAM.
 
 `npm run test:remote-staging:gcloud-sdk` requiere `FULLHOUSE_GCLOUD_SDK_ROOT`
 del SDK oficial 592.0.0. Ejecuta parser/helpers originales con Run/subida
