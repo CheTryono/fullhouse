@@ -5,6 +5,7 @@ const BUILD_EMAIL=`fullhouse-remote-build@${PROJECT}.iam.gserviceaccount.com`;
 const BUILD_RESOURCE=`projects/${PROJECT}/serviceAccounts/${BUILD_EMAIL}`;
 const RUNTIME=`fullhouse-remote-runtime@${PROJECT}.iam.gserviceaccount.com`;
 const CLI_VERSION='15.37.0',FUNCTION=`projects/${PROJECT}/locations/${REGION}/functions/remoteV1`;
+const SOURCE_BUCKET=`${PROJECT}-build-sources-${NUMBER}`,REPOSITORY=`projects/${PROJECT}/locations/${REGION}/repositories/fullhouse-remote-functions`;
 function assertBuildIdentity(request){
  if(request?.name!==FUNCTION||request?.buildConfig?.runtime!=='nodejs22')throw Error('Proyecto, función o runtime fuera del contrato de staging.');
  if(request?.buildConfig?.serviceAccount!==BUILD_RESOURCE)throw Error('Falta la identidad dedicada explícita en buildConfig.serviceAccount; no se permite fallback al default.');
@@ -42,7 +43,7 @@ function assessDedicated({account,projectPolicy,accountPolicy,operatorPermission
 function plan(){const cli=inspectFirebaseTransport(),settings=require('../remote-staging/settings.json'),client=require('../staging/remote-config.example.json');if(settings.projectId!==PROJECT||settings.region!==REGION||settings.serviceAccount!==RUNTIME)throw Error('Configuración staging fuera de la propuesta de build.');return {mode:'PLAN_ONLY',project:PROJECT,region:REGION,proposedBuildAccount:BUILD_EMAIL,proposedBuildResource:BUILD_RESOURCE,runtime:RUNTIME,
  firebase:{version:cli.version,explicitBuildIdentityForwarded:cli.explicitBuildIdentityForwarded,deployAllowed:false},
  alternative:'Cloud Functions v2 buildConfig.serviceAccount; gcloud --build-service-account requires local help/version check and a separately reviewed deploy procedure.',
- sourceBuckets:null,artifactRepository:null,deploymentAuthorized:settings.deploymentAuthorized,remoteEnabled:settings.remoteEnabled,clientEnabled:client.enabled,
- next:'Owner authorization to create only the dedicated service account, without keys or grants. Then review exact source/repository scopes. No deploy.'};}
-module.exports={PROJECT,NUMBER,REGION,BUILD_EMAIL,BUILD_RESOURCE,RUNTIME,CLI_VERSION,FUNCTION,assertBuildIdentity,inspectFirebaseTransport,assertFirebaseTransport,assessDedicated,plan};
+ sourceBuckets:[SOURCE_BUCKET],artifactRepository:REPOSITORY,resourcesEvidence:'Reported by owner; repeat read-only preflight before any authorized trial.',deploymentAuthorized:settings.deploymentAuthorized,remoteEnabled:settings.remoteEnabled,clientEnabled:client.enabled,
+ next:'Dedicated account and scoped resources reported by owner. Review gcloud closed plan, uploader permission and internal-source limitations; no deploy.'};}
+module.exports={PROJECT,NUMBER,REGION,BUILD_EMAIL,BUILD_RESOURCE,RUNTIME,CLI_VERSION,FUNCTION,SOURCE_BUCKET,REPOSITORY,assertBuildIdentity,inspectFirebaseTransport,assertFirebaseTransport,assessDedicated,plan};
 if(require.main===module){try{if(process.argv.length!==2)throw Error('Solo plan local sin argumentos. No admite --run ni ejecuta cambios.');console.log(JSON.stringify(plan(),null,2));}catch(e){console.error(e.message);process.exitCode=2;}}

@@ -42,7 +42,11 @@
     "test:remote-staging:iam": "node --test tests/commercial-iam.test.cjs",
     "diagnose:storage-listeners": "node --expose-gc tests/diagnostics/storage-listeners.cjs",
     "plan:remote-staging:build": "node scripts/remote-staging-build-identity.cjs",
-    "test:remote-staging:build": "node --test tests/commercial-build.test.cjs"
+    "test:remote-staging:build": "node --test tests/commercial-build.test.cjs",
+    "prepare:remote-staging:gcloud": "node scripts/remote-staging-gcloud.cjs",
+    "test:remote-staging:gcloud": "node --test tests/commercial-gcloud.test.cjs",
+    "test:remote-staging:gcloud-sdk": "node scripts/test-remote-gcloud-sdk.cjs",
+    "check:remote-staging:gcloud-node22": "node scripts/check-remote-gcloud-node22.cjs"
   },
   "engines": {
     "node": ">=24.15.0 <25"

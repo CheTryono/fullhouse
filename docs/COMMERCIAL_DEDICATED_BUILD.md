@@ -1,5 +1,12 @@
 # Ejecutor dedicado para el primer build de Fullhouse Staging
 
+**Actualización tras PR #28 (`ef897a9`):** el propietario ya creó/verificó la SA,
+bucket de fuentes y repositorio con sus grants acotados. La preparación del
+procedimiento gcloud está en [ensayo cerrado](COMMERCIAL_GCLOUD_CLOSED_DEPLOY.md).
+Los pasos de creación pendientes descritos abajo son históricos; no repetirlos.
+El próximo paso actual es preflight de lectura, especialmente subida del operador.
+No se abrió el backend, el cliente ni la autorización de deploy.
+
 Preparación sobre `origin/main` **06d77e9**, PR #27 fusionada. Rama
 `feat/commercial-dedicated-build-staging`. **No se crea ninguna cuenta/recurso,
 modifica IAM, retira Editor ni ejecuta deploy.** Las tres barreras siguen cerradas:

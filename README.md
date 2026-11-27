@@ -51,6 +51,10 @@ La preparación **3C.1** añade configuración y adaptadores separados para Fire
 real de staging, con despliegue/backend/cliente desactivados. No cambia este sitio,
 crea recursos ni activa facturación. [Autorizaciones, pruebas y procedimiento](docs/COMMERCIAL_REAL_STAGING.md).
 
+El primer despliegue cerrado se prepara ahora mediante Cloud Functions v2/gcloud
+con builder dedicado, fuentes y repositorio separados. Continúa bloqueado y el
+cliente sigue local. [Procedimiento vigente, pruebas y límites](docs/COMMERCIAL_GCLOUD_CLOSED_DEPLOY.md).
+
 ## Cómo empezar
 
 ### Abrir en tu equipo

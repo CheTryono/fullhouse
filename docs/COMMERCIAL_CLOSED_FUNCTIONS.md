@@ -1,5 +1,11 @@
 # Comercial · preparación del primer despliegue cerrado de Functions
 
+Procedimiento actual tras PR #28 y recursos confirmados por el propietario:
+[Cloud Functions v2/gcloud cerrado](COMMERCIAL_GCLOUD_CLOSED_DEPLOY.md). Builder y
+destinos ya preparados; no repetir su creación. El transporte Firebase permanece
+bloqueado y el nuevo ejecutor también exige una autorización posterior. Los datos
+y comandos de esta página se conservan como historial de preparación.
+
 Estado al **26 de noviembre de 2026**, base `f196350` (PR #26 fusionada).
 Rama `feat/commercial-closed-functions-readiness`. **Preparación revisable, sin
 despliegue, habilitación de APIs, cambios IAM ni limpieza de datos.**

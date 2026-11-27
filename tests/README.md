@@ -1,5 +1,22 @@
 # Base de regresión de Fullhouse
 
+## Primer ensayo cerrado gcloud, todavía bloqueado
+
+`npm run test:remote-staging:gcloud`: nueve pruebas con metadata y ejecutor
+simulados, artefactos locales, preflight, hashes, rechazo de fallback, pérdida de
+acuse/lectura y ausencia de reintento. Una autorización se abre **solo en una copia
+sintética temporal**, nunca en la configuración del repositorio.
+
+`npm run test:remote-staging:gcloud-sdk` requiere `FULLHOUSE_GCLOUD_SDK_ROOT`
+del SDK oficial 592.0.0. Ejecuta parser/helpers originales con Run/subida
+sustituidos, configuración vacía y sockets bloqueados; compara todos los bytes
+del ZIP por hash y la petición generada. Sin SDK falla, no simula aprobación.
+`npm run check:remote-staging:gcloud-node22`, con Node 22, prueba el artefacto
+callable real por loopback con puertos JWT sintéticos: App Check obligatorio,
+Auth inválida rechazada, CORS y backend UNAVAILABLE, sin clientes de datos.
+No demuestra tokens reales, IAM efectivo ni aceptación del servidor.
+[Ensayo, prerrequisitos y recuperación](../docs/COMMERCIAL_GCLOUD_CLOSED_DEPLOY.md).
+
 ## Ejecutor dedicado de Cloud Build, sin deploy
 
 `npm run test:remote-staging:build`: ocho casos con el conversor y esquema reales
