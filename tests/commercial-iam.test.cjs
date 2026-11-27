@@ -11,6 +11,7 @@ function fakeHttp(f=fixture(),patch=()=>null){return async(url,options)=>{let da
  else if(url.includes('/iam?'))data=f.bucketPolicy;
  else if(url.includes(':getIamPolicy?'))data={version:3,bindings:[]};
  else if(url.includes('/roles/'))data=f.roles[url.split('/v1/')[1]];
+ else if(url.includes('serviceusage.googleapis.com'))data={name:'projects/'+iam.NUMBER+'/services/'+url.split('/services/')[1],state:'ENABLED'};
  else if(url.includes('/serviceAccounts/'))data=f.account;
  else if(url.includes('firestore.googleapis.com'))data=f.database;
  else if(url.includes('storage.googleapis.com'))data=f.bucket;
@@ -61,6 +62,29 @@ test('unverified service queries report safe ErrorInfo codes without turning 403
  const r=await iam.audit({token:'synthetic-do-not-print',fetcher:http});assert.equal(r.complete,false);assert.equal(r.observations.find(x=>x.name==='function').reason,'SERVICE_DISABLED');assert.equal(r.observations.find(x=>x.name==='buildDefault').reason,'IAM_PERMISSION_DENIED');
  for(const name of ['function','buildDefault','deployerRun']){const o=r.observations.find(x=>x.name===name);assert.equal(o.status,'unknown');assert.equal(o.http,403);assert.equal(o.rpcStatus,'PERMISSION_DENIED');}
  assert.equal(JSON.stringify(r).includes('synthetic-do-not-print'),false);assert.equal(JSON.stringify(r).includes('private-account'),false);
+});
+test('closed Functions API preflight is fixed to staging; enabled APIs never authorize deploy or choose a builder',async()=>{
+ const r=await iam.audit({token:'synthetic',fetcher:fakeHttp()});const p=r.closedFunctionsPreparation;assert.equal(p.apiCheck,'all-observed-enabled');assert.equal(p.deploymentAuthorizedByAudit,false);assert.equal(r.buildSelection.verifiedForNextDeploy,false);assert.equal(p.apiStates.length,7);
+ for(const request of iam.plan().requests.filter(x=>x.name.startsWith('api:'))){assert.equal(request.method,'GET');assert(request.url.startsWith(`https://serviceusage.googleapis.com/v1/projects/${iam.NUMBER}/services/`));}
+});
+test('disabled/inaccessible/incompatible API observations remain blockers, without inferring resource absence',async()=>{
+ const http=fakeHttp(fixture(),url=>{
+  if(url.endsWith('/services/cloudbuild.googleapis.com'))return {ok:true,json:async()=>({name:`projects/${iam.NUMBER}/services/cloudbuild.googleapis.com`,state:'DISABLED'})};
+  if(url.endsWith('/services/run.googleapis.com'))return {ok:false,status:403};
+  if(url.endsWith('/services/cloudfunctions.googleapis.com'))return {ok:true,json:async()=>({name:'projects/other/services/cloudfunctions.googleapis.com',state:'ENABLED'})};return null;
+ });const r=await iam.audit({token:'synthetic',fetcher:http}),p=r.closedFunctionsPreparation;assert.equal(r.complete,false);assert.equal(p.apiCheck,'disabled-or-unverified');assert.equal(p.deploymentAuthorizedByAudit,false);
+ assert.deepEqual(p.apiStates.map(x=>x.state),['ENABLED','DISABLED','UNKNOWN','UNKNOWN','ENABLED','ENABLED','ENABLED']);assert.equal(r.observations.find(x=>x.name==='api:cloudfunctions.googleapis.com').status,'unknown');
+});
+test('pinned CLI bootstraps Eventarc/PubSub even for HTTP-only gcfv2; preflight covers it without enabling services',async()=>{
+ const api=require('firebase-tools/lib/ensureApiEnabled'),usage=require('firebase-tools/lib/gcp/serviceusage'),sdk=require('firebase-tools/lib/deploy/functions/prepare');
+ const ensure=api.ensure,generate=usage.generateServiceIdentity,calls=[],identities=[];
+ api.ensure=async(project,service)=>{assert.equal(project,iam.NUMBER);calls.push(new URL(service.startsWith('http')?service:'https://'+service).hostname);};
+ usage.generateServiceIdentity=async(project,service)=>{assert.equal(project,iam.NUMBER);identities.push(service);};
+ try{
+  await sdk.ensureAllRequiredAPIsEnabled(iam.NUMBER,{requiredAPIs:[],endpoints:{'us-central1':{remoteV1:{platform:'gcfv2',callableTrigger:{}}}}});
+  assert.deepEqual(calls.sort(),['eventarc.googleapis.com','pubsub.googleapis.com','run.googleapis.com','storage.googleapis.com']);
+  assert.deepEqual(identities.sort(),['eventarc.googleapis.com','pubsub.googleapis.com']);assert(calls.every(service=>iam.CLOSED_APIS.includes(service)));
+ }finally{api.ensure=ensure;usage.generateServiceIdentity=generate;}
 });
 test('real runtime probe is blocked by default and never accepts another project or an active/emulated environment',()=>{
  assert.equal(probe.plan().mode,'PLAN_ONLY');for(const id of ['../outside','short','11111111-2222-4333-7444-555555555555'])assert.throws(()=>probe.identities(id));

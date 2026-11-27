@@ -8,10 +8,12 @@ const source=`
  const assert=require('node:assert/strict'),http=require('node:http'),express=require('express'),fn=require('./dist-remote-staging/index.cjs').remoteV1;
  (async()=>{
   assert.equal(fn.__endpoint.platform,'gcfv2');assert.equal(fn.__endpoint.maxInstances,1);assert.equal(fn.__endpoint.minInstances,0);assert.equal(fn.__endpoint.concurrency,1);
+  assert.deepEqual(fn.__endpoint.region,['us-central1']);assert.equal(fn.__endpoint.serviceAccountEmail,'fullhouse-remote-runtime@fullhouse-staging.iam.gserviceaccount.com');
+  assert.equal(fn.__endpoint.availableMemoryMb,512);assert.equal(fn.__endpoint.cpu,'gcf_gen1');assert.equal(fn.__endpoint.timeoutSeconds,60);
   await assert.rejects(fn.run({}),{code:'unavailable'});
   const app=express();app.use(express.json());app.post('/',fn);const server=http.createServer(app);await new Promise(r=>server.listen(0,'127.0.0.1',r));
   try{const response=await fetch('http://127.0.0.1:'+server.address().port,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({data:{method:'read',input:{revisionId:null}}})});assert.equal(response.status,401);assert.equal((await response.json()).error.status,'UNAUTHENTICATED');}
   finally{await new Promise(r=>server.close(r));}
-  console.log('PASS Node '+process.versions.node+': SDK gcfv2, backend desactivado y App Check ausente rechazado; solo HTTP loopback.');
+  console.log('PASS Node '+process.versions.node+': SDK gcfv2, región/SA/límites cerrados, backend desactivado y HTTP sin Auth/App Check rechazado; solo loopback.');
  })().catch(e=>{console.error(e);process.exitCode=1;});`;
 const result=spawnSync(process.execPath,['-e',source],{cwd:path.resolve(__dirname,'..'),env,stdio:'inherit'});if(result.error)throw result.error;process.exitCode=result.status??1;

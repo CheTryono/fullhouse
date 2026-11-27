@@ -2,13 +2,26 @@
 
 ## Comercial 3C.3: IAM y deploy cerrado, sin ejecutar en Firebase real
 
-`npm run test:remote-staging:iam`: 17 casos de políticas HTTP/puertos simulados,
+`npm run test:remote-staging:iam`: 20 casos de políticas HTTP/puertos simulados,
 precondiciones, identidad SDK explícita sin red, TX/recibos/rollback y rechazos
 fuera del prefijo. No demuestra permisos IAM reales. Auditor por defecto solo plan;
 `--run` de auditor es de lectura. La prueba runtime hace escrituras sintéticas y
-requiere autorización separada explícita; no se ejecutó contra recursos reales.
+requiere autorización separada explícita. El propietario informó su ejecución real
+aprobada en `f196350`, run `c955a4a6-a4ac-4138-a415-51efb2ce3cc9`, y retiro del
+binding temporal. Codex no se atribuye esa ejecución; no prueba Auth/App Check ni
+IAM global. No repetir el probe para ampliar registros de diagnóstico.
 `npm run prepare:remote-staging:closed` prepara un artefacto local sin cambiar gates.
 [Procedimiento y límites](../docs/COMMERCIAL_IAM_CLOSED_DEPLOY.md).
+
+La preparación siguiente añade GET de Service Usage (ENABLED/DISABLED/UNKNOWN) y
+una prueba del CLI fijado que sustituye sus puertos de habilitación: gcfv2 HTTP
+también prepara Eventarc/PubSub. No hay habilitación ni autorización implícita.
+`tests/storage-listeners.test.cjs` añade dos regresiones con servidor loopback y
+SDK Storage real, bytes/CRC y cierre; `npm run diagnose:storage-listeners` reproduce
+la firma `PassThrough` con cuerpos retrasados. Usa datos/token sintéticos, rechaza
+`STORAGE_EMULATOR_HOST` y no cambia límites ni suprime advertencias. Requiere
+dependencias de `remote/`. GC es observación, no contrato temporal.
+[Evidencia y primer deploy aún bloqueado](../docs/COMMERCIAL_CLOSED_FUNCTIONS.md).
 
 Regresiones de la revisión de Cloud Shell: clase heredada REGIONAL regional,
 getIamPolicy de SA mediante POST y códigos ErrorInfo sin exposición de mensajes.
