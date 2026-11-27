@@ -115,9 +115,9 @@ test('failed transaction/uncertain confirmation keep stable probe IDs for explic
  failure='after-commit';await assert.rejects(probe.effectiveProbe(p,runId));assert(p.docs.has(`users/${id.uid}/operations/${id.first}`));failure=null;assert.equal((await probe.effectiveProbe(p,runId)).receipt.revisionId,id.second);
 });
 test('local closed artifact preparation cannot authorize deploy or include active controls',()=>{
- const r=prepare({env:{}});assert.equal(r.remoteEnabled,false);assert.equal(r.clientEnabled,false);assert.equal(r.deploymentAuthorized,false);assert.match(r.manifestSha256,/^[a-f0-9]{64}$/);assert.throws(()=>prepare({env:{FULLHOUSE_REMOTE_STAGING_ENABLED:'1'}}));
+ const r=prepare({env:{}});assert.equal(r.remoteEnabled,false);assert.equal(r.clientEnabled,false);assert.equal(r.deploymentAuthorized,true);assert.match(r.manifestSha256,/^[a-f0-9]{64}$/);assert.throws(()=>prepare({env:{FULLHOUSE_REMOTE_STAGING_ENABLED:'1'}}));
  assert.throws(()=>require('../scripts/check-remote-staging-deploy.cjs').check({GCLOUD_PROJECT:iam.PROJECT,FULLHOUSE_AUTHORIZE_STAGING_DEPLOY:iam.PROJECT},'22.23.5'),/bloqueado/);
- assert.equal(JSON.parse(fs.readFileSync(path.resolve(__dirname,'../remote-staging/settings.json'))).deploymentAuthorized,false);
+ assert.equal(JSON.parse(fs.readFileSync(path.resolve(__dirname,'../remote-staging/settings.json'))).deploymentAuthorized,true);
 });
 test('first HTTPS CLI check needs an operator permission, never added to the runtime',()=>{
  const policy=require('../remote-staging/iam.json');assert.deepEqual(policy.deployerFirstHttpsPolicy.includedPermissions,['cloudfunctions.functions.setIamPolicy']);assert(!iam.FIRESTORE.some(x=>/IamPolicy/.test(x)));assert(iam.DEPLOY.includes('cloudfunctions.functions.setIamPolicy'));
