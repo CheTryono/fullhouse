@@ -6,6 +6,7 @@ function activation(raw){
 }
 function check(env=process.env,version=process.versions.node){
  if(!settings.deploymentAuthorized)throw Error('Despliegue bloqueado en 3C.1: falta autorización expresa y una PR de activación.');
+ require('./remote-staging-build-identity.cjs').assertFirebaseTransport();
  if(version.split('.')[0]!=='22'||env.GCLOUD_PROJECT!=='fullhouse-staging'||settings.projectId!=='fullhouse-staging'||env.FULLHOUSE_AUTHORIZE_STAGING_DEPLOY!=='fullhouse-staging')throw Error('Node, proyecto o consentimiento de despliegue incompatibles.');
  const {sources}=require('./build-remote-staging.cjs'),out=path.join(root,'dist-remote-staging'),manifest=JSON.parse(fs.readFileSync(path.join(out,'build.json'),'utf8'));
  if(JSON.stringify(Object.keys(manifest.files).sort())!==JSON.stringify(Object.keys(sources).sort()))throw Error('Artefacto incompleto.');

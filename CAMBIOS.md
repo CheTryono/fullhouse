@@ -1,3 +1,23 @@
+# Comercial · selección segura de ejecutor dedicado de Build
+
+- Base 06d77e9 (PR #27). Se registra el informe del propietario: siete APIs
+  ENABLED, asignaciones runtime mínimas, impersonación temporal retirada y
+  default Compute con Editor; no se retira ese rol ni se crean cuentas.
+- Firebase CLI 15.37.0 no envía buildConfig.serviceAccount. Regresiones reales
+  del conversor/esquema separan runtime y builder; no se inventa un flag Firebase.
+  Hook de deploy añade bloqueo del transporte aun si se abre solo el flag.
+- Plan local para fullhouse-remote-build@fullhouse-staging.iam.gserviceaccount.com,
+  validador puro de selección explícita y auditor readonly de metadata/política/
+  actAs de esa propuesta. Default observado nunca es aprobación del siguiente job.
+- Alcances de fuentes/AR/logs, operador, agentes y alternativa Functions v2:
+  docs/COMMERCIAL_DEDICATED_BUILD.md. No se implementa otro deploy ni se actualiza
+  el CLI; hace falta revisión/autorización independiente del transporte completo.
+- deploymentAuthorized/remoteEnabled/cliente permanecen false. Sin cambios de
+  backend, reglas, Planner, Hosting/Pages, datos v1/v2 ni IAM/APIs reales.
+- Codex: build 8/8 en Node 24 y 22, IAM 20/20, suite general 605 aprobados,
+  0 fallos y seis TODO (611 casos); compilación/tipos y SDK cerrado Node 22
+  correctos. Sin repetir consultas reales, emuladores, navegador o probe.
+
 # Comercial · siguiente despliegue cerrado: evidencia y preflight
 
 - Base f196350 (PR #26 fusionada). Se registra el probe real del propietario:

@@ -40,7 +40,9 @@
     "probe:remote-staging:runtime": "node scripts/probe-remote-staging-runtime.cjs",
     "prepare:remote-staging:closed": "node scripts/prepare-remote-staging-closed.cjs",
     "test:remote-staging:iam": "node --test tests/commercial-iam.test.cjs",
-    "diagnose:storage-listeners": "node --expose-gc tests/diagnostics/storage-listeners.cjs"
+    "diagnose:storage-listeners": "node --expose-gc tests/diagnostics/storage-listeners.cjs",
+    "plan:remote-staging:build": "node scripts/remote-staging-build-identity.cjs",
+    "test:remote-staging:build": "node --test tests/commercial-build.test.cjs"
   },
   "engines": {
     "node": ">=24.15.0 <25"
