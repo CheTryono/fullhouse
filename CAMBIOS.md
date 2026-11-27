@@ -1,3 +1,38 @@
+# Comercial · procedimiento gcloud de primer ensayo cerrado, desactivado
+
+- Corrección de revisión PR #29: el preflight exige el rol vigente exacto
+  roles/cloudfunctions.standardServiceAgent del agente Functions, informado por
+  el propietario en la auditoría real. No cambia IAM; el rol legacy por sí solo
+  ya no sustituye esa asignación. Build/Run y las tres barreras siguen intactos.
+  Cuatro regresiones verifican aceptación, ausencia, roles incorrectos y
+  condición/asociación. Regenerar planes/hashes tras actualizar el control.
+- Corrección verificada: gcloud 13/13 en Node 24 y 22; suite general 618 aprobados,
+  0 fallos y seis TODO (624 casos); compilación y ensayo SDK offline correctos.
+  Sin auditoría real ni cambios en Google Cloud; configuración y gates intactos.
+
+- Base ef897a9 (PR #28). Recursos y grants acotados ya confirmados por el
+  propietario; no se recrean, modifican ni se retira Editor de Compute.
+- SDK oficial 592.0.0 comprobado contra manifiesto de Google: prueba offline del
+  parser/helpers con las tres opciones juntas y comparación por archivo/hash del
+  ZIP completo. Cero intentos de red; Run y la subida están sustituidos.
+- Artefacto propio/allowlist de once archivos y variables públicas cerradas fuera
+  del ZIP. Corregida la exclusión de raíz de la allowlist inicial, que daba ZIP
+  vacío; el ensayo verifica el contenido íntegro.
+- Ejecutor con autorización por defecto false, versión/CLI/config/identidades/
+  fuentes/repo fijados, preflight fresco y lectura del job real/imagen/política.
+  Rechaza Compute y no reintenta una confirmación incierta. SDK callable real en
+  Node22 conserva capacidad, CORS, App Check y rechazo de Auth inválida, con
+  verificadores JWT sintéticos y backend UNAVAILABLE.
+- Auditor readonly añade fuentes/AR/subida/definición run.builder; sin grants.
+  Permisos y copias internas todavía requieren ensayo real autorizado. Procedimiento
+  y reversión: docs/COMMERCIAL_GCLOUD_CLOSED_DEPLOY.md.
+- deploymentAuthorized/remoteEnabled/cliente siguen false. Sin cambio de backend
+  de datos, reglas, app.tsx/app.js, Hosting/Pages, historial o configuración Firebase
+  de despliegue; sin APIs, IAM, recursos o deploy ejecutados desde esta entrega.
+- Código final: gcloud 9/9 en Node 24 y 22; selección 8/8; IAM 20/20. Suite general
+  614 aprobados, 0 fallos, seis TODO (620 casos); compilación/tipos correctos.
+  SDK oficial offline y callable Node 22 verificados en sus alcances indicados.
+
 # Comercial · selección segura de ejecutor dedicado de Build
 
 - Base 06d77e9 (PR #27). Se registra el informe del propietario: siete APIs

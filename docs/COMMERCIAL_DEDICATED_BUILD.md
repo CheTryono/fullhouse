@@ -1,5 +1,12 @@
 # Ejecutor dedicado para el primer build de Fullhouse Staging
 
+**Actualización tras PR #28 (`ef897a9`):** el propietario ya creó/verificó la SA,
+bucket de fuentes y repositorio con sus grants acotados. La preparación del
+procedimiento gcloud está en [ensayo cerrado](COMMERCIAL_GCLOUD_CLOSED_DEPLOY.md).
+Los pasos de creación pendientes descritos abajo son históricos; no repetirlos.
+El próximo paso actual es preflight de lectura, especialmente subida del operador.
+No se abrió el backend, el cliente ni la autorización de deploy.
+
 Preparación sobre `origin/main` **06d77e9**, PR #27 fusionada. Rama
 `feat/commercial-dedicated-build-staging`. **No se crea ninguna cuenta/recurso,
 modifica IAM, retira Editor ni ejecuta deploy.** Las tres barreras siguen cerradas:
@@ -116,7 +123,7 @@ para conseguirlo. La configuración efectiva del primer job sigue pendiente.
 | Identidad | Función / revisión |
 | --- | --- |
 | Operador | Conservar los permisos Functions/Run y actAs de runtime ya revisados. Para usar el builder seleccionado, comprobar **iam.serviceAccounts.actAs sobre esa SA exacta**; si falta, proponer `roles/iam.serviceAccountUser` solo en ella. No Token Creator ni claves. No dar actAs de proyecto o sobre Compute por comodidad |
-| Functions agent | `service-664973716762@gcf-admin-robot.iam.gserviceaccount.com`, rol gestionado `roles/cloudfunctions.serviceAgent`; orquesta fuente/build/despliegue. Revisar asignación y restricciones del mismo proyecto |
+| Functions agent | `service-664973716762@gcf-admin-robot.iam.gserviceaccount.com`, rol gestionado `roles/cloudfunctions.standardServiceAgent`; orquesta fuente/build/despliegue. Revisar asignación y restricciones del mismo proyecto |
 | Build agent | `service-664973716762@gcp-sa-cloudbuild.iam.gserviceaccount.com`, `roles/cloudbuild.serviceAgent`; infraestructura y uso de la identidad de build. **No es el ejecutor**. En el mismo proyecto, revisar su rol gestionado antes de proponer grants de tokens adicionales |
 | Run agent | `service-664973716762@serverless-robot-prod.iam.gserviceaccount.com`, `roles/run.serviceAgent`; operación/imagen/runtime del servicio, no compilación |
 | Eventarc / PubSub agents | `service-664973716762@gcp-sa-eventarc.iam.gserviceaccount.com` / `service-664973716762@gcp-sa-pubsub.iam.gserviceaccount.com`, revisar roles gestionados correspondientes. El bootstrap del CLI ya fue observado; no añade triggers ni exige al runtime Eventarc Receiver, Publisher o Token Creator por este callable HTTP |

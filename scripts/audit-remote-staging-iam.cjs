@@ -2,6 +2,7 @@
 // Read-only IAM inspection. POST is used only for getIamPolicy/testIamPermissions.
 const {execFileSync}=require('node:child_process');
 const buildIdentity=require('./remote-staging-build-identity.cjs');
+const closedGcloud=require('./remote-staging-gcloud.cjs');
 const PROJECT='fullhouse-staging',NUMBER='664973716762',BUCKET=PROJECT+'.firebasestorage.app';
 const RUNTIME=`fullhouse-remote-runtime@${PROJECT}.iam.gserviceaccount.com`,MEMBER='serviceAccount:'+RUNTIME;
 const PREFIX=`projects/_/buckets/${BUCKET}/objects/users/`,proposal=require('../remote-staging/iam.json');
@@ -9,7 +10,7 @@ const FIRESTORE=proposal.runtimeFirestore.includedPermissions,STORAGE=proposal.r
 // Firebase Tools 15.37.0 also bootstraps Eventarc/PubSub identities for any gcfv2
 // endpoint, even HTTP-only. Inspection is not authorization to enable them.
 const CLOSED_APIS=Object.freeze(['artifactregistry.googleapis.com','cloudbuild.googleapis.com','run.googleapis.com','cloudfunctions.googleapis.com','eventarc.googleapis.com','pubsub.googleapis.com','storage.googleapis.com']);
-const DEPLOY=['cloudfunctions.functions.get','cloudfunctions.functions.list','cloudfunctions.functions.create','cloudfunctions.functions.update','cloudfunctions.functions.sourceCodeSet','cloudfunctions.functions.setIamPolicy','serviceusage.services.get','serviceusage.services.list','run.services.get','run.services.getIamPolicy','run.services.setIamPolicy'];
+const DEPLOY=['cloudfunctions.functions.get','cloudfunctions.functions.list','cloudfunctions.functions.create','cloudfunctions.functions.update','cloudfunctions.functions.sourceCodeSet','cloudfunctions.functions.setIamPolicy','serviceusage.services.get','serviceusage.services.list','serviceusage.services.use','cloudbuild.builds.get','run.services.get','run.services.getIamPolicy','run.services.setIamPolicy'];
 function conditionMatches(c){const m=/^\s*resource\s*\.\s*name\s*\.\s*startsWith\s*\(\s*(['"])([^'"]*)\1\s*\)\s*$/.exec(c?.expression||'');return !!m&&m[2]===PREFIX;}
 const selected=(policy,member)=>Array.isArray(policy?.bindings)?policy.bindings.filter(b=>b.members?.includes(member)):null;
 const sameSet=(a,b)=>Array.isArray(a)&&a.length===b.length&&new Set(a).size===a.length&&b.every(x=>a.includes(x));
@@ -39,6 +40,12 @@ const requests=Object.freeze({
  dedicatedBuildAccount:['GET',`https://iam.googleapis.com/v1/${buildIdentity.BUILD_RESOURCE}`],
  dedicatedBuildPolicy:['POST',`https://iam.googleapis.com/v1/${buildIdentity.BUILD_RESOURCE}:getIamPolicy?options.requestedPolicyVersion=3`],
  deployerDedicatedBuild:['POST',`https://iam.googleapis.com/v1/${buildIdentity.BUILD_RESOURCE}:testIamPermissions`,{permissions:['iam.serviceAccounts.actAs']}],
+ buildSources:['GET',`https://storage.googleapis.com/storage/v1/b/${buildIdentity.SOURCE_BUCKET}?projection=noAcl`],
+ buildSourcesPolicy:['GET',`https://storage.googleapis.com/storage/v1/b/${buildIdentity.SOURCE_BUCKET}/iam?optionsRequestedPolicyVersion=3`],
+ operatorSourcePermissions:['GET',`https://storage.googleapis.com/storage/v1/b/${buildIdentity.SOURCE_BUCKET}/iam/testPermissions?permissions=storage.objects.create`],
+ buildRepository:['GET',`https://artifactregistry.googleapis.com/v1/${buildIdentity.REPOSITORY}`],
+ buildRepositoryPolicy:['GET',`https://artifactregistry.googleapis.com/v1/${buildIdentity.REPOSITORY}:getIamPolicy?options.requestedPolicyVersion=3`],
+ runBuilderRole:['GET','https://iam.googleapis.com/v1/roles/run.builder'],
  database:['GET',`https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)`],
  bucket:['GET',`https://storage.googleapis.com/storage/v1/b/${BUCKET}?projection=noAcl`],
  function:['GET',`https://cloudfunctions.googleapis.com/v2/projects/${PROJECT}/locations/us-central1/functions/remoteV1`],
@@ -82,6 +89,7 @@ async function audit({token,fetcher=fetch}){
   deployer:{projectPermissions:values.deployerProject?.permissions??null,runtimePermissions:values.deployerRuntime?.permissions??null,runPermissions:values.deployerRun?.permissions??null,buildActAs:values.deployerBuild?.permissions??null,firstHttpsPolicyVerified:values.deployerProject?values.deployerProject.permissions?.includes('cloudfunctions.functions.setIamPolicy')===true:null,runtimeActAsVerified:values.deployerRuntime?values.deployerRuntime.permissions?.includes('iam.serviceAccounts.actAs')===true:null,notGrantedAtProjectCheck:values.deployerProject?DEPLOY.filter(p=>!values.deployerProject.permissions?.includes(p)):null,note:'Effective for the inspecting credential at these resources only, not a complete deploy authorization. A project check may miss permissions conditioned on the future Run resource.'},
   managedIdentities:Object.fromEntries(Object.entries(agents).map(([kind,email])=>[kind,{email,directProjectRoles:selected(values.projectPolicy,'serviceAccount:'+email)?.map(x=>({role:x.role,condition:x.condition?.expression||null}))??null}])),
   buildSelection:{identity:builderAllowed?builder:null,source:values.function?.buildConfig?.serviceAccount?'deployed function':'Cloud Build default candidate only',verifiedForNextDeploy:false,expectedIdentity:buildIdentity.BUILD_EMAIL,defaultCandidate:defaultAllowed?defaultEmail:null,defaultDirectProjectRoles:defaultRoles,defaultHasOwnerOrEditor:defaultRoles?.some(x=>['roles/editor','roles/owner'].includes(x.role))??null,firebaseCliSelection:'BLOCKED: pinned CLI does not select a dedicated build identity; no fallback permitted.',dedicated:buildIdentity.assessDedicated({account:values.dedicatedBuildAccount,accountPolicy:values.dedicatedBuildPolicy,projectPolicy:values.projectPolicy,operatorPermissions:values.deployerDedicatedBuild?.permissions})},
+  gcloudResources:closedGcloud.assessResources(values),
   closedFunctionsPreparation:{apiStates,apiCheck:apiStates.every(x=>x.state==='ENABLED')?'all-observed-enabled':'disabled-or-unverified',deploymentAuthorizedByAudit:false,manualChecks:['Owner approval and closed artifact/gate review.','Identify actual build executor; verify source bucket, Artifact Registry repository, logs and actAs scopes.','Review Functions/Build/Run agents and CLI Eventarc/PubSub identity bootstrap, plus organization invocation policy.'],note:'Service state is not resource existence, an IAM grant, a build identity choice or deploy authorization. No API is enabled by this command.'},
   runtimeImpersonationPolicy:values.accountPolicy?{version:values.accountPolicy.version||1,bindings:(values.accountPolicy.bindings||[]).map(b=>({role:b.role,membersCount:b.members?.length||0,condition:b.condition?.expression||null}))}:null,
   function:values.function?{name:values.function.name,runtime:values.function.buildConfig?.runtime,runtimeServiceAccount:values.function.serviceConfig?.serviceAccountEmail,buildServiceAccount:values.function.buildConfig?.serviceAccount}:null};

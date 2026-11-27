@@ -1,5 +1,11 @@
 # Comercial · preparación del primer despliegue cerrado de Functions
 
+Procedimiento actual tras PR #28 y recursos confirmados por el propietario:
+[Cloud Functions v2/gcloud cerrado](COMMERCIAL_GCLOUD_CLOSED_DEPLOY.md). Builder y
+destinos ya preparados; no repetir su creación. El transporte Firebase permanece
+bloqueado y el nuevo ejecutor también exige una autorización posterior. Los datos
+y comandos de esta página se conservan como historial de preparación.
+
 Estado al **26 de noviembre de 2026**, base `f196350` (PR #26 fusionada).
 Rama `feat/commercial-closed-functions-readiness`. **Preparación revisable, sin
 despliegue, habilitación de APIs, cambios IAM ni limpieza de datos.**
@@ -141,7 +147,7 @@ Scheduler, Tasks o nuevos servicios comerciales para este código.
 | Runtime `fullhouse-remote-runtime@…` | Mantener los roles de datos probados. No requiere deploy, build, lista, delete ni Token Creator |
 | Operador de despliegue | `cloudfunctions.functions.setIamPolicy` y actAs sobre runtime ya confirmados por propietario. Revisar permisos de creación/actualización de función, carga de fuente y política del servicio Run; no se conceden automáticamente |
 | Ejecutor real de Build | Default observado por el propietario: Compute con Editor. **No aprobado para el deploy**. Proponer SA dedicada y transporte explícito; no reutilizar runtime ni retirar Editor sin revisar dependencias |
-| Functions service agent | `service-664973716762@gcf-admin-robot.iam.gserviceaccount.com`, revisar `roles/cloudfunctions.serviceAgent` |
+| Functions service agent | `service-664973716762@gcf-admin-robot.iam.gserviceaccount.com`, revisar `roles/cloudfunctions.standardServiceAgent` |
 | Build service agent | `service-664973716762@gcp-sa-cloudbuild.iam.gserviceaccount.com`, revisar `roles/cloudbuild.serviceAgent`; no confundirlo con el ejecutor |
 | Run service agent | `service-664973716762@serverless-robot-prod.iam.gserviceaccount.com`, revisar `roles/run.serviceAgent` |
 | Bootstrap Eventarc / PubSub | `service-664973716762@gcp-sa-eventarc.iam.gserviceaccount.com` / `service-664973716762@gcp-sa-pubsub.iam.gserviceaccount.com`; revisar roles de agente gestionados y permiso del operador para provisionarlos. No otorgarlos al runtime |

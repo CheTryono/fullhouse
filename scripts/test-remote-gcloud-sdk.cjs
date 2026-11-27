@@ -1,0 +1,12 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),os=require('node:os'),{execFileSync}=require('node:child_process');
+const gcloud=require('./remote-staging-gcloud.cjs'),identity=require('./remote-staging-build-identity.cjs');
+const sdk=process.env.FULLHOUSE_GCLOUD_SDK_ROOT;
+if(!sdk)throw Error('Falta FULLHOUSE_GCLOUD_SDK_ROOT del SDK oficial 592.0.0 instalado. No se declara la prueba aprobada.');
+const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'fullhouse-gcloud-offline-')),plan=gcloud.prepare({env:{}}),planFile=path.join(tmp,'plan.json');gcloud.verifyPlan(plan);fs.writeFileSync(planFile,JSON.stringify(plan));
+const env={...process.env,CLOUDSDK_CONFIG:path.join(tmp,'empty-config'),CLOUDSDK_CORE_DISABLE_USAGE_REPORTING:'1',CLOUDSDK_COMPONENT_MANAGER_DISABLE_UPDATE_CHECK:'1',CLOUDSDK_CORE_DISABLE_PROMPTS:'1'};
+for(const key of Object.keys(env))if(/^CLOUDSDK_AUTH_|^CLOUDSDK_API_ENDPOINT_OVERRIDES_|^GOOGLE_APPLICATION_CREDENTIALS$|^FIREBASE_TOKEN$|^GOCLOUD_|^PARITY_|^GCLOUD_DUMP_/.test(key))delete env[key];
+const output=execFileSync('python3',[path.resolve(__dirname,'../tests/diagnostics/gcloud-592.py'),sdk,planFile],{env,encoding:'utf8',timeout:60000,maxBuffer:2*1024*1024});const r=JSON.parse(output);
+identity.assertBuildIdentity(r.request);assert.equal(r.networkAttempts,0);assert.equal(r.upload.bucket,identity.SOURCE_BUCKET);assert.equal(r.request.buildConfig.source.storageSource.bucket,identity.SOURCE_BUCKET);assert.equal(r.request.buildConfig.dockerRepository,identity.REPOSITORY);assert.equal(r.request.buildConfig.entryPoint,'remoteV1');assert.equal(r.request.serviceConfig.availableMemory,'512Mi');assert.equal(r.request.serviceConfig.availableCpu,gcloud.CPU);assert.equal(r.request.serviceConfig.maxInstanceCount,1);assert.equal(r.request.serviceConfig.minInstanceCount,0);assert.equal(r.request.serviceConfig.maxInstanceRequestConcurrency,1);assert.equal(r.request.serviceConfig.timeoutSeconds,60);assert.deepEqual(r.request.serviceConfig.environmentVariables,gcloud.ENV);assert.equal(r.request.buildConfig.environmentVariables.GOOGLE_NODE_RUN_SCRIPTS,'');
+assert.equal(r.request.labels['deployment-callable'],'true');assert.equal(r.request.labels['fullhouse-release'],plan.releaseHash.slice(0,32));
+console.log(JSON.stringify({...r,verified:true,limits:'No deployed function, effective IAM, managed internal source copy or real Auth/App Check verified.'},null,2));

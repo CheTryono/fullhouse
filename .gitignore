@@ -4,6 +4,7 @@ node_modules/
 dist-staging/
 dist-remote-lab/
 dist-remote-staging/
+dist-remote-gcloud-closed*
 .firebase/
 .env
 .env.*
