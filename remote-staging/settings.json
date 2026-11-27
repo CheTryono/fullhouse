@@ -8,7 +8,7 @@
   "runtime": "nodejs22",
   "serviceAccount": "fullhouse-remote-runtime@fullhouse-staging.iam.gserviceaccount.com",
   "origins": ["https://fullhouse-staging.web.app", "https://fullhouse-staging.firebaseapp.com"],
-  "deploymentAuthorized": false,
+  "deploymentAuthorized": true,
   "remoteEnabled": false,
   "limits": {"rpcPerMinute": 60, "rpcPerDay": 1000, "operationsPerDay": 100, "operationsTotal": 500, "reservedBytes": 67108864, "downloadBytesPerDay": 134217728}
 }
