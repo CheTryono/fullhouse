@@ -1,3 +1,25 @@
+# Comercial · siguiente despliegue cerrado: evidencia y preflight
+
+- Base f196350 (PR #26 fusionada). Se registra el probe real del propietario:
+  SYNTHETIC_IAM_PROBE_PASSED, run c955a4a6-a4ac-4138-a415-51efb2ce3cc9, Node
+  22.23.5/npm 10.9.9; recibo, datos retenidos y grant temporal retirado. Sin
+  repetir el ensayo ni limpiar sus datos.
+- Diagnóstico loopback de Storage reproduce los picos de listeners de PassThrough
+  con el SDK fijado en Node 22/24; en el ensayo los streams cerraron y pudieron
+  recolectarse. Dos regresiones de bytes/CRC/cierre. Sin fuga persistente observada
+  en ese caso, no se parchea el SDK ni se ocultan advertencias.
+- Auditor readonly añade estados exactos de siete APIs. La revisión/prueba del CLI
+  15.37.0 detecta bootstrap de Eventarc/PubSub incluso para callable HTTP; su
+  autorización y agentes se incorporan al procedimiento, sin habilitarlos.
+- Prueba SDK Node 22 refuerza región, identidad y límites del endpoint cerrado.
+  Preparación, permisos, coste potencial y reversión: docs/COMMERCIAL_CLOSED_FUNCTIONS.md.
+- Codex: IAM/CLI 20/20; suite general 597 aprobados, 0 fallos y seis TODO (603
+  casos); compilación, contratos, cliente/Auth y SDK cerrado Node 22 correctos.
+  Probe real, consultas de nube, emuladores y navegador no repetidos.
+- deploymentAuthorized/remoteEnabled/cliente siguen false. Backend, reglas,
+  app.tsx/app.js, Hosting/Pages, fuentes locales y motor v2 sin cambios. No API/IAM,
+  datos reales, deploy ni merge desde esta entrega.
+
 # Comercial · 3C.3: IAM y despliegue cerrado preparados, sin ejecutar
 
 - Revisión Cloud Shell del propietario: reproducido npm ci EUSAGE con Node

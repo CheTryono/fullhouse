@@ -5,7 +5,18 @@ Se conservan `deploymentAuthorized:false`, `remoteEnabled:false`, cliente
 `enabled:false`/`appCheckSiteKey:null`, controles, cuotas, CAS, recibos y respaldos v1.
 No cambia Planner, Hosting, Pages, fuentes locales ni historial experimental v2.
 
-## Cierre de PR #26: último informe del propietario
+## Estado posterior a PR #26
+
+PR #26 ya fusionada en `f196350`. El propietario completó después la prueba
+`SYNTHETIC_IAM_PROBE_PASSED`, run `c955a4a6-a4ac-4138-a415-51efb2ce3cc9`, y retiró
+el binding temporal de impersonación. Resultado, datos retenidos, diagnóstico de
+listeners y siguiente autorización: [preparación cerrada](COMMERCIAL_CLOSED_FUNCTIONS.md).
+Acceso runtime probado en ese alcance; **no** despliegue ni IAM global aprobados.
+Las secciones anteriores a ese ensayo se conservan abajo como evidencia histórica.
+En particular, sus menciones a «probe pendiente/no autorizado» describen entonces,
+no una instrucción para repetir la prueba ahora. Gates siguen false.
+
+## Cierre de PR #26: informe anterior del propietario
 
 El propietario repitió las pruebas y la auditoría real desde Google Cloud Shell
 en `feat/commercial-iam-closed-deploy`, tras las correcciones de instalación,
@@ -420,8 +431,11 @@ el mismo UUID recupera los mismos IDs; no generar otro automáticamente.
 | Ejecutor de build | **No asumir** que sea `664973716762@cloudbuild.gserviceaccount.com`: puede ser Compute por defecto o una SA dedicada. Auditor consulta default de Build y buildConfig de función si es accesible. Default es candidato, no prueba de la siguiente selección. Revisar permisos de leer bucket de fuentes, escribir/leer repositorio AR y escribir logs; roles acotados propuestos `storage.objectViewer` sobre fuentes, `artifactregistry.writer` sobre repositorio, `logging.logWriter`. Validar contra el ejecutor elegido; no asignar Editor al Compute por defecto |
 | Run service agent | `service-664973716762@serverless-robot-prod.iam.gserviceaccount.com`: revisar rol gestionado `roles/run.serviceAgent` y lectura de imagen necesaria, separado de runtime/build |
 
-Para este callable HTTP no se incorporan Eventarc, Pub/Sub, schedulers ni permisos
-de sus agentes. No habilitar servicios extra para satisfacer una receta genérica.
+Este callable no incorpora triggers Eventarc/PubSub ni schedulers. La revisión
+posterior del CLI **15.37.0** comprobó que su bootstrap de cualquier gcfv2 sí
+solicita APIs e identidades Eventarc/PubSub, incluso HTTP: deben revisarse y
+autorizarse expresamente antes del deploy, sin añadir permisos de triggers al
+runtime. Véase el [hallazgo y regresión](COMMERCIAL_CLOSED_FUNCTIONS.md#3-preflight-de-solo-lectura-y-bloqueo-restante).
 No se concede `resourcemanager.projects.setIamPolicy` al desplegador para que el
 CLI arregle roles: el propietario debe revisar/preparar los bindings concretos.
 El CLI puede intentar habilitar APIs y ajustar IAM al preparar un deploy;
@@ -531,11 +545,13 @@ v1, reglas, UI o persistencia; los tests nuevos prueban herramientas preparatori
 No se declara resuelto BUG-05 ni se activa v2.
 Firefox/WebKit/dispositivos físicos y Functions desplegado no probados aquí.
 
-**Bloqueos vigentes antes de desplegar:** autorización de APIs pendientes (Functions,
-Build y Run informadas SERVICE_DISABLED), condición efectiva/prueba sintética
-autorizada, build elegido/agentes y resto de acceso administrativo, políticas
+**Bloqueos actualizados antes de desplegar:** autorización de APIs pendientes (Functions,
+Build y Run informadas SERVICE_DISABLED; también revisar bootstrap del CLI),
+build elegido/agentes y resto de acceso administrativo, políticas
 organizativas/URLs públicas, retención/costes, autorización explícita y cambio
 revisado del gate. El POST de accountPolicy **ya fue observado correctamente**;
 primer HTTPS y actAs del runtime también confirmados. No justifican grants nuevos.
 Las asignaciones directas están aprobadas en su alcance; la auditoría global sigue
-incompleta. La PR puede fusionarse como preparación desactivada, sin habilitar deploy.
+incompleta. PR #26 se fusionó como preparación desactivada. El probe del propietario
+ya aporta evidencia efectiva de la condición en el ensayo; no repetirlo ni ampliar
+roles por inercia. La preparación siguiente mantiene bloqueado el deploy.
