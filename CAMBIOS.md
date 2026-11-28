@@ -1,3 +1,21 @@
+# Comercial · diagnóstico retrospectivo de remoteV1 ACTIVE
+
+- Issue #34 del propietario: Functions ACTIVE, Run Ready y build SUCCESS,
+  aunque el wrapper terminó STOPPED por metadata no equivalente a sus requisitos.
+  No se repite deploy ni se modifica el ejecutor anterior.
+- Nuevo diagnóstico GET de una sola ejecución: fuente resuelta de Functions,
+  generación y bytes de ZIP por archivo, build exacto, revisión sirviendo tráfico,
+  digest en Artifact Registry y configuración efectiva. Todos los bloqueos se
+  informan juntos; no se inventan campos ausentes de Cloud Build ni una atestación.
+- Mismo SHA-256 aprobado, backend/cliente desactivados, UIDs vacíos y recursos,
+  permisos, datos, código público/workflow intactos. Auth/App Check efectivos
+  continúan pendientes de prueba real independiente. Véase
+  docs/COMMERCIAL_DEPLOYED_RELEASE_VERIFICATION.md.
+- Codex: nueva suite 20/20 en Node22/24; general 701 casos, 695 aprobados,
+  cero fallos y seis TODO previos. Compilación/tipos/validadores aprobados.
+  La inspección real sigue pendiente; las respuestas Run/AR/ZIP de tests son
+  sintéticas, no evidencia nueva del proyecto.
+
 # Comercial · PR33: eliminación dirigida y nueva creación preparadas
 
 - Propietario confirmó diagnóstico real: 57 verified, 26 missing, 1 mismatch,

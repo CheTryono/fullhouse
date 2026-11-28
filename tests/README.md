@@ -1,5 +1,16 @@
 # Base de regresión de Fullhouse
 
+## Verificación retrospectiva de la release ACTIVE
+
+`npm run test:remote-staging:release`: veinte pruebas sintéticas de la forma de
+metadata comunicada en issue #34 y de la nueva cadena Functions → fuente exacta
+por bytes / build → revisión Run → digest Artifact Registry. Se conservan ausentes
+los campos de Build, sin fabricar una atestación ni aprobar Auth/App Check.
+ZIP corrupto/truncado/ajeno, contradicciones, permisos/lecturas insuficientes,
+Ready/tráfico, cambios concurrentes y perfil inseguro bloquean. Todas las llamadas
+Google se sustituyen y se exige GET, nunca deploy ni datos de usuario.
+[Alcance, resultados y único comando real](../docs/COMMERCIAL_DEPLOYED_RELEASE_VERIFICATION.md).
+
 ## Eliminación dirigida y primera creación, separadas
 
 `npm run test:remote-staging:recreate`: 25 pruebas de la fase posterior de PR33.
