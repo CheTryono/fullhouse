@@ -9,7 +9,19 @@ function settingsCheck(s){
 }
 function runtimeCheck(env,s,version=process.versions.node){
  settingsCheck(s);if(version.split('.')[0]!=='22')throw Error('El backend real requiere Node 22.');
- if(env.GCLOUD_PROJECT!==PROJECT||(env.GOOGLE_CLOUD_PROJECT&&env.GOOGLE_CLOUD_PROJECT!==PROJECT)||Object.keys(env).some(k=>(/EMULATOR/.test(k)||k.startsWith('FIREBASE_DEBUG'))&&env[k]))throw Error('No se permite cruzar staging con emulación o depuración que altere la verificación de tokens.');
+ if(Object.keys(env).some(k=>(/EMULATOR/.test(k)||k.startsWith('FIREBASE_DEBUG'))&&env[k]))throw Error('No se permite cruzar staging con emulación o depuración que altere la verificación de tokens.');
+ // Cloud Run does not have to inject the legacy project aliases. The reviewed
+ // gcloud release supplies inline FIREBASE_CONFIG instead. Validate every signal,
+ // never pick a preferred one while ignoring a contradictory or empty value.
+ const aliases=['GCLOUD_PROJECT','GOOGLE_CLOUD_PROJECT'].filter(k=>env[k]!==undefined);
+ if(aliases.some(k=>env[k]!==s.projectId))throw Error('Identidad de proyecto contradictoria con el staging autorizado.');
+ let identified=aliases.length>0;
+ if(env.FIREBASE_CONFIG!==undefined){
+  let config;try{if(typeof env.FIREBASE_CONFIG!=='string')throw Error();config=JSON.parse(env.FIREBASE_CONFIG);}catch{throw Error('Configuración Firebase de proyecto inválida; se requiere JSON inline, nunca una ruta de archivo.');}
+  if(!config||typeof config!=='object'||Array.isArray(config)||config.projectId!==s.projectId||Object.hasOwn(config,'storageBucket')&&config.storageBucket!==s.bucket)throw Error('Configuración Firebase contradictoria con el proyecto o bucket autorizado.');
+  identified=true;
+ }
+ if(!identified)throw Error('Identidad de proyecto ausente; no se iniciará el backend sin configuración explícita.');
 }
 function preflight(method,input){
  if(method==='save'||method==='restore'){

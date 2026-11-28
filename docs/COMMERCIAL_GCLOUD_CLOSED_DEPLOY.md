@@ -1,5 +1,10 @@
 # Primer ensayo cerrado mediante Cloud Functions v2 / gcloud
 
+> Para la corrección de arranque tras el segundo ensayo comunicado por el
+> propietario, consultar [COMMERCIAL_STAGING_RUNTIME_STARTUP.md](COMMERCIAL_STAGING_RUNTIME_STARTUP.md).
+> Los resultados de esta entrega se conservan como evidencia histórica; no
+> demuestran el arranque con variables de plataforma no incluidas en el plan.
+
 Base `ef897a9`, PR #28 fusionada; rama `feat/commercial-gcloud-closed-deploy`.
 **Esta PR no despliega, crea recursos ni modifica IAM.** Se mantienen
 `deploymentAuthorized:false`, `remoteEnabled:false` y cliente desconectado.
