@@ -2,10 +2,12 @@
 
 ## Primer ensayo cerrado gcloud, todavía bloqueado
 
-`npm run test:remote-staging:gcloud`: trece pruebas con metadata y ejecutor
+`npm run test:remote-staging:gcloud`: quince pruebas con metadata y ejecutor
 simulados, artefactos locales, preflight, hashes, rechazo de fallback, pérdida de
-acuse/lectura y ausencia de reintento. Una autorización se abre **solo en una copia
-sintética temporal**, nunca en la configuración del repositorio.
+acuse/lectura y ausencia de reintento. PR #30 prepara `deploymentAuthorized:true`
+en el repositorio; los consentimientos independientes siguen siendo obligatorios.
+Se prueban también la reversión de esa barrera a false en copia temporal y el modo
+CLI que solo genera el plan, sin ejecutar procesos externos aun con ambas variables.
 
 Incluye cuatro regresiones de PR #29: Functions exige exactamente el rol actual
 `roles/cloudfunctions.standardServiceAgent` sin condición. Se rechazan ausencia,

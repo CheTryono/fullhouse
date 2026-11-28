@@ -1,3 +1,21 @@
+# Comercial · revisión de PR #30, autorización de repositorio preparada
+
+- La PR prepara deploymentAuthorized:true únicamente. Backend remoteEnabled y
+  cliente enabled siguen false; no es una orden o consentimiento para desplegar.
+- Revisado el diff completo. Corregidas tres regresiones de pruebas: medios aún
+  esperaba false y dos rechazos Firebase buscaban el mensaje de la barrera antigua.
+  Se exige el bloqueo específico del transporte, sin relajar los controles.
+- Pruebas añadidas de consentimiento/hash/Node, barrera false en copia temporal y
+  CLI de plan sin ejecución, incluso con variables presentes. SDK/puertos simulados;
+  no modifica configuraciones reales ni ejecuta servicios.
+- Instrucciones de SDK, checkout, regeneración y verifyPlan corregidas en
+  docs/COMMERCIAL_CLOSED_DEPLOY_AUTHORIZATION.md. Actions/identidades/scopes intactos.
+  Las comprobaciones reales de IAM siguen pendientes del propietario.
+- Verificado por Codex: suite general Node24, 620 aprobados/0 fallos/6 TODO
+  (626 casos); selección Node22, 78/78. Compilación/tipos, callable Node22 en
+  loopback y SDK592 offline aprobados. Hash del plan idéntico entre Node22/24,
+  registrado en el procedimiento; no es consentimiento para ejecutar el deploy.
+
 # Comercial · procedimiento gcloud de primer ensayo cerrado, desactivado
 
 - Corrección de revisión PR #29: el preflight exige el rol vigente exacto
