@@ -1,5 +1,17 @@
 # Base de regresión de Fullhouse
 
+## Eliminación dirigida y primera creación, separadas
+
+`npm run test:remote-staging:recreate`: 25 pruebas de la fase posterior de PR33.
+Validan contrato mínimo DELETE con metadata omitida, mismatch de fuentes sin
+aceptación arbitraria, permisos/consentimientos/hashes, respuesta de operación,
+fallo de recibo/cuota local, una sola petición DELETE, acuse perdido, bloqueo de
+reenvío, estado incierto y ausencia final. CREATE usa el ejecutor original sin
+auditorías inventadas. APIs/CLI sintéticas, nunca recursos reales. El inspector
+CLI también se prueba con la forma FAILED comunicada por el propietario, sin
+atribuir esa copia sintética a una nueva observación de Google Cloud.
+[Contrato, límites y autorizaciones](../docs/COMMERCIAL_SINGLE_FUNCTION_RECREATE.md).
+
 ## Recuperación cerrada de la función FAILED
 
 Revisión PR33: `commercial-recovery-diagnostic.test.cjs` añade once regresiones

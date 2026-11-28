@@ -1,3 +1,25 @@
+# Comercial · PR33: eliminación dirigida y nueva creación preparadas
+
+- Propietario confirmó diagnóstico real: 57 verified, 26 missing, 1 mismatch,
+  0 unverified y contrato blocked. Se conserva esa evidencia; no se reconstruye
+  serviceConfig ni procedencia/imágenes ausentes. PATCH sigue bloqueado.
+- Nuevo controlador separado --inspect / --delete / --create: contrato mínimo
+  para eliminar solo remoteV1 GEN2 FAILED con fechas/build/permisos/Run/operaciones
+  verificables. Imágenes/procedencia anteriores no son predicados de DELETE.
+- Bucket observado resumido, sin asumir que el mismatch sea inseguro. Solo se
+  corrobora metadata de nombres exactos previstos, mediante Function provenance
+  y propiedad/región; nunca se borra, hereda o consulta un bucket arbitrario.
+- Consentimientos/hashes por fase, revisión de preservación de datos y ventana
+  exclusiva. Un DELETE, recibo local previo/0600, verificación de LRO y ausencia;
+  sin reenvío ni creación encadenada. Se preservan los demás recursos.
+- CREATE solo con ausencia real y preflight nuevo; delega al ejecutor original
+  sin modificarlo ni inyectar auditoría. Backend/cliente/UIDs y releaseHash siguen
+  cerrados/intactos. Límites de CAS, metadata futura y costes documentados en
+  docs/COMMERCIAL_SINGLE_FUNCTION_RECREATE.md. Ninguna mutación real autorizada.
+- Codex: nueva suite 25/25 en Node24 y Node22; general Node24 675 aprobados,
+  cero fallos y seis TODO (681 casos). Compilación/tipos aprobados. Sin repetir
+  pruebas de nube ni presentar inspecciones sintéticas como permisos reales.
+
 # Comercial · PR33: diagnóstico integral de metadata incompleta
 
 - Revisado el comentario real del propietario: inspección 4a3aa69 / Node22.23.5,

@@ -1,5 +1,10 @@
 # Recuperación cerrada y dirigida de remoteV1
 
+> Fase posterior preparada en [COMMERCIAL_SINGLE_FUNCTION_RECREATE.md](COMMERCIAL_SINGLE_FUNCTION_RECREATE.md):
+> eliminación dirigida y primera creación con aprobaciones separadas. Este
+> documento conserva el contrato de PATCH, que continúa bloqueado; no usar su
+> `recoveryHash` para las nuevas fases. No se ha ejecutado ninguna de ellas.
+
 Base `e57b408`, PR #32 incorporada. Rama
 `feat/commercial-failed-function-recovery`. **No autoriza ni ejecuta un deploy.**
 
