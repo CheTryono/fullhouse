@@ -47,7 +47,12 @@
     "test:remote-staging:gcloud": "node --test tests/commercial-gcloud.test.cjs",
     "test:remote-staging:gcloud-sdk": "node scripts/test-remote-gcloud-sdk.cjs",
     "check:remote-staging:gcloud-node22": "node scripts/check-remote-gcloud-node22.cjs",
-    "test:remote-staging:startup": "node --test tests/runtime/staging-startup.test.cjs"
+    "test:remote-staging:startup": "node --test tests/runtime/staging-startup.test.cjs",
+    "prepare:remote-staging:recovery": "node scripts/remote-staging-recovery.cjs",
+    "test:remote-staging:recovery": "node --test tests/commercial-recovery*.test.cjs",
+    "test:remote-staging:recovery-sdk": "node scripts/test-remote-recovery-sdk.cjs",
+    "prepare:remote-staging:recreate": "node scripts/remote-staging-recreate.cjs",
+    "test:remote-staging:recreate": "node --test tests/commercial-recreate.test.cjs"
   },
   "engines": {
     "node": ">=24.15.0 <25"

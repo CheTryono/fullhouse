@@ -1,5 +1,8 @@
 # Corrección del arranque cerrado de Fullhouse Staging
 
+> El procedimiento posterior, separado de la primera creación y sin ejecutar
+> servicios, se prepara en [COMMERCIAL_FAILED_FUNCTION_RECOVERY.md](COMMERCIAL_FAILED_FUNCTION_RECOVERY.md).
+
 Base `43cdfa8` (PR #30 fusionada). Rama
 `fix/commercial-staging-runtime-project`. Esta entrega no despliega, elimina,
 inspecciona ni modifica recursos de Google Cloud o IAM.

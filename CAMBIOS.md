@@ -1,3 +1,69 @@
+# Comercial · PR33: eliminación dirigida y nueva creación preparadas
+
+- Propietario confirmó diagnóstico real: 57 verified, 26 missing, 1 mismatch,
+  0 unverified y contrato blocked. Se conserva esa evidencia; no se reconstruye
+  serviceConfig ni procedencia/imágenes ausentes. PATCH sigue bloqueado.
+- Nuevo controlador separado --inspect / --delete / --create: contrato mínimo
+  para eliminar solo remoteV1 GEN2 FAILED con fechas/build/permisos/Run/operaciones
+  verificables. Imágenes/procedencia anteriores no son predicados de DELETE.
+- Bucket observado resumido, sin asumir que el mismatch sea inseguro. Solo se
+  corrobora metadata de nombres exactos previstos, mediante Function provenance
+  y propiedad/región; nunca se borra, hereda o consulta un bucket arbitrario.
+- Consentimientos/hashes por fase, revisión de preservación de datos y ventana
+  exclusiva. Un DELETE, recibo local previo/0600, verificación de LRO y ausencia;
+  sin reenvío ni creación encadenada. Se preservan los demás recursos.
+- CREATE solo con ausencia real y preflight nuevo; delega al ejecutor original
+  sin modificarlo ni inyectar auditoría. Backend/cliente/UIDs y releaseHash siguen
+  cerrados/intactos. Límites de CAS, metadata futura y costes documentados en
+  docs/COMMERCIAL_SINGLE_FUNCTION_RECREATE.md. Ninguna mutación real autorizada.
+- Codex: nueva suite 25/25 en Node24 y Node22; general Node24 675 aprobados,
+  cero fallos y seis TODO (681 casos). Compilación/tipos aprobados. Sin repetir
+  pruebas de nube ni presentar inspecciones sintéticas como permisos reales.
+- El inspector verifica también versión/perfil CLI antes de solicitar el token;
+  se repiten sus 25 pruebas en ambos runtimes tras ese refuerzo. Sin cambiar
+  artefacto, validaciones de primera creación o permisos.
+
+# Comercial · PR33: diagnóstico integral de metadata incompleta
+
+- Revisado el comentario real del propietario: inspección 4a3aa69 / Node22.23.5,
+  permisosFaltantes [], runtime no devuelto en FAILED, sin evidencia de cuenta
+  incorrecta. El JSON vacío era consecuencia secundaria del fallo de inspección.
+- Nuevo --diagnose de solo lectura: enumera todas las precondiciones ausentes,
+  contradictorias o no verificadas en un JSON resumido, sin valores sensibles.
+  Continúa consultando el resto de fuentes ante errores; no certifica lectura
+  parcial ni cambia el bloqueo estricto de --inspect/--recover.
+- No se atribuye la cuenta futura o el builder al runtime anterior. Se prepara
+  una propuesta no ejecutable de delete/recreate por dos autorizaciones, con
+  conservación de Firestore/Storage/Auth/IAM e identidades, y sin afirmar ausencia
+  de datos. Borrado aún sin implementar/autorizar; --delete sigue rechazado.
+- recoveryHash anterior invalidado por cambios de control y nuevo módulo sellado;
+  releaseHash de PR32 intacto. Backend/cliente/UIDs cerrados; sin nube/IAM/deploy.
+- Codex: general Node24 650 aprobados/0 fallos/6 TODO (656 casos); recuperación
+  y diagnóstico 25/25; selección comercial Node22 108/108. Compilación/tipos y
+  SDK592 original/recuperación offline aprobados. Sin atribuirse la inspección real.
+
+# Comercial · recuperación controlada de la función FAILED, sin ejecutar
+
+- Base e57b408 (PR32). Ruta independiente para remoteV1 FAILED / us-central1,
+  build anterior a690a410-ec8f-4bd9-917f-581ee466b433; estado del propietario,
+  sin inspección de nube realizada por Codex. Primera creación intacta.
+- Inspección real obligatoria: IAM, build, identidades, fuentes, capacidad,
+  variables cerradas, Run NOT_FOUND y operaciones; huella de metadata/control,
+  doble lectura y consentimiento/hash independientes antes de actualizar.
+- SDK592 original selecciona PATCH para una función FAILED sin consultar Run
+  antes. Prueba offline con clientes sintéticos, ZIP/hashes y red bloqueada.
+  No acredita reparación del control plane ni permisos efectivos.
+- Sin CAS en gcloud/upsert: ventana exclusiva declarada, riesgo residual explícito,
+  verificación posterior de createTime/ACTIVE/build e incertidumbre sin redeploy
+  ni eliminación automáticos. Alternativa delete/recreate solo documentada.
+- Artefacto/hash de PR32, backend/cliente/UIDs, Auth/App Check y recursos intactos;
+  sin deploy, cambios IAM, limpieza o activación. Procedimiento:
+  docs/COMMERCIAL_FAILED_FUNCTION_RECOVERY.md.
+- Codex: suite general final Node24 639 aprobados/0 fallos/6 TODO (645 casos);
+  recuperación 14/14 Node24/22 y selección comercial Node22 97/97. Framework
+  16/16, SDK592 original/recuperación offline y compilación/tipos aprobados.
+  Inspección y recuperación reales todavía pendientes del propietario.
+
 # Comercial · corrección del arranque cerrado con identidad explícita
 
 - Base 43cdfa8. El propietario informó remoteV1 FAILED en el segundo ensayo;

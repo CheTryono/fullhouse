@@ -1,5 +1,35 @@
 # Base de regresión de Fullhouse
 
+## Eliminación dirigida y primera creación, separadas
+
+`npm run test:remote-staging:recreate`: 25 pruebas de la fase posterior de PR33.
+Validan contrato mínimo DELETE con metadata omitida, mismatch de fuentes sin
+aceptación arbitraria, permisos/consentimientos/hashes, respuesta de operación,
+fallo de recibo/cuota local, una sola petición DELETE, acuse perdido, bloqueo de
+reenvío, estado incierto y ausencia final. CREATE usa el ejecutor original sin
+auditorías inventadas. APIs/CLI sintéticas, nunca recursos reales. El inspector
+CLI también se prueba con la forma FAILED comunicada por el propietario, sin
+atribuir esa copia sintética a una nueva observación de Google Cloud.
+[Contrato, límites y autorizaciones](../docs/COMMERCIAL_SINGLE_FUNCTION_RECREATE.md).
+
+## Recuperación cerrada de la función FAILED
+
+Revisión PR33: `commercial-recovery-diagnostic.test.cjs` añade once regresiones
+para runtime ausente, omisión completa de serviceConfig, múltiples bloqueos,
+contradicciones, secretos no impresos, 403/paginación/estado inciertos, JSON
+estructurado con salida2 y propuesta de recreación no ejecutable. Se conserva el
+validador original de actualización; diagnosticar nunca rellena hechos ni emite
+una huella aprobable. `--diagnose` sustituye la secuencia de parches uno por uno.
+
+`npm run test:remote-staging:recovery`: veinticinco pruebas Node (catorce originales
+y once de diagnóstico) de los controles de
+inspección, consentimiento, hashes de código/metadata, IAM, doble lectura, éxito,
+interrupción, acuse perdido y ausencia de reintentos/limpieza. Artefactos aislados
+por archivo para no interferir con suites paralelas. APIs y ejecución simuladas.
+`test:remote-staging:recovery-sdk`, con FULLHOUSE_GCLOUD_SDK_ROOT del SDK592, ejecuta
+el Run y PATCH originales con clientes sintéticos/sockets bloqueados; no demuestra
+recuperación real en el servidor. [Contrato y procedimiento](../docs/COMMERCIAL_FAILED_FUNCTION_RECOVERY.md).
+
 ## Primer ensayo cerrado gcloud, todavía bloqueado
 
 `npm run test:remote-staging:gcloud`: dieciséis pruebas con metadata y ejecutor
