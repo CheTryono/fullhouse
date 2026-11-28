@@ -1,5 +1,15 @@
 # Base de regresión de Fullhouse
 
+## Recuperación cerrada de la función FAILED
+
+`npm run test:remote-staging:recovery`: catorce pruebas Node de los controles de
+inspección, consentimiento, hashes de código/metadata, IAM, doble lectura, éxito,
+interrupción, acuse perdido y ausencia de reintentos/limpieza. Artefactos aislados
+por archivo para no interferir con suites paralelas. APIs y ejecución simuladas.
+`test:remote-staging:recovery-sdk`, con FULLHOUSE_GCLOUD_SDK_ROOT del SDK592, ejecuta
+el Run y PATCH originales con clientes sintéticos/sockets bloqueados; no demuestra
+recuperación real en el servidor. [Contrato y procedimiento](../docs/COMMERCIAL_FAILED_FUNCTION_RECOVERY.md).
+
 ## Primer ensayo cerrado gcloud, todavía bloqueado
 
 `npm run test:remote-staging:gcloud`: dieciséis pruebas con metadata y ejecutor

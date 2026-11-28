@@ -1,3 +1,25 @@
+# Comercial · recuperación controlada de la función FAILED, sin ejecutar
+
+- Base e57b408 (PR32). Ruta independiente para remoteV1 FAILED / us-central1,
+  build anterior a690a410-ec8f-4bd9-917f-581ee466b433; estado del propietario,
+  sin inspección de nube realizada por Codex. Primera creación intacta.
+- Inspección real obligatoria: IAM, build, identidades, fuentes, capacidad,
+  variables cerradas, Run NOT_FOUND y operaciones; huella de metadata/control,
+  doble lectura y consentimiento/hash independientes antes de actualizar.
+- SDK592 original selecciona PATCH para una función FAILED sin consultar Run
+  antes. Prueba offline con clientes sintéticos, ZIP/hashes y red bloqueada.
+  No acredita reparación del control plane ni permisos efectivos.
+- Sin CAS en gcloud/upsert: ventana exclusiva declarada, riesgo residual explícito,
+  verificación posterior de createTime/ACTIVE/build e incertidumbre sin redeploy
+  ni eliminación automáticos. Alternativa delete/recreate solo documentada.
+- Artefacto/hash de PR32, backend/cliente/UIDs, Auth/App Check y recursos intactos;
+  sin deploy, cambios IAM, limpieza o activación. Procedimiento:
+  docs/COMMERCIAL_FAILED_FUNCTION_RECOVERY.md.
+- Codex: suite general final Node24 639 aprobados/0 fallos/6 TODO (645 casos);
+  recuperación 14/14 Node24/22 y selección comercial Node22 97/97. Framework
+  16/16, SDK592 original/recuperación offline y compilación/tipos aprobados.
+  Inspección y recuperación reales todavía pendientes del propietario.
+
 # Comercial · corrección del arranque cerrado con identidad explícita
 
 - Base 43cdfa8. El propietario informó remoteV1 FAILED en el segundo ensayo;
