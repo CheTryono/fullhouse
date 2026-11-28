@@ -46,12 +46,14 @@
     "prepare:remote-staging:gcloud": "node scripts/remote-staging-gcloud.cjs",
     "test:remote-staging:gcloud": "node --test tests/commercial-gcloud.test.cjs",
     "test:remote-staging:gcloud-sdk": "node scripts/test-remote-gcloud-sdk.cjs",
-    "check:remote-staging:gcloud-node22": "node scripts/check-remote-gcloud-node22.cjs"
+    "check:remote-staging:gcloud-node22": "node scripts/check-remote-gcloud-node22.cjs",
+    "test:remote-staging:startup": "node --test tests/runtime/staging-startup.test.cjs"
   },
   "engines": {
     "node": ">=24.15.0 <25"
   },
   "devDependencies": {
+    "@google-cloud/functions-framework": "5.0.5",
     "esbuild": "0.28.2",
     "fake-indexeddb": "6.2.8",
     "firebase-tools": "15.37.0",

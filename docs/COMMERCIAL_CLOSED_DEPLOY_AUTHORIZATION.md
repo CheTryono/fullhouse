@@ -1,5 +1,10 @@
 # Fullhouse · PR de preparación para el primer despliegue cerrado
 
+> Evidencia histórica de PR #30. El propietario informó posteriormente un fallo
+> de arranque en el segundo ensayo real. La corrección y el nuevo hash se
+> documentan en [COMMERCIAL_STAGING_RUNTIME_STARTUP.md](COMMERCIAL_STAGING_RUNTIME_STARTUP.md).
+> El hash de esta revisión anterior no corresponde a esa nueva release.
+
 **Estado de esta PR:** propuesta en borrador. **No es una aprobación para ejecutar un despliegue.** No se ha creado una función, build, fuente, imagen ni binding de invocación mediante esta PR.
 
 ## Alcance exacto

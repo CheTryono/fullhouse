@@ -2,12 +2,23 @@
 
 ## Primer ensayo cerrado gcloud, todavía bloqueado
 
-`npm run test:remote-staging:gcloud`: quince pruebas con metadata y ejecutor
+`npm run test:remote-staging:gcloud`: dieciséis pruebas con metadata y ejecutor
 simulados, artefactos locales, preflight, hashes, rechazo de fallback, pérdida de
 acuse/lectura y ausencia de reintento. PR #30 prepara `deploymentAuthorized:true`
 en el repositorio; los consentimientos independientes siguen siendo obligatorios.
 Se prueban también la reversión de esa barrera a false en copia temporal y el modo
 CLI que solo genera el plan, sin ejecutar procesos externos aun con ambas variables.
+
+Corrección de arranque: `commercial-runtime-project.test.cjs` cubre identidad
+Firebase inline, aliases ausentes/coherentes/contradictorios, JSON/bucket inválidos
+y bloqueo de emulación/depuración. `npm run test:remote-staging:startup` exige
+**Node 22** y lanza Functions Framework **5.0.5** real contra la release copiada;
+no hereda aliases/ADC y bloquea conexiones salientes y clientes de datos. La suite
+está fuera del glob general porque no puede ejecutarse bajo el runtime web Node24.
+`check:remote-staging:gcloud-node22` la incluye y conserva la prueba HTTP callable
+con JWT sintéticos, ahora sin inyectar GCLOUD_PROJECT. La regresión gcloud adicional
+impide tratar una función existente FAILED como primer deploy o limpieza.
+Alcance, reproducción y comandos: [arranque cerrado](../docs/COMMERCIAL_STAGING_RUNTIME_STARTUP.md).
 
 Incluye cuatro regresiones de PR #29: Functions exige exactamente el rol actual
 `roles/cloudfunctions.standardServiceAgent` sin condición. Se rechazan ausencia,

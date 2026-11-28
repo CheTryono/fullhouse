@@ -47,6 +47,11 @@ test('resource preflight separates uploader from builder and never requires an e
 test('first-trial preflight blocks unknown agents, missing upload/actAs, divergent project and an existing function',()=>{
  g.assertAudit(fixture.audit());for(const mutate of [a=>a.project='other',a=>a.gcloudResources.basicInputsVerified=false,a=>a.buildSelection.dedicated.operatorActAsVerified=false,a=>a.buildSelection.dedicated.ownerOrEditorDirectGrant=true,a=>a.managedIdentities.buildAgent.directProjectRoles=[],a=>a.function={name:id.FUNCTION},a=>a.observations[0].http=403,a=>a.deployer.projectPermissions=[]]){const a=fixture.audit();mutate(a);assert.throws(()=>g.assertAudit(a));}
 });
+test('an existing FAILED function cannot silently turn the first-trial wrapper into an update or cleanup operation',async()=>{
+ const audit=fixture.audit();audit.function={name:id.FUNCTION,state:'FAILED'};audit.observations=[{name:'function',status:'observed',http:200}];let mutations=0;
+ await assert.rejects(g.deployClosed({env:{FULLHOUSE_AUTHORIZE_GCLOUD_CLOSED_DEPLOY:id.PROJECT,FULLHOUSE_APPROVED_GCLOUD_RELEASE:'a'.repeat(64)},nodeVersion:'22.23.5',readAudit:async()=>audit,execute:args=>{if(args[0]==='version')return JSON.stringify({'Google Cloud SDK':'592.0.0'});if(args[0]==='config')return '{}';mutations++;throw Error('No update or cleanup authorized');}}),/Solo primer ensayo cerrado/);
+ assert.equal(mutations,0);
+});
 test('Functions standard service agent role reported by the owner is accepted exactly',()=>{
  const a=fixture.audit();a.managedIdentities.functions.directProjectRoles=[{role:'roles/cloudfunctions.standardServiceAgent',condition:null}];assert.doesNotThrow(()=>g.assertAudit(a));
 });

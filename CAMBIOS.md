@@ -1,3 +1,22 @@
+# Comercial · corrección del arranque cerrado con identidad explícita
+
+- Base 43cdfa8. El propietario informó remoteV1 FAILED en el segundo ensayo;
+  reproducido en Node22 y Functions Framework real sin GCLOUD_PROJECT. El plan
+  fijaba FIREBASE_CONFIG, mientras la prueba anterior inyectaba el alias ausente.
+- runtimeCheck valida la identidad inline fijada y todos los aliases presentes;
+  rechaza ausencia completa, contradicciones, JSON/bucket inválidos y conserva
+  emulación/depuración/Node22. No elimina comprobaciones ni cambia Auth/App Check.
+- Functions Framework 5.0.5 solo como herramienta dev fijada; sin cambios a las
+  dependencias backend. Pruebas de arranque real, regresiones puras y barrera
+  explícita frente a reutilizar el primer-deploy para actualizar una función FAILED.
+- Backend, cliente y UIDs continúan cerrados. Sin deploy/IAM, eliminación, nuevas
+  cuentas ni cambios al Planner/Pages. Nueva release y bloqueo de actualización:
+  docs/COMMERCIAL_STAGING_RUNTIME_STARTUP.md.
+- Codex: general Node24 625 aprobados/0 fallos/6 TODO (631 casos); Node22 83/83;
+  Functions Framework 16/16 y diagnóstico callable cerrado aprobados, SDK592
+  offline sin red, compilación/tipos correctos. SHA-256 idéntico Node22/24:
+  1e930e8ac0ef2ea68ce707abc013e07e4f31d53532370b0e72a3958195dfd1af.
+
 # Comercial · revisión de PR #30, autorización de repositorio preparada
 
 - La PR prepara deploymentAuthorized:true únicamente. Backend remoteEnabled y
