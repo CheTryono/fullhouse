@@ -44,12 +44,30 @@ las catorce consultas, incluidas las relecturas, devolvieron HTTP200. Confirmó:
 - Identidades, build SUCCESS, capacidad de Function/revisión, ingress, Invoker,
   flags cerrados y estabilidad verificados.
 
-El estado global continúa **blocked** por `provenance.run.googleapis.com/build-id`,
+En ese ensayo el estado global fue **blocked** por `provenance.run.googleapis.com/build-id`,
 `run.serviceScaling` y `run.environment`. El propietario confirmó después que no
 conserva la anotación, los ajustes de escalado ni los nombres de las variables
 necesarios para explicar esos rechazos. **No se conocen aún sus causas reales**:
 no se infieren de los tres nombres de control. La actualización del diagnóstico
 las detalla en la misma lectura, sin volver a desplegar ni pedir valores de env.
+
+### Segunda inspección del propietario: `96d0ff6`
+
+El propietario comunicó **32 verified, 2 mismatch obligatorios, 2 missing no
+obligatorios, 1 unverified Auth/App Check y 1 not equivalent SLSA**; 14/14 lecturas
+HTTP200 en Node22.23.5. `run.environment` quedó verified: cuatro variables
+esperadas, todas match, una con `default-empty-string`.
+
+El máximo del servicio es `"60"`; sus mínimos, modo y contador manual están
+omitidos (cero/automático/cero). La revisión tiene máximo `"1"`, mínimo omitido;
+Function max1/min0 y una revisión Ready con todo el tráfico. La causa concreta
+de `run.serviceScaling` era la comparación literal del máximo del servicio con
+uno, demasiado restrictiva frente a la regla oficial del máximo efectivo.
+
+`build-id` continúa con `format:unsupported`, `observed:null`. **Su contenido
+real todavía no se conoce**. No se declara ni legítimo ni contradictorio. La
+actualización siguiente corrige el escalado y caracteriza esa anotación sin
+imprimirla. Estos resultados reales pertenecen al propietario, no a Codex.
 
 ## Qué comprueba el nuevo diagnóstico
 
@@ -90,7 +108,7 @@ El resultado incluye `diagnostics`, calculado solo con las respuestas ya en RAM;
 
 | Campo | Qué muestra y cómo decide |
 | --- | --- |
-| `diagnostics.buildAnnotations` | Anotación `build-id` observada si es UUID/recurso reconocible, ID aprobado y comparación de proyecto/región/ID. Un recurso completo es equivalente solo para el mismo proyecto (ID o número), `us-central1` y UUID. Otro ámbito o build sigue bloqueado; texto no reconocible se clasifica sin imprimirlo. `build-name` sigue exigiendo un recurso completo. |
+| `diagnostics.buildAnnotations` | Anotación `build-id` observada si es UUID/recurso reconocible, ID aprobado y comparación de proyecto/región/ID. Un recurso completo es equivalente solo para el mismo proyecto (ID o número), `us-central1` y UUID. Otro ámbito o build sigue bloqueado. El texto no reconocido se caracteriza por estructura/comparaciones sin imprimirlo; esos indicios nunca autorizan. `build-name` sigue exigiendo un recurso completo. |
 | `diagnostics.scaling.service` | Presencia, valor numérico/modo reconocido y representación de las cuatro anotaciones seleccionadas. No vuelca otras anotaciones, que podrían contener variables. |
 | `diagnostics.scaling.revision` | Presencia y valores de min/max de la revisión. |
 | `diagnostics.scaling.effective` e `issues` | Solo declara automático/min0/max1 cuando lo prueban conjuntamente Function, revisión, configuración del servicio y una única revisión con tráfico. En otro caso devuelve límites efectivos null y los motivos. |
@@ -104,9 +122,10 @@ formas realmente presentes en el proyecto**:
 - Modo de escalado omitido significa AUTOMATIC según `ServiceScaling`; el modo
   explícito admitido en las anotaciones v1 es `automatic`. Contador manual
   explícito `"0"` no selecciona el modo manual y es inerte en automático. El
-  modo manual, contadores no nulos, mínimos distintos de cero y máximos de
-  servicio explícitos distintos de uno **siguen bloqueados**. No se deduce el
-  significado de `maxScale="0"` ni se aceptan límites mayores por suposición.
+  modo manual, contadores no nulos y mínimos distintos de cero **siguen
+  bloqueados**. Revisión y Function deben conservar máximo uno. El máximo del
+  servicio puede ser un entero positivo mayor, según la regla documentada del
+  menor de ambos límites; no se deduce el significado de `maxScale="0"`.
 - `EnvVar.value` omitido significa `""`, conforme al esquema v1; **la entrada
   debe existir**. Permite comprobar una allowlist vacía representada sin `value`,
   pero no confunde esa forma con una variable ausente o procedente de un secreto.
@@ -123,6 +142,57 @@ Las desconocidas quedan bloqueadas, así como duplicados, referencias indirectas
 entradas inválidas, emuladores, opciones de depuración/TLS y `NODE_OPTIONS`.
 El validador anterior toleraba extras no reconocidas: ahora se rechazan, como
 solicitó el propietario en PR35. No se acepta una variable por parecer de Google.
+
+### Máximo efectivo y anotación build-id todavía desconocida
+
+El propietario aportó [la documentación oficial de máximos](https://docs.cloud.google.com/run/docs/configuring/max-instances):
+«Effective maximum instance limit is the lesser value between revision-level
+maximum instances and service-level maximum instances». El diagnóstico calcula
+ahora `min(serviceMaximum, revisionMaximum)`, conservando ambos valores observados;
+para el caso reportado es `min(60,1)=1`. No modifica la configuración del servicio.
+La referencia/cita se atribuye al propietario; Codex no pudo abrir esa página en
+su entorno y no se atribuye una consulta directa ni una nueva inspección real.
+
+Solo lo declara verificado si también pasan: Function ACTIVE y capacidad exacta
+max1/min0, modo automático, ausencia de contador manual activo, mínimos cero,
+revisión max1, servicio reconciliado, una única revisión Ready con 100% del
+tráfico y asociación con la Function. Valores no parseables, cero/negativos,
+fracciones, desbordamientos, modo manual, revisión/Function con otro límite,
+tráfico dividido o revisión incierta permanecen bloqueados. Las anotaciones
+numéricas deben ser cadenas enteras canónicas dentro de int32. Se informa el
+cálculo en `diagnostics.scaling.effective.calculation`.
+
+**Es un límite de configuración de autoescalado**, no una garantía absoluta de
+instancias o gasto: Cloud Run puede superar brevemente el máximo durante ciertos
+eventos. El presupuesto/alertas tampoco equivalen a un corte financiero.
+
+Investigación de `build-id`: el SDK oficial 592 escribe esta anotación desde sus
+helpers de despliegue Run, y el esquema Run v1 la sitúa entre las anotaciones de
+metadata admitidas para Service/Revision. No es el campo output-only
+`Function.buildConfig.build`, ni una atestación firmada del build. Se conserva
+como comprobación auxiliar de concordancia **obligatoria cuando aparece**: un ID
+distinto no se ignora y un formato no interpretado sigue bloqueando el resultado.
+No se sustituye la cadena obligatoria de fuente/bytes/build/revisión/digest.
+
+Para un formato no admitido se añade `characterization`, sin consultas nuevas:
+
+- Tipo, longitud acotada, caracteres de control/espacios exteriores y presencia
+  del ID aprobado, proyecto o región conocidos. No imprime prefijos/sufijos,
+  texto original, errores del parser ni hashes de datos opacos.
+- Indicios de UUID/recurso, variantes de escritura, candidatos UUID coincidentes
+  o distintos, estructuras JSON y clase de URL (sin URL, credenciales o query).
+- JSON: tipos, campos conocidos, posible clave del contenedor seleccionado y
+  comparaciones de ámbito. Los nombres de claves desconocidas y los valores
+  arbitrarios nunca se imprimen. Máximo 4096 caracteres, profundidad 3, 32 nodos
+  con detalle y 8 miembros por nivel; un presupuesto excedido se indica y bloquea.
+
+`hintsOnly:true` y `authorizationEffect:none` dejan claro que encontrar el ID
+aprobado como fragmento, dentro de JSON o en una URL **no prueba identidad ni
+procedencia**. Se preservan `format:unsupported`, `observed:null` y el bloqueo.
+La salida permitirá reconocer el formato real y decidir si existe un contrato
+seguro para él, sin convertir supuestos en verificaciones. La página original
+del SDK describe anotaciones, pero no demuestra la semántica de este valor aún
+no observado. No se inventa un nuevo mapeo de contenedores a builds.
 
 Si el nuevo resultado describe una diferencia real o no demostrada, conservar
 `blocked`, compartir el **JSON resumido** y revisar su causa antes de proponer
@@ -232,8 +302,29 @@ Resultados ejecutados por Codex sobre esta actualización:
 | `check`, `check:history-contract`, `check:auth`, `check:remote`, `check:remote-client` | Aprobados |
 | Release regenerada y diff de zonas protegidas | Mismo SHA-256 aprobado; backend, cliente, app, workflow y ejecutores intactos |
 
-No se repitió la inspección real desde Codex; se necesita una ejecución del mismo
-comando en Cloud Shell con esta actualización. La PR35 permanece en borrador.
+Nueva revisión de PR35, máximo efectivo y formato opaco: ocho pruebas añadidas,
+incluidas las dos regresiones que fallaron antes de corregir el rechazo del
+máximo 60 y la falta de caracterización. La antigua expectativa de que un máximo
+de servicio 2 era siempre inválido se sustituye por pruebas de la regla del menor
+límite; siguen todos los rechazos de capacidad/identidad no demostrada.
+Resultados ejecutados por Codex sobre esta revisión:
+
+| Comprobación | Resultado |
+| --- | --- |
+| Suite específica Node22.23.5 / Node24.22.1 | 38/38 en ambos runtimes, cero fallos/omitidas/TODO |
+| `npm test`, Node24.22.1 | 719 casos: 713 aprobados, cero fallos/omitidas y seis TODO previos |
+| `check`, `check:history-contract`, `check:auth`, `check:remote`, `check:remote-client` | Aprobados |
+| Artefacto y diff de zonas protegidas | Mismo SHA-256 aprobado; backend, cliente, app, workflow, dependencias y ejecutores intactos |
+
+La prueba integrada reproduce máximo de servicio 60 con formato build-id opaco
+**sintético**: el único bloqueo resultante es la anotación no demostrada, con las
+mismas catorce peticiones GET y sin filtrar su texto. No es una nueva observación
+de los valores reales de Google Cloud.
+
+No se repitió la inspección real desde Codex. Se necesita una ejecución del mismo
+comando en Cloud Shell con esta actualización, revisando `characterization` si
+queda el bloqueo de build-id. La PR35 permanece en borrador; no autorizar Auth/App
+Check por asumir que un formato desconocido es válido.
 
 No se repitieron emuladores, navegador ni ensayos runtime que no cambiaron.
 Firefox, WebKit y dispositivos físicos no se probaron en esta entrega. Los seis

@@ -2,7 +2,7 @@
 
 ## Verificación retrospectiva de la release ACTIVE
 
-`npm run test:remote-staging:release`: treinta pruebas sintéticas de la forma de
+`npm run test:remote-staging:release`: treinta y ocho pruebas sintéticas de la forma de
 metadata comunicada en issue #34 y de la nueva cadena Functions → fuente exacta
 por bytes / build → revisión Run → digest Artifact Registry. Se conservan ausentes
 los campos de Build, sin fabricar una atestación ni aprobar Auth/App Check.
@@ -11,8 +11,11 @@ Ready/tráfico, cambios concurrentes y perfil inseguro bloquean. Todas las llama
 Google se sustituyen y se exige GET, nunca deploy ni datos de usuario. La revisión
 PR35 añade diez pruebas de diagnóstico simultáneo, referencias completas del
 mismo build, defaults de escalado/env, límites alterados, variables desconocidas
-y ocultación de valores/secretos. No presenta las causas todavía desconocidas de
-los tres rechazos reales como hechos demostrados.
+y ocultación de valores/secretos. La revisión posterior añade ocho pruebas de
+máximo efectivo min(servicio,revisión), caso reportado 60/1, requisitos de Ready y
+tráfico único, caracterización acotada de metadata opaca y ausencia de filtraciones.
+Permanece bloqueado cualquier formato build-id no demostrado; no se presenta
+su contenido real aún desconocido como un hecho probado.
 [Alcance, resultados y único comando real](../docs/COMMERCIAL_DEPLOYED_RELEASE_VERIFICATION.md).
 
 ## Eliminación dirigida y primera creación, separadas

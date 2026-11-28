@@ -1,3 +1,23 @@
+# Comercial · PR35: máximo efectivo y caracterización de build-id
+
+- Propietario confirmó 32 controles reales verificados, cuatro variables env
+  match y dos bloqueos; servicio max60, revisión/Function max1. Se conserva esa
+  evidencia separada de las pruebas sintéticas ejecutadas por Codex.
+- Se aplica la regla oficial min(servicio,revisión), solo con modo automático,
+  mínimos cero, revisión/Function max1 y única revisión Ready reconciliada con
+  todo el tráfico. No se cambian límites de recursos; no es un tope financiero
+  ni garantía contra picos transitorios. Cero, formatos inválidos y conflictos
+  de capacidad/identidad continúan bloqueados.
+- build-id opaco recibe caracterización acotada por tipo, estructura y
+  comparaciones; sin valores arbitrarios, claves desconocidas ni secretos.
+  Indicios de JSON/URL/UUID no autorizan y no ocultan contradicciones. Sigue
+  pendiente conocer su formato real. No se relaja la cadena de procedencia.
+- Backend, hash, cliente, usuarios, IAM, artefacto y aplicación intactos;
+  no despliegue/eliminación ni consultas al proyecto real por Codex.
+- Codex: suite específica 38/38 en Node22/24; general 713 aprobadas, cero
+  fallos y seis TODO previos (719 casos). Compilación/tipos aprobados. Resta
+  ejecutar el diagnóstico real para caracterizar build-id; PR35 sigue en borrador.
+
 # Comercial · PR35: explicación segura de los tres bloqueos
 
 - Propietario informó 31 controles reales aprobados, catorce HTTP200 y tres

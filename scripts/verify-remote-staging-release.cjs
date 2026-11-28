@@ -148,7 +148,7 @@ function diagnose(e,local){
  const annotations=r?.metadata?.annotations;
  const buildAnnotations={};
  for(const key of ['run.googleapis.com/build-name','run.googleapis.com/build-id']){
-  buildAnnotations[key]=shapes.buildAnnotation(key,annotations?.[key],EXPECTED.buildId);
+  buildAnnotations[key]=shapes.buildAnnotation(key,annotations?.[key],EXPECTED.buildId,{containerName:container?.name});
   if(annotations?.[key]!==undefined)check('provenance.'+key,annotations[key],()=>buildAnnotations[key].status==='verified','UUID o recurso de la misma compilación y ámbito; desglose en diagnostics.buildAnnotations.');
  }
  const image=imageIdentity(r?.status?.imageDigest);
@@ -158,7 +158,8 @@ function diagnose(e,local){
  check('run.runtime',rs,v=>v.serviceAccountName===id.RUNTIME&&v.containerConcurrency===1&&v.timeoutSeconds===60&&v.containers?.length===1&&!v.volumes?.length,'Identidad/capacidad de la revisión efectiva, sin sidecars ni volúmenes.');
  check('run.resources',container?.resources?.limits,v=>['512Mi','536870912'].includes(v.memory)&&['0.3333','333.3m'].includes(v.cpu)&&Object.keys(v).every(k=>['memory','cpu'].includes(k)),'512 MiB y CPU 0.3333, sin recursos adicionales.');
  check('run.scaling',annotations,v=>v['autoscaling.knative.dev/maxScale']==='1'&&(v['autoscaling.knative.dev/minScale']??'0')==='0','Cero instancias mínimas y máximo uno.');
- const scaling=shapes.scaling(s,r,c,!!revision);
+ const singleReadyRevision=['function.identity','function.capacity','run.service','run.traffic','run.revision','provenance.functionRevision'].every(name=>checks.some(c=>c.name===name&&c.status==='verified'));
+ const scaling=shapes.scaling(s,r,c,singleReadyRevision);
  check('run.serviceScaling',s?.metadata?.annotations,()=>scaling.status==='verified','Escalado automático y límites min0/max1 demostrados; desglose en diagnostics.scaling.');
  check('run.ingress',s?.metadata?.annotations,v=>v['run.googleapis.com/ingress']==='all'&&v['run.googleapis.com/invoker-iam-disabled']!=='true','Ingress aprobado; comprobación IAM del servicio no deshabilitada.');
  const vars=container?.env;

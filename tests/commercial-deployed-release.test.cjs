@@ -83,6 +83,68 @@ test('PR35: automatic scaling with explicit inactive manual count zero retains m
  const e=fixture(x);Object.assign(e.service.metadata.annotations,{'run.googleapis.com/scalingMode':'automatic','run.googleapis.com/manualInstanceCount':'0','run.googleapis.com/minScale':'0','run.googleapis.com/maxScale':'1'});
  assert.equal(v.diagnose(sync(e),x.local).status,'verified');
 });
+test('PR35: reported service cap 60 and single active revision/function cap 1 prove effective max 1',()=>{
+ const e=fixture(x);e.service.metadata.annotations['run.googleapis.com/maxScale']='60';
+ const r=v.diagnose(sync(e),x.local);assert.equal(r.status,'verified');
+ assert.equal(r.diagnostics.scaling.service['run.googleapis.com/maxScale'].value,60);
+ assert.equal(r.diagnostics.scaling.effective.maxInstances,1);assert.equal(r.diagnostics.scaling.effective.minInstances,0);
+});
+test('PR35: opaque build-id is characterized without printing its contents or accepting a known-ID substring',()=>{
+ const e=fixture(x);e.revision.spec.containers[0].name='function';
+ e.revision.metadata.annotations['run.googleapis.com/build-id']=JSON.stringify({function:v.EXPECTED.buildId,unknown:'SECRET_NEVER_PRINT_PR35_OPAQUE'});
+ const r=blocked(sync(e),'provenance.run.googleapis.com/build-id','mismatch'),a=r.diagnostics.buildAnnotations['run.googleapis.com/build-id'];
+ assert.equal(a.observed,null);assert.equal(a.characterization.type,'string');assert.equal(a.characterization.containsApprovedId,true);
+ assert.equal(a.characterization.json.type,'object');assert.equal(a.characterization.hintsOnly,true);
+ assert(!JSON.stringify(r).includes('SECRET_NEVER_PRINT_PR35_OPAQUE'));
+});
+test('PR35: effective maximum uses the lesser positive service/revision cap under all fixed safeguards',()=>{
+ for(const cap of ['1','2','60','2147483647']){
+  const e=fixture(x);e.service.metadata.annotations['run.googleapis.com/maxScale']=cap;
+  const r=v.diagnose(sync(e),x.local);assert.equal(r.status,'verified');
+  assert.deepEqual(r.diagnostics.scaling.effective.calculation,{rule:'min(serviceMaximum, revisionMaximum)',serviceMaximum:Number(cap),revisionMaximum:1,functionMaximum:1});
+  assert.equal(r.diagnostics.scaling.effective.maxInstances,1);
+ }
+});
+test('PR35: service 60 never bypasses malformed caps, nonzero minima, manual mode, unready revision or ambiguous traffic',()=>{
+ const badCaps=['0','-1','1.5','1e2','060',' 60','NaN','Infinity','2147483648',60,null];
+ const changes=[...badCaps.map(cap=>e=>{e.service.metadata.annotations['run.googleapis.com/maxScale']=cap;}),
+  e=>{e.service.metadata.annotations['run.googleapis.com/minScale']='1';},e=>{e.service.metadata.annotations['run.googleapis.com/scalingMode']='manual';},e=>{e.service.metadata.annotations['run.googleapis.com/manualInstanceCount']='1';},
+  e=>{e.revision.metadata.annotations['autoscaling.knative.dev/maxScale']='2';},e=>{delete e.revision.metadata.annotations['autoscaling.knative.dev/maxScale'];},e=>{e.revision.metadata.annotations['autoscaling.knative.dev/minScale']='1';},
+  e=>{e.fn.serviceConfig.maxInstanceCount=2;},e=>{e.fn.serviceConfig.minInstanceCount=1;},e=>{e.fn.state='FAILED';},
+  e=>{e.service.status.conditions[0].status='False';},e=>{e.revision.status.conditions[0].status='False';},e=>{e.service.status.observedGeneration=0;},e=>{e.fn.serviceConfig.revision='remotev1-00002-other';},
+  e=>{e.service.status.traffic=[{revisionName:e.revision.metadata.name,percent:99},{revisionName:'remotev1-00002-other',percent:1}];}];
+ for(const mutate of changes){
+  const e=fixture(x);e.service.metadata.annotations['run.googleapis.com/maxScale']='60';mutate(e);
+  const r=blocked(sync(e),'run.serviceScaling','mismatch');assert.equal(r.diagnostics.scaling.effective.maxInstances,null);
+ }
+});
+test('PR35: unsupported build-id JSON and URL shapes provide only typed comparison hints',()=>{
+ for(const value of [JSON.stringify(v.EXPECTED.buildId),JSON.stringify([v.EXPECTED.buildId]),JSON.stringify({buildId:v.EXPECTED.buildId,project:'fullhouse-staging',region:'us-central1'}),`https://cloudbuild.googleapis.com/v1/projects/fullhouse-staging/locations/us-central1/builds/${v.EXPECTED.buildId}?token=SECRET_NEVER_PRINT_PR35_URL`,
+  `https://SECRET_NEVER_PRINT_PR35_LOGIN@console.cloud.google.com/cloud-build/builds/${v.EXPECTED.buildId}`]){
+  const e=fixture(x);e.revision.metadata.annotations['run.googleapis.com/build-id']=value;
+  const r=blocked(sync(e),'provenance.run.googleapis.com/build-id','mismatch'),a=r.diagnostics.buildAnnotations['run.googleapis.com/build-id'];
+  assert.equal(a.observed,null);assert.equal(a.characterization.containsApprovedId,true);assert.equal(a.characterization.authorizationEffect,'none');
+  assert(!JSON.stringify(r).includes('SECRET_NEVER_PRINT_PR35'));
+ }
+});
+test('PR35: UUID spelling, known-ID fragments and contradictory nested references never become approval',()=>{
+ for(const value of [v.EXPECTED.buildId.toUpperCase(),v.EXPECTED.buildId.replaceAll('-',''),' '+v.EXPECTED.buildId+' ',`prefix/${v.EXPECTED.buildId}/SECRET_NEVER_PRINT_PR35_FRAGMENT`,
+  JSON.stringify({project:'other-project',region:'europe-west1',buildId:'00000000-0000-0000-0000-000000000000',extra:v.EXPECTED.buildId})]){
+  const e=fixture(x);e.revision.metadata.annotations['run.googleapis.com/build-id']=value;
+  const r=blocked(sync(e),'provenance.run.googleapis.com/build-id','mismatch'),c=r.diagnostics.buildAnnotations['run.googleapis.com/build-id'].characterization;
+  assert.equal(c.hintsOnly,true);assert(!JSON.stringify(r).includes('SECRET_NEVER_PRINT_PR35_FRAGMENT'));
+  if(value.startsWith('{')){const fields=c.json.fields;assert.equal(fields.find(f=>f.field==='project').expectedScopeMatch,false);assert.equal(fields.find(f=>f.field==='region').expectedScopeMatch,false);assert.equal(fields.find(f=>f.field==='buildId').shape.referenceHint.idMatch,false);}
+ }
+});
+test('PR35: build-id characterization bounds length, depth and members and hides arbitrary keys/scalars',()=>{
+ const cases=['x'.repeat(4097)+'SECRET_NEVER_PRINT_PR35_LONG',JSON.stringify({a:{b:{c:{d:{e:'SECRET_NEVER_PRINT_PR35_DEEP'}}}}}),JSON.stringify(Object.fromEntries(Array.from({length:20},(_,i)=>['SECRET_NEVER_PRINT_PR35_KEY_'+i,'private']))),'{SECRET_NEVER_PRINT_PR35_INVALID',null,42,true];
+ for(const value of cases){
+  const e=fixture(x);e.revision.metadata.annotations['run.googleapis.com/build-id']=value;
+  const r=v.diagnose(sync(e),x.local),a=r.diagnostics.buildAnnotations['run.googleapis.com/build-id'];assert.equal(r.status,'blocked');assert.equal(a.observed,null);
+  assert.equal(a.characterization.hintsOnly,true);assert(!JSON.stringify(r).includes('SECRET_NEVER_PRINT_PR35'));
+  assert(JSON.stringify(a).length<20000);
+ }
+});
 test('PR35: EnvVar.value omission means empty string, never a missing required variable',()=>{
  const e=fixture(x),entry=e.revision.spec.containers[0].env.find(x=>x.name==='FULLHOUSE_STAGING_TEST_UIDS');delete entry.value;
  assert.equal(v.diagnose(sync(e),x.local).status,'verified');
@@ -112,7 +174,7 @@ test('PR35: full build references never accept a different project, region or UU
  const r=blocked(sync(e),'provenance.run.googleapis.com/build-id','mismatch');assert.equal(r.diagnostics.buildAnnotations['run.googleapis.com/build-id'].format,'unsupported');assert(!JSON.stringify(r).includes('SECRET_NEVER_PRINT_PR35_ANNOTATION'));
 });
 test('PR35: scaling defaults and inert manual zero cannot conceal changed bounds or manual mode',()=>{
- for(const mutate of [e=>e.service.metadata.annotations['run.googleapis.com/scalingMode']='manual',e=>e.service.metadata.annotations['run.googleapis.com/scalingMode']='AUTO',e=>e.service.metadata.annotations['run.googleapis.com/manualInstanceCount']='1',e=>e.service.metadata.annotations['run.googleapis.com/minScale']='1',e=>e.service.metadata.annotations['run.googleapis.com/maxScale']='2',e=>e.service.metadata.annotations['run.googleapis.com/maxScale']='0',e=>e.service.metadata.annotations['run.googleapis.com/minScale']=0,e=>e.revision.metadata.annotations['autoscaling.knative.dev/maxScale']='2',e=>e.fn.serviceConfig.maxInstanceCount=2]){
+ for(const mutate of [e=>e.service.metadata.annotations['run.googleapis.com/scalingMode']='manual',e=>e.service.metadata.annotations['run.googleapis.com/scalingMode']='AUTO',e=>e.service.metadata.annotations['run.googleapis.com/manualInstanceCount']='1',e=>e.service.metadata.annotations['run.googleapis.com/minScale']='1',e=>e.service.metadata.annotations['run.googleapis.com/maxScale']='0',e=>e.service.metadata.annotations['run.googleapis.com/minScale']=0,e=>e.revision.metadata.annotations['autoscaling.knative.dev/maxScale']='2',e=>e.fn.serviceConfig.maxInstanceCount=2]){
   const e=fixture(x);mutate(e);const r=blocked(sync(e),'run.serviceScaling','mismatch');assert.equal(r.diagnostics.scaling.effective.maxInstances,null);assert(r.diagnostics.scaling.issues.length>0);
  }
  const e=fixture(x);e.service.metadata.annotations['run.googleapis.com/manualInstanceCount']='0';const r=v.diagnose(sync(e),x.local);
@@ -162,6 +224,20 @@ test('single diagnostic uses only bounded GETs to exact sources; API omissions r
  }});
  assert.equal(v.diagnose(data,x.local).status,'verified');assert.equal(calls.length,14);
  assert(calls.every(url=>!url.includes('/users/')&&!url.includes(':setIamPolicy')&&!url.includes(':generateUploadUrl')));
+});
+test('PR35: single read explains the remaining opaque annotation with service 60 and unchanged 14 GETs',async()=>{
+ const e=fixture(x);e.service.metadata.annotations['run.googleapis.com/maxScale']='60';
+ e.revision.metadata.annotations['run.googleapis.com/build-id']='opaque-SECRET_NEVER_PRINT_PR35_READ';
+ const map=responses(e),calls=[];
+ const data=await v.readEvidence({token:'synthetic-token',fetcher:async(url,opts)=>{
+  calls.push(url);assert.equal(opts.method,'GET');assert(map.has(url));const value=map.get(url);
+  return new Response(Buffer.isBuffer(value)?value:JSON.stringify(value),{status:200});
+ }});
+ const r=v.diagnose(data,x.local);assert.deepEqual(r.blocked,['provenance.run.googleapis.com/build-id']);assert.equal(calls.length,14);
+ assert.equal(check(r,'run.serviceScaling').status,'verified');assert.equal(r.diagnostics.scaling.effective.maxInstances,1);
+ assert.equal(r.diagnostics.environment.status,'verified');assert.equal(r.diagnostics.environment.variables.length,4);
+ assert.equal(r.diagnostics.buildAnnotations['run.googleapis.com/build-id'].characterization.type,'string');
+ assert(!JSON.stringify(r).includes('SECRET_NEVER_PRINT_PR35_READ'));
 });
 test('403, unavailable ZIP, malformed JSON, interrupted streams and oversize responses produce one blocked report',async()=>{
  for(const failure of ['denied','invalid-json','interrupted','oversize']){

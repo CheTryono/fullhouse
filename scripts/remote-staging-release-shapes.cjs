@@ -2,7 +2,7 @@
 // Pure, redacted explanations of metadata already in memory. No API calls.
 const id=require('./remote-staging-build-identity.cjs');
 const UUID='[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}';
-function buildAnnotation(key,value,approved){
+function buildReference(key,value,approved){
  const full=typeof value==='string'&&value.length<=256?new RegExp(`^projects/([a-z0-9-]+)/locations/([a-z0-9-]+)/builds/(${UUID})$`).exec(value):null;
  const bare=typeof value==='string'&&new RegExp('^'+UUID+'$').test(value);
  const present=value!==undefined,format=full?'resource':bare?'uuid':present?'unsupported':'absent';
@@ -12,6 +12,54 @@ function buildAnnotation(key,value,approved){
  return {present,format,observed:full||bare?value:null,approvedBuildId:approved,projectMatch,regionMatch,idMatch,
   status:!present?'missing':valid?'verified':'mismatch',
   reason:!present?'not-returned':valid?full?'same-scoped-build-resource':'same-build-uuid':full||bare?'different-build-or-scope':'unsupported-reference-not-printed'};
+}
+function characterizeAnnotation(value,approved,containerName){
+ // These are shape/comparison hints, NEVER authorization or a parsed identity.
+ // No arbitrary scalar, key, substring, URL, error, or secret hash is returned.
+ const MAX_LENGTH=4096,MAX_DEPTH=3,MAX_NODES=32,MAX_MEMBERS=8;
+ const known=new Set(['id','buildId','build_id','build','name','buildName','project','projectId','region','location']);
+ const selected=typeof containerName==='string'&&/^[a-z][a-z0-9-]{0,62}$/.test(containerName)?containerName:null;
+ let nodes=0,limited=false;
+ function describe(v,depth){
+  const type=v===null?'null':Array.isArray(v)?'array':typeof v;
+  if(++nodes>MAX_NODES||depth>MAX_DEPTH){limited=true;return {type,inspection:'budget-exceeded'};}
+  const out={type};
+  if(type==='string'){
+   out.length=Math.min(v.length,MAX_LENGTH+1);out.overLengthLimit=v.length>MAX_LENGTH;
+   if(out.overLengthLimit){limited=true;return out;}
+   out.containsApprovedId=v.includes(approved);
+   out.containsProjectId=v.includes(id.PROJECT);out.containsProjectNumber=v.includes(id.NUMBER);out.containsRegion=v.includes(id.REGION);
+   out.outerWhitespace=v.trim()!==v;out.hasControlCharacters=/[\u0000-\u001f\u007f]/.test(v);
+   const reference=buildReference('run.googleapis.com/build-id',v.trim(),approved);
+   out.referenceHint={format:reference.format,idMatch:reference.idMatch,projectMatch:reference.projectMatch,regionMatch:reference.regionMatch};
+   const uuids=v.match(new RegExp(UUID,'gi'))||[];
+   out.uuidCandidates={count:uuids.length,approved:uuids.filter(s=>s===approved).length,other:uuids.filter(s=>s!==approved).length};
+   out.canonicalUuidSpellingMatches= /^(?:[a-f0-9]{32}|[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12})$/i.test(v.trim())&&v.trim().replaceAll('-','').toLowerCase()===approved.replaceAll('-','');
+   if(/^\s*[{[\"]/.test(v)){
+    try{out.json=describe(JSON.parse(v),depth+1);}catch{out.json={type:'invalid-json'};}
+   }
+   if(/^https?:\/\//i.test(v)){
+    try{
+     const u=new URL(v);out.url={hostClass:u.hostname==='cloudbuild.googleapis.com'?'cloud-build-api':u.hostname==='console.cloud.google.com'?'cloud-console':'other',hasCredentials:!!(u.username||u.password),hasQuery:!!u.search,hasFragment:!!u.hash};
+    }catch{out.url={hostClass:'unparseable'};}
+   }
+  }else if(type==='object'){
+   const keys=Object.keys(v);out.fieldCount=keys.length;out.truncated=keys.length>MAX_MEMBERS;
+   if(out.truncated)limited=true;
+   out.fields=keys.slice(0,MAX_MEMBERS).map(k=>({field:known.has(k)?k:null,keyClass:known.has(k)?'known-field':selected&&k===selected?'selected-container':'unrecognized-field',
+    ...(['project','projectId'].includes(k)?{expectedScopeMatch:[id.PROJECT,id.NUMBER].includes(v[k])}:['region','location'].includes(k)?{expectedScopeMatch:v[k]===id.REGION}:{}),shape:describe(v[k],depth+1)}));
+  }else if(type==='array'){
+   out.itemCount=v.length;out.truncated=v.length>MAX_MEMBERS;if(out.truncated)limited=true;
+   out.items=v.slice(0,MAX_MEMBERS).map(x=>describe(x,depth+1));
+  }
+  return out;
+ }
+ const result=describe(value,0);
+ return {...result,hintsOnly:true,budget:{maxLength:MAX_LENGTH,maxDepth:MAX_DEPTH,maxNodes:MAX_NODES,maxMembers:MAX_MEMBERS,exceeded:limited},authorizationEffect:'none'};
+}
+function buildAnnotation(key,value,approved,{containerName}={}){
+ const result=buildReference(key,value,approved);
+ return result.format==='unsupported'?{...result,characterization:characterizeAnnotation(value,approved,containerName)}:result;
 }
 function countField(annotations,key,defaultValue){
  const present=!!annotations&&Object.hasOwn(annotations,key),v=annotations?.[key];
@@ -30,20 +78,22 @@ function scaling(service,revision,config,singleRevision){
  if(!automatic)issues.push('manual-or-unrecognized-scaling-mode');
  if(!manual.valid||manual.value!==0)issues.push('unexpected-manual-instance-count');
  if(!min.valid||min.value!==0)issues.push('service-minimum-not-zero');
- // No inferred meaning for an explicit service max=0. Keep it blocked until
- // the actual representation and its documented semantics have been reviewed.
- if(!max.valid||max.present&&max.value!==1)issues.push('service-maximum-not-approved');
+ // Google: effective maximum = min(service maximum, revision maximum).
+ // Explicit zero is NOT interpreted as absent/unlimited. No other gate changes.
+ if(!max.valid||max.present&&max.value<1)issues.push('service-maximum-not-positive-or-parseable');
  if(!rmin.valid||rmin.value!==0||!rmax.valid||rmax.value!==1)issues.push('revision-limits-not-min0-max1');
  if((config?.minInstanceCount??0)!==0||config?.maxInstanceCount!==1)issues.push('function-limits-not-min0-max1');
  if(!singleRevision)issues.push('single-serving-revision-not-proven');
- const verified=issues.length===0;
+ const verified=issues.length===0,effectiveMax=verified?Math.min(rmax.value,max.present?max.value:rmax.value):null;
  return {status:verified?'verified':'mismatch',
   service:{'run.googleapis.com/minScale':min,'run.googleapis.com/maxScale':max,
    'run.googleapis.com/manualInstanceCount':manual,
    'run.googleapis.com/scalingMode':{present:modePresent,observed:['automatic','manual','session'].includes(mode)?mode:null,classification:!modePresent?'default-automatic':automatic?'explicit-automatic':'unsupported-or-manual'}},
   revision:{'autoscaling.knative.dev/minScale':rmin,'autoscaling.knative.dev/maxScale':rmax},
-  effective:{automatic,minInstances:verified?0:null,maxInstances:verified?1:null,
-   basis:verified?'automatic + function/revision min0/max1 + absent-or-equal service cap + single serving revision':'not-proven'},issues};
+  effective:{automatic,minInstances:verified?0:null,maxInstances:effectiveMax,
+   calculation:verified?{rule:'min(serviceMaximum, revisionMaximum)',serviceMaximum:max.value,revisionMaximum:rmax.value,functionMaximum:config.maxInstanceCount}:null,
+   basis:verified?'automatic + function/revision min0/max1 + positive-or-absent service cap + single ready serving revision':'not-proven',
+   limit:'Autoscaling configuration; brief overruns remain possible. Not an absolute instance or spending cap.'},issues};
 }
 function environment(entries,expected,revision){
  const formatValid=Array.isArray(entries),rows=formatValid?entries:[],counts=new Map(),variables=[];
