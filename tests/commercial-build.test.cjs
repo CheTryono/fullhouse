@@ -49,7 +49,7 @@ test('dedicated identity 403/404 remain unknown; inaccessible bindings do not im
  const r=await iam.audit({token:'synthetic',fetcher:async(url)=>url.includes('/v3/projects/')?{ok:true,json:async()=>({projectId:build.PROJECT,name:'projects/'+build.NUMBER})}:{ok:false,status:url.includes(build.BUILD_EMAIL)?404:403}});
  assert.equal(r.complete,false);assert.equal(r.buildSelection.dedicated.identityVerified,false);assert.equal(r.buildSelection.dedicated.operatorActAsVerified,null);assert.equal(r.buildSelection.dedicated.readyForDeploy,false);assert.equal(r.observations.find(x=>x.name==='dedicatedBuildAccount').status,'unknown');
 });
-test('local builder plan is non-executable; --run rejected and all activation remains false',()=>{
+test('local builder plan is non-executable; repository approval leaves Firebase and remote data disabled',()=>{
  const r=build.plan();assert.equal(r.mode,'PLAN_ONLY');assert.equal(r.firebase.deployAllowed,false);assert.equal(r.firebase.explicitBuildIdentityForwarded,false);assert.equal(r.deploymentAuthorized,true);assert.equal(r.remoteEnabled,false);assert.deepEqual(r.sourceBuckets,[build.SOURCE_BUCKET]);assert.equal(r.artifactRepository,build.REPOSITORY);
  const result=spawnSync(process.execPath,['scripts/remote-staging-build-identity.cjs','--run'],{cwd:path.resolve(__dirname,'..'),encoding:'utf8'});assert.equal(result.status,2);assert.match(result.stderr,/Solo plan local/);
 });

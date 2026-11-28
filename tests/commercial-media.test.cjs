@@ -89,7 +89,8 @@ test('actual staging gateway composes media enforcement behind unchanged Auth/Ap
  const handle=createHandler({db:f.db,service:f.service,settings:{...settings,remoteEnabled:true},env,clock:()=>NOW}),request={auth:auth('A'),app:{appId:settings.appId},data:{method:'save',input:command(data([evidence()]))}};
  await assert.rejects(handle(request),{code:'permission-denied'});assert.equal(f.objects.size,0);f.grant();await handle(request);
  const closed=createHandler({db:f.db,service:f.service,settings,env});await assert.rejects(closed(request),{code:'unavailable'});
- const index=require('node:fs').readFileSync(path.join(out,'index.cjs'),'utf8');assert.match(index,/service:createMediaService\(/);assert.equal(settings.deploymentAuthorized,false);assert.equal(settings.remoteEnabled,false);
+ const index=require('node:fs').readFileSync(path.join(out,'index.cjs'),'utf8');assert.match(index,/service:createMediaService\(/);assert.equal(settings.deploymentAuthorized,true);assert.equal(settings.remoteEnabled,false);assert.equal(require('../staging/remote-config.example.json').enabled,false);
+ assert.throws(()=>require('../scripts/remote-staging-build-identity.cjs').assertFirebaseTransport(),/Ruta de deploy bloqueada/);
 });
 test('inventory retains source identities while excluding only image bytes from text accounting',()=>{
  const d=data([evidence()]),before=JSON.stringify(d),i=inventory(before);assert.equal(JSON.stringify(d),before);assert.equal(i.sources.size,1);assert.equal(Object.values(i.bindings)[0].logKey,'removed-event@2030-01-01');assert.equal(i.textBytes,Buffer.byteLength(before)-Buffer.byteLength(IMAGE));

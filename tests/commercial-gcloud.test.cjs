@@ -1,5 +1,6 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),os=require('node:os');
+const {execFileSync}=require('node:child_process');
 const g=require('../scripts/remote-staging-gcloud.cjs'),id=require('../scripts/remote-staging-build-identity.cjs'),fixture=require('./helpers/gcloud-closed.cjs');
 const temp=()=>path.join(fs.mkdtempSync(path.join(os.tmpdir(),'fullhouse-gcloud-plan-')),'artifact');
 test('closed gcloud plan fixes all identities/source/repo/endpoint controls and packages only reviewed files',()=>{
@@ -19,11 +20,24 @@ test('foreign files, symlinks, and activation-file edits are rejected and preser
 });
 test('repository permission alone cannot deploy: missing owner consent or exact release hash stops before credentials, audit and gcloud',async()=>{
  let calls=0;const never=()=>{calls++;throw Error('No se debería llamar a gcloud/auditor');};
- await assert.rejects(g.deployClosed({env:{FULLHOUSE_AUTHORIZE_GCLOUD_CLOSED_DEPLOY:id.PROJECT},nodeVersion:'22.23.5',execute:never,readAudit:never}),/Falta hash exacto/);
- await assert.rejects(g.deployClosed({env:{FULLHOUSE_APPROVED_GCLOUD_RELEASE:'a'.repeat(64)},nodeVersion:'22.23.5',execute:never,readAudit:never}),/Falta Node 22 o autorización/);
+ const consent={FULLHOUSE_AUTHORIZE_GCLOUD_CLOSED_DEPLOY:id.PROJECT},approval={FULLHOUSE_APPROVED_GCLOUD_RELEASE:'a'.repeat(64)};
+ for(const env of [{},approval,{...approval,FULLHOUSE_AUTHORIZE_GCLOUD_CLOSED_DEPLOY:'other'}])await assert.rejects(g.deployClosed({env,nodeVersion:'22.23.5',execute:never,readAudit:never}),/Falta Node 22 o autorización/);
+ for(const value of [undefined,'','short','A'.repeat(64),'a'.repeat(63),'a'.repeat(65)])await assert.rejects(g.deployClosed({env:{...consent,FULLHOUSE_APPROVED_GCLOUD_RELEASE:value},nodeVersion:'22.23.5',execute:never,readAudit:never}),/Falta hash exacto/);
+ await assert.rejects(g.deployClosed({env:{...consent,...approval},nodeVersion:'24.22.1',execute:never,readAudit:never}),/Falta Node 22 o autorización/);
  assert.equal(calls,0);
  const s=require('../remote-staging/settings.json'),c=require('../staging/remote-config.example.json');for(const env of [{GOOGLE_APPLICATION_CREDENTIALS:'/synthetic/not-read'},{GCLOUD_PROJECT:'other'},{CLOUDSDK_API_ENDPOINT_OVERRIDES_STORAGE:'https://other.invalid'},{CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT:'other'},{FIREBASE_AUTH_EMULATOR_HOST:'localhost'},{FULLHOUSE_REMOTE_STAGING_ENABLED:'1'}])assert.throws(()=>g.closed(s,c,env));
  assert.throws(()=>g.closed({...s,remoteEnabled:true},c,{}));assert.throws(()=>g.closed(s,{...c,enabled:true},{}));
+});
+test('repository gate false still blocks all CLI/audit work even with independent consent and a syntactically valid hash',async()=>{
+ const {module:m}=fixture.isolatedAuthorizedModule({deploymentAuthorized:false});let calls=0;const never=()=>{calls++;throw Error('unexpected external operation');};
+ assert.equal(fs.existsSync(m.OUT),false);await assert.rejects(m.deployClosed({env:{FULLHOUSE_AUTHORIZE_GCLOUD_CLOSED_DEPLOY:id.PROJECT,FULLHOUSE_APPROVED_GCLOUD_RELEASE:'a'.repeat(64)},nodeVersion:'22.23.5',execute:never,readAudit:never}),/deploymentAuthorized:false/);assert.equal(calls,0);assert.equal(fs.existsSync(m.OUT),false);
+});
+test('default CLI only prepares/verifies a plan even when both independent approval variables are present',()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'fullhouse-plan-no-exec-')),guard=path.join(dir,'deny-exec.cjs'),marker=path.join(dir,'attempted');
+ fs.writeFileSync(guard,`require('node:child_process').execFileSync=()=>{require('node:fs').writeFileSync(${JSON.stringify(marker)},'blocked');throw Error('External execution forbidden in plan test');};`);
+ const env={PATH:process.env.PATH,...g.ENV,GCLOUD_PROJECT:id.PROJECT,FULLHOUSE_AUTHORIZE_GCLOUD_CLOSED_DEPLOY:id.PROJECT,FULLHOUSE_APPROVED_GCLOUD_RELEASE:g.prepare({out:temp(),env:{}}).releaseHash};
+ const p=JSON.parse(execFileSync(process.execPath,['--require',guard,path.resolve(__dirname,'../scripts/remote-staging-gcloud.cjs')],{env,encoding:'utf8',timeout:30000}));
+ g.verifyPlan(p);assert.equal(p.mode,'CLOSED_PLAN_ONLY');assert.equal(p.deploymentAuthorized,true);assert.equal(p.remoteEnabled,false);assert.equal(p.clientEnabled,false);assert.equal(fs.existsSync(marker),false);
 });
 test('resource preflight separates uploader from builder and never requires an extra run.builder grant by role name',()=>{
  const data=fixture.resources(),r=g.assessResources(data);assert.equal(r.basicInputsVerified,true);assert.equal(r.runBuilderRequiredByThisCheck,false);assert.equal(r.readyForDeploy,false);assert.match(r.internalSources,/UNVERIFIED/);

@@ -114,9 +114,9 @@ test('failed transaction/uncertain confirmation keep stable probe IDs for explic
  let failure='transaction';const p=probePorts({fault:async stage=>{if(stage===failure)throw Error('synthetic fault');}});await assert.rejects(probe.effectiveProbe(p,runId));const id=probe.identities(runId);assert.equal(p.docs.has(`users/${id.uid}/operations/${id.first}`),false);
  failure='after-commit';await assert.rejects(probe.effectiveProbe(p,runId));assert(p.docs.has(`users/${id.uid}/operations/${id.first}`));failure=null;assert.equal((await probe.effectiveProbe(p,runId)).receipt.revisionId,id.second);
 });
-test('local closed artifact preparation cannot authorize deploy or include active controls',()=>{
+test('local artifact reports repository approval but keeps data closed and Firebase transport blocked',()=>{
  const r=prepare({env:{}});assert.equal(r.remoteEnabled,false);assert.equal(r.clientEnabled,false);assert.equal(r.deploymentAuthorized,true);assert.match(r.manifestSha256,/^[a-f0-9]{64}$/);assert.throws(()=>prepare({env:{FULLHOUSE_REMOTE_STAGING_ENABLED:'1'}}));
- assert.throws(()=>require('../scripts/check-remote-staging-deploy.cjs').check({GCLOUD_PROJECT:iam.PROJECT,FULLHOUSE_AUTHORIZE_STAGING_DEPLOY:iam.PROJECT},'22.23.5'),/bloqueado/);
+ assert.throws(()=>require('../scripts/check-remote-staging-deploy.cjs').check({GCLOUD_PROJECT:iam.PROJECT,FULLHOUSE_AUTHORIZE_STAGING_DEPLOY:iam.PROJECT},'22.23.5'),/Ruta de deploy bloqueada/);
  assert.equal(JSON.parse(fs.readFileSync(path.resolve(__dirname,'../remote-staging/settings.json'))).deploymentAuthorized,true);
 });
 test('first HTTPS CLI check needs an operator permission, never added to the runtime',()=>{
