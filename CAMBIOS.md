@@ -19,6 +19,9 @@
 - Codex: nueva suite 25/25 en Node24 y Node22; general Node24 675 aprobados,
   cero fallos y seis TODO (681 casos). Compilación/tipos aprobados. Sin repetir
   pruebas de nube ni presentar inspecciones sintéticas como permisos reales.
+- El inspector verifica también versión/perfil CLI antes de solicitar el token;
+  se repiten sus 25 pruebas en ambos runtimes tras ese refuerzo. Sin cambiar
+  artefacto, validaciones de primera creación o permisos.
 
 # Comercial · PR33: diagnóstico integral de metadata incompleta
 

@@ -44,6 +44,8 @@ mutación. `authorized:false` permanece en ambos informes.
 
 Las consultas son metadata: proyecto/número, testIamPermissions, función completa
 en RAM, build por ID, Run, lista completa de operaciones y relectura de función.
+El propio comando verifica antes SDK592 y perfil CLI sin overrides/impersonación,
+también para la inspección, antes de obtener el token del operador.
 No hay consultas a documentos, cuentas Auth, objetos/fotos o contenido de buckets.
 Run 403, 404 sin NOT_FOUND o errores de API son desconocidos, nunca inexistencia.
 Se rechazan operaciones en curso/desconocidas y paginación incompleta (máximo diez
@@ -207,6 +209,11 @@ Ejecutado por Codex con puertos API/CLI sintéticos y directorios temporales:
 | Suite general `npm test`, Node24.22.1 | **681 casos: 675 aprobados, 0 fallos, 0 omitidos, seis TODO previos**, 41.584 s |
 | `check`, `check:remote`, `check:remote-client`, `check:auth`, `check:history-contract` | Aprobadas; app.tsx/app.js sincronizados sin escribirlos |
 | Aislamiento y release | Backend, cliente, UIDs, ejecutor original, reglas/IAM y workflow intactos; SHA-256 de PR32 conservado |
+
+La suite general corresponde al checkpoint `9f4ce83`. Después se reforzó solo
+la validación del perfil CLI del inspector antes del token y se repitieron las
+25 pruebas afectadas en Node24/22, aprobadas. Las comprobaciones no afectadas
+conservan sus resultados; no se repiten por cambiar esa preparación de lectura.
 
 Se comprueban entrada/scope/permisos, metadata omitida y fuentes no atestadas,
 estado cambiado, separación de consentimientos y fases, cuota del recibo local,
