@@ -1,3 +1,60 @@
+# Comercial · PR35: máximo efectivo y caracterización de build-id
+
+- Propietario confirmó 32 controles reales verificados, cuatro variables env
+  match y dos bloqueos; servicio max60, revisión/Function max1. Se conserva esa
+  evidencia separada de las pruebas sintéticas ejecutadas por Codex.
+- Se aplica la regla oficial min(servicio,revisión), solo con modo automático,
+  mínimos cero, revisión/Function max1 y única revisión Ready reconciliada con
+  todo el tráfico. No se cambian límites de recursos; no es un tope financiero
+  ni garantía contra picos transitorios. Cero, formatos inválidos y conflictos
+  de capacidad/identidad continúan bloqueados.
+- build-id opaco recibe caracterización acotada por tipo, estructura y
+  comparaciones; sin valores arbitrarios, claves desconocidas ni secretos.
+  Indicios de JSON/URL/UUID no autorizan y no ocultan contradicciones. Sigue
+  pendiente conocer su formato real. No se relaja la cadena de procedencia.
+- Backend, hash, cliente, usuarios, IAM, artefacto y aplicación intactos;
+  no despliegue/eliminación ni consultas al proyecto real por Codex.
+- Codex: suite específica 38/38 en Node22/24; general 713 aprobadas, cero
+  fallos y seis TODO previos (719 casos). Compilación/tipos aprobados. Resta
+  ejecutar el diagnóstico real para caracterizar build-id; PR35 sigue en borrador.
+
+# Comercial · PR35: explicación segura de los tres bloqueos
+
+- Propietario informó 31 controles reales aprobados, catorce HTTP200 y tres
+  incompatibilidades en build-id/escalado/env. ZIP aprobado por archivo, revisión
+  e imagen confirmados por el propietario; Codex no inspeccionó Google Cloud.
+- El mismo diagnóstico agrega anotación de build, ámbito/ID, escalado por capa
+  y comparación/clasificación de env solo por nombre. No añade consultas ni
+  imprime valores de env. Las causas reales siguen pendientes de esta lectura.
+- Admite únicamente equivalencias demostrables: mismo build por recurso completo,
+  contador manual cero inerte en automático, EnvVar.value omitido como cadena
+  vacía y JSON Firebase estructuralmente idéntico. Desconocidas y diferencias
+  reales permanecen bloqueadas; no se relajan límites ni identidades.
+- Backend/hash, cliente, UIDs, IAM, recursos, aplicación y deployers intactos.
+  No redeploy, eliminación ni activación. Procedimiento y evidencia en
+  docs/COMMERCIAL_DEPLOYED_RELEASE_VERIFICATION.md.
+- Codex: 30/30 pruebas específicas en Node22/24; general 705 aprobadas,
+  cero fallos y seis TODO previos (711 casos). Compilación/tipos/validadores
+  aprobados. Falta el nuevo diagnóstico real del propietario; PR35 en borrador.
+
+# Comercial · diagnóstico retrospectivo de remoteV1 ACTIVE
+
+- Issue #34 del propietario: Functions ACTIVE, Run Ready y build SUCCESS,
+  aunque el wrapper terminó STOPPED por metadata no equivalente a sus requisitos.
+  No se repite deploy ni se modifica el ejecutor anterior.
+- Nuevo diagnóstico GET de una sola ejecución: fuente resuelta de Functions,
+  generación y bytes de ZIP por archivo, build exacto, revisión sirviendo tráfico,
+  digest en Artifact Registry y configuración efectiva. Todos los bloqueos se
+  informan juntos; no se inventan campos ausentes de Cloud Build ni una atestación.
+- Mismo SHA-256 aprobado, backend/cliente desactivados, UIDs vacíos y recursos,
+  permisos, datos, código público/workflow intactos. Auth/App Check efectivos
+  continúan pendientes de prueba real independiente. Véase
+  docs/COMMERCIAL_DEPLOYED_RELEASE_VERIFICATION.md.
+- Codex: nueva suite 20/20 en Node22/24; general 701 casos, 695 aprobados,
+  cero fallos y seis TODO previos. Compilación/tipos/validadores aprobados.
+  La inspección real sigue pendiente; las respuestas Run/AR/ZIP de tests son
+  sintéticas, no evidencia nueva del proyecto.
+
 # Comercial · PR33: eliminación dirigida y nueva creación preparadas
 
 - Propietario confirmó diagnóstico real: 57 verified, 26 missing, 1 mismatch,

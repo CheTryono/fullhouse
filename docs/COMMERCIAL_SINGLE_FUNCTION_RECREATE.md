@@ -1,5 +1,10 @@
 # remoteV1: eliminación dirigida y nueva creación, separadas
 
+> Estado posterior, comunicado por el propietario en issue #34: la nueva función
+> está ACTIVE y Run Ready. **No repetir DELETE/CREATE** por el STOPPED del wrapper.
+> Usar el [diagnóstico retrospectivo de solo lectura](COMMERCIAL_DEPLOYED_RELEASE_VERIFICATION.md).
+> El procedimiento que sigue se conserva como evidencia de la recuperación anterior.
+
 Fase independiente dentro de PR #33, rama `feat/commercial-failed-function-recovery`.
 **Código preparado, sin autorizar ni ejecutar operaciones reales.** No modifica
 el backend, el cliente, IAM, reglas, Hosting o el ejecutor original de creación.

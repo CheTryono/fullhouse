@@ -52,7 +52,9 @@
     "test:remote-staging:recovery": "node --test tests/commercial-recovery*.test.cjs",
     "test:remote-staging:recovery-sdk": "node scripts/test-remote-recovery-sdk.cjs",
     "prepare:remote-staging:recreate": "node scripts/remote-staging-recreate.cjs",
-    "test:remote-staging:recreate": "node --test tests/commercial-recreate.test.cjs"
+    "test:remote-staging:recreate": "node --test tests/commercial-recreate.test.cjs",
+    "verify:remote-staging:release": "node scripts/verify-remote-staging-release.cjs",
+    "test:remote-staging:release": "node --test tests/commercial-deployed-release.test.cjs"
   },
   "engines": {
     "node": ">=24.15.0 <25"
