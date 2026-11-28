@@ -6,6 +6,7 @@ const {execFileSync}=require('node:child_process');
 const g=require('./remote-staging-gcloud.cjs'),id=require('./remote-staging-build-identity.cjs');
 const {MAX_ZIP,verifySourceZip}=require('./remote-staging-source-zip.cjs');
 const {canonical}=require('./remote-staging-recovery.cjs');
+const shapes=require('./remote-staging-release-shapes.cjs');
 const EXPECTED=Object.freeze({
  releaseHash:'1e930e8ac0ef2ea68ce707abc013e07e4f31d53532370b0e72a3958195dfd1af',
  buildId:'b378e9e0-e8f6-4604-814e-6dd3eef33b45',
@@ -145,8 +146,10 @@ function diagnose(e,local){
  check('run.revision',r,v=>!!revision&&v.metadata?.name===revision&&namespace(v.metadata.namespace)&&v.metadata.uid&&v.metadata.labels?.['serving.knative.dev/service']==='remotev1'&&v.metadata.generation!==undefined&&String(v.status?.observedGeneration)===String(v.metadata.generation)&&ready(v),'Revisión inmutable Ready del servicio esperado.');
  check('provenance.functionRevision',c?.revision,v=>functionRevision(v,revision),'Asociación output-only Function.buildConfig.build → Function.serviceConfig.revision → revisión sirviendo tráfico.');
  const annotations=r?.metadata?.annotations;
+ const buildAnnotations={};
  for(const key of ['run.googleapis.com/build-name','run.googleapis.com/build-id']){
-  if(annotations?.[key]!==undefined)check('provenance.'+key,annotations[key],v=>key.endsWith('build-id')?v===EXPECTED.buildId:owned('builds/'+EXPECTED.buildId,v),'Corroboración adicional si Google la devuelve.');
+  buildAnnotations[key]=shapes.buildAnnotation(key,annotations?.[key],EXPECTED.buildId);
+  if(annotations?.[key]!==undefined)check('provenance.'+key,annotations[key],()=>buildAnnotations[key].status==='verified','UUID o recurso de la misma compilación y ámbito; desglose en diagnostics.buildAnnotations.');
  }
  const image=imageIdentity(r?.status?.imageDigest);
  check('image.runDigest',r?.status?.imageDigest,v=>!!imageIdentity(v),'Digest resuelto de la revisión, en repositorio aprobado; no se resuelven tags.');
@@ -155,10 +158,12 @@ function diagnose(e,local){
  check('run.runtime',rs,v=>v.serviceAccountName===id.RUNTIME&&v.containerConcurrency===1&&v.timeoutSeconds===60&&v.containers?.length===1&&!v.volumes?.length,'Identidad/capacidad de la revisión efectiva, sin sidecars ni volúmenes.');
  check('run.resources',container?.resources?.limits,v=>['512Mi','536870912'].includes(v.memory)&&['0.3333','333.3m'].includes(v.cpu)&&Object.keys(v).every(k=>['memory','cpu'].includes(k)),'512 MiB y CPU 0.3333, sin recursos adicionales.');
  check('run.scaling',annotations,v=>v['autoscaling.knative.dev/maxScale']==='1'&&(v['autoscaling.knative.dev/minScale']??'0')==='0','Cero instancias mínimas y máximo uno.');
- check('run.serviceScaling',s?.metadata?.annotations,v=>(v['run.googleapis.com/minScale']??'0')==='0'&&(v['run.googleapis.com/maxScale']??'1')==='1'&&!v['run.googleapis.com/manualInstanceCount']&&(!v['run.googleapis.com/scalingMode']||v['run.googleapis.com/scalingMode']==='automatic'),'Sin escalado manual ni límite de servicio que amplíe la capacidad.');
+ const scaling=shapes.scaling(s,r,c,!!revision);
+ check('run.serviceScaling',s?.metadata?.annotations,()=>scaling.status==='verified','Escalado automático y límites min0/max1 demostrados; desglose en diagnostics.scaling.');
  check('run.ingress',s?.metadata?.annotations,v=>v['run.googleapis.com/ingress']==='all'&&v['run.googleapis.com/invoker-iam-disabled']!=='true','Ingress aprobado; comprobación IAM del servicio no deshabilitada.');
  const vars=container?.env;
- check('run.environment',vars,v=>Array.isArray(v)&&new Set(v.map(x=>x.name)).size===v.length&&Object.entries(g.ENV).every(([name,value])=>v.some(x=>x.name===name&&x.value===value&&!x.valueFrom))&&v.every(x=>typeof x.name==='string'&&!x.valueFrom&&!/EMULATOR|^FIREBASE_DEBUG|^CLOUDSDK_AUTH_|^CLOUDSDK_API_ENDPOINT_OVERRIDES_|^GOOGLE_APPLICATION_CREDENTIALS$|^FIREBASE_TOKEN$|^NODE_OPTIONS$|^NODE_TLS_REJECT_UNAUTHORIZED$/.test(x.name)&&(!['GCLOUD_PROJECT','GOOGLE_CLOUD_PROJECT','GCP_PROJECT'].includes(x.name)||x.value===id.PROJECT)&&(!['FUNCTION_TARGET','FUNCTION_SIGNATURE_TYPE'].includes(x.name)||x.value===(x.name==='FUNCTION_TARGET'?'remoteV1':'http'))),'Variables cerradas en revisión efectiva, sin emulación/debug/proyecto contradictorio.');
+ const environment=shapes.environment(vars,g.ENV,revision);
+ check('run.environment',vars,()=>environment.status==='verified','Variables esperadas y de plataforma verificadas por nombre; desconocidas/indirectas/peligrosas bloqueadas. Véase diagnostics.environment.');
  check('run.invoker',e.policy,v=>Array.isArray(v.bindings)&&v.bindings.some(x=>x.role==='roles/run.invoker'&&!x.condition&&x.members?.includes('allUsers'))&&!v.bindings.some(x=>x.members?.some(m=>['allUsers','allAuthenticatedUsers'].includes(m))&&x.role!=='roles/run.invoker'),'Callable público solo como invoker del servicio; Auth/App Check en código.');
  for(const name of ['fn','service','revision','policy'])check('stable.'+name,e.end?.[name],v=>e[name]!=null&&canonical(v)===canonical(e[name]),'Misma respuesta al releer; sin snapshot transaccional entre servicios.');
  // Build output omissions remain visible. Never invent results.images or SLSA.
@@ -176,6 +181,7 @@ function diagnose(e,local){
   releaseHash:EXPECTED.releaseHash,buildId:EXPECTED.buildId,status:blocked.length?'blocked':'verified',
   checks,counts:Object.fromEntries(['verified','missing','mismatch','unverified','not equivalent'].map(k=>[k,checks.filter(x=>x.status===k).length])),
   blocked:blocked.map(x=>x.name),observations:e.observations||[],
+  diagnostics:{buildAnnotations,scaling,environment},
   evidence:{revision:revision||null,image:image?.uri||null,source:src,sourceVerification:e.sourceVerification||null},
   remoteEnabled:false,clientEnabled:false,userActivationAuthorized:false,
   next:blocked.length?'Revisar todos los campos bloqueados; no desplegar/eliminar/reintentar.':'Solo revisión del propietario y autorización separada de pruebas negativas Auth/App Check.',

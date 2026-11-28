@@ -27,8 +27,29 @@ literal con el bucket de subida: hay varios motivos de rechazo posibles; su
 mensaje genérico no identifica cuál fue el primer throw.
 
 Esta evidencia pertenece al **propietario**. Codex leyó el issue y ejecutó pruebas
-locales sintéticas; **no consultó el proyecto real**. No se conoce todavía el
-digest/revisión efectivo ni se han comparado los bytes reales de ese ZIP.
+locales sintéticas; **no consultó el proyecto real**.
+
+### Inspección posterior del propietario en PR #35
+
+Sobre `66d8fb9`, Node22.23.5 y el comando de lectura de esta página, el propietario
+comunicó **31 verified, 2 missing, 3 mismatch, 1 unverified y 1 not equivalent**;
+las catorce consultas, incluidas las relecturas, devolvieron HTTP200. Confirmó:
+
+- ZIP de la generación exacta, **41193 bytes y once archivos** con todos sus
+  hashes individuales iguales al artefacto aprobado. SHA-256 del ZIP:
+  `bc2fbbfb0301b1cf7a59078460b37b879bb75dc1bac15afb3e0ed4c9083a5f30`.
+- Revisión `remotev1-00001-jul`, Ready, con 100% del tráfico; asociación con la
+  Function comprobada. Digest de imagen corroborado en Artifact Registry:
+  `sha256:cb6e3142290687ffab11088316f107ecd126f89434ad09e6b3a19755c1dc74b1`.
+- Identidades, build SUCCESS, capacidad de Function/revisión, ingress, Invoker,
+  flags cerrados y estabilidad verificados.
+
+El estado global continúa **blocked** por `provenance.run.googleapis.com/build-id`,
+`run.serviceScaling` y `run.environment`. El propietario confirmó después que no
+conserva la anotación, los ajustes de escalado ni los nombres de las variables
+necesarios para explicar esos rechazos. **No se conocen aún sus causas reales**:
+no se infieren de los tres nombres de control. La actualización del diagnóstico
+las detalla en la misma lectura, sin volver a desplegar ni pedir valores de env.
 
 ## Qué comprueba el nuevo diagnóstico
 
@@ -61,6 +82,52 @@ Las anotaciones de build de Run y los campos de imágenes/procedencia de Build,
 **si aparecen**, también deben ser consistentes. Los campos ausentes se conservan
 como ausentes, sin rellenarlos. Si `serviceConfig.revision` o el digest no están
 disponibles, se informa el bloqueo: no se asocia por similitud o proximidad temporal.
+
+### Desglose seguro de las tres incompatibilidades
+
+El resultado incluye `diagnostics`, calculado solo con las respuestas ya en RAM;
+**no añade llamadas** a las catorce lecturas existentes:
+
+| Campo | Qué muestra y cómo decide |
+| --- | --- |
+| `diagnostics.buildAnnotations` | Anotación `build-id` observada si es UUID/recurso reconocible, ID aprobado y comparación de proyecto/región/ID. Un recurso completo es equivalente solo para el mismo proyecto (ID o número), `us-central1` y UUID. Otro ámbito o build sigue bloqueado; texto no reconocible se clasifica sin imprimirlo. `build-name` sigue exigiendo un recurso completo. |
+| `diagnostics.scaling.service` | Presencia, valor numérico/modo reconocido y representación de las cuatro anotaciones seleccionadas. No vuelca otras anotaciones, que podrían contener variables. |
+| `diagnostics.scaling.revision` | Presencia y valores de min/max de la revisión. |
+| `diagnostics.scaling.effective` e `issues` | Solo declara automático/min0/max1 cuando lo prueban conjuntamente Function, revisión, configuración del servicio y una única revisión con tráfico. En otro caso devuelve límites efectivos null y los motivos. |
+| `diagnostics.environment` | Solo nombres válidos, clasificación, match/mismatch, representación, motivo y lista de variables requeridas ausentes. Nunca valores, tamaños ni hashes de env, ni contenido de referencias a secretos. |
+
+Equivalencias estrechas implementadas y probadas, **sin afirmar que sean las
+formas realmente presentes en el proyecto**:
+
+- `build-id` como UUID o recurso completo del mismo build. No se normaliza un ID
+  diferente ni se sustituye la cadena obligatoria fuente/build/revisión/imagen.
+- Modo de escalado omitido significa AUTOMATIC según `ServiceScaling`; el modo
+  explícito admitido en las anotaciones v1 es `automatic`. Contador manual
+  explícito `"0"` no selecciona el modo manual y es inerte en automático. El
+  modo manual, contadores no nulos, mínimos distintos de cero y máximos de
+  servicio explícitos distintos de uno **siguen bloqueados**. No se deduce el
+  significado de `maxScale="0"` ni se aceptan límites mayores por suposición.
+- `EnvVar.value` omitido significa `""`, conforme al esquema v1; **la entrada
+  debe existir**. Permite comprobar una allowlist vacía representada sin `value`,
+  pero no confunde esa forma con una variable ausente o procedente de un secreto.
+- `FIREBASE_CONFIG` inline puede variar solo en orden de sus claves y espacios:
+  debe conservar exactamente las dos claves/valores aprobados. El backend ya lo
+  interpreta mediante JSON; no se aceptan claves adicionales, archivos, arrays
+  ni otra identidad. Las otras variables requeridas mantienen igualdad literal.
+
+Las adicionales admitidas son únicamente los alias de proyecto ya comprobados,
+`FUNCTION_TARGET`, `FUNCTION_SIGNATURE_TYPE`, `K_SERVICE`, `K_CONFIGURATION`,
+`K_REVISION` y `PORT`, cada una con su identidad/valor esperado exacto. Esto no
+afirma que Google inyecte todas ellas en la lista de env de esta revisión.
+Las desconocidas quedan bloqueadas, así como duplicados, referencias indirectas,
+entradas inválidas, emuladores, opciones de depuración/TLS y `NODE_OPTIONS`.
+El validador anterior toleraba extras no reconocidas: ahora se rechazan, como
+solicitó el propietario en PR35. No se acepta una variable por parecer de Google.
+
+Si el nuevo resultado describe una diferencia real o no demostrada, conservar
+`blocked`, compartir el **JSON resumido** y revisar su causa antes de proponer
+cualquier cambio. Esta PR no cambia el escalado, las variables, permisos o código
+desplegados. No usar deploy/delete/create para solventar un rechazo del auditor.
 
 El ZIP se limita a 8 MiB **de código**, independiente del límite del respaldo v1.
 Las respuestas de metadata se limitan a 2 MiB y cada GET a 30 segundos, sin
@@ -149,7 +216,24 @@ Resultados ejecutados directamente por Codex sobre esta corrección:
 | `npm run check` | TypeScript y app.js público sincronizados, sin escribir archivos |
 | `check:history-contract`, `check:auth`, `check:remote`, `check:remote-client` | Aprobados |
 | Hash local regenerado | Mismo `1e930…d1af`, once archivos; sin cambio de release |
-| Inspección real de Google / pruebas negativas Auth-App Check | **Pendientes del propietario**, no ejecutadas por Codex |
+| Inspección real de Google sobre `66d8fb9` | Propietario: 31 controles verificados y tres bloqueos; evidencia detallada arriba |
+| Inspección real tras añadir el desglose / pruebas negativas Auth-App Check | **Pendientes del propietario**, no ejecutadas por Codex |
+
+Actualización PR35: treinta pruebas de la suite específica, incluidas diez nuevas
+regresiones de formatos, defaults, ámbitos incorrectos, límites alterados y
+privacidad. Las cuatro regresiones iniciales fallaron antes de la corrección;
+la forma concreta de los tres rechazos reales sigue pendiente de la nueva lectura.
+Resultados ejecutados por Codex sobre esta actualización:
+
+| Comprobación | Resultado |
+| --- | --- |
+| Suite específica Node22.23.5 / Node24.22.1 | 30/30 en ambos runtimes, cero fallos/omitidas/TODO |
+| `npm test`, Node24.22.1 | 711 casos: 705 aprobados, cero fallos/omitidas y seis TODO previos |
+| `check`, `check:history-contract`, `check:auth`, `check:remote`, `check:remote-client` | Aprobados |
+| Release regenerada y diff de zonas protegidas | Mismo SHA-256 aprobado; backend, cliente, app, workflow y ejecutores intactos |
+
+No se repitió la inspección real desde Codex; se necesita una ejecución del mismo
+comando en Cloud Shell con esta actualización. La PR35 permanece en borrador.
 
 No se repitieron emuladores, navegador ni ensayos runtime que no cambiaron.
 Firefox, WebKit y dispositivos físicos no se probaron en esta entrega. Los seis
@@ -170,3 +254,4 @@ Fuentes oficiales utilizadas (esquemas contrastados además con SDK592):
 - [Artifact Registry: DockerImage.get](https://docs.cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.dockerImages/get).
 - [Storage: leer una generación de objeto](https://docs.cloud.google.com/storage/docs/json_api/v1/objects/get).
 - [Cloud Build: consultar un build](https://docs.cloud.google.com/build/docs/api/reference/rest/v1/projects.locations.builds/get).
+- [Esquema oficial ServiceScaling: modo omitido AUTOMATIC](https://github.com/googleapis/googleapis/blob/master/google/cloud/run/v2/vendor_settings.proto), contrastado con SDK592. Run v1 `EnvVar.value` documenta el default vacío; sus anotaciones v1 de modo/escalado se contrastaron con `api_lib/run/service.py` y `command_lib/run/flags.py` del mismo SDK.

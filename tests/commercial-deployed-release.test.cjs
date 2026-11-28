@@ -73,6 +73,78 @@ test('contradictory optional Cloud Build evidence is never ignored',()=>{
  const input=fixture(x);input.build.source={storageSource:{bucket:'foreign'}};blocked(input,'build.sourceInput','mismatch');
  const r=fixture(x);r.revision.metadata.annotations['run.googleapis.com/build-name']='projects/other/locations/us-central1/builds/other';blocked(sync(r),'provenance.run.googleapis.com/build-name','mismatch');
 });
+test('PR35: build-id resource form must identify the same approved project, region and UUID',()=>{
+ for(const project of ['fullhouse-staging','664973716762']){
+  const e=fixture(x);e.revision.metadata.annotations['run.googleapis.com/build-id']=`projects/${project}/locations/us-central1/builds/${v.EXPECTED.buildId}`;
+  assert.equal(v.diagnose(sync(e),x.local).status,'verified');
+ }
+});
+test('PR35: automatic scaling with explicit inactive manual count zero retains min0/max1',()=>{
+ const e=fixture(x);Object.assign(e.service.metadata.annotations,{'run.googleapis.com/scalingMode':'automatic','run.googleapis.com/manualInstanceCount':'0','run.googleapis.com/minScale':'0','run.googleapis.com/maxScale':'1'});
+ assert.equal(v.diagnose(sync(e),x.local).status,'verified');
+});
+test('PR35: EnvVar.value omission means empty string, never a missing required variable',()=>{
+ const e=fixture(x),entry=e.revision.spec.containers[0].env.find(x=>x.name==='FULLHOUSE_STAGING_TEST_UIDS');delete entry.value;
+ assert.equal(v.diagnose(sync(e),x.local).status,'verified');
+});
+test('PR35: unknown environment additions fail closed and their values are never printed',()=>{
+ const e=fixture(x);e.revision.spec.containers[0].env.push({name:'UNRECOGNIZED_SETTING',value:'SECRET_NEVER_PRINT_PR35'});
+ const r=blocked(sync(e),'run.environment','mismatch');assert(!JSON.stringify(r).includes('SECRET_NEVER_PRINT_PR35'));
+});
+test('PR35: one diagnostic explains all three blockers using existing metadata without exposing env values',()=>{
+ const e=fixture(x),wrong='00000000-0000-0000-0000-000000000000';
+ e.revision.metadata.annotations['run.googleapis.com/build-id']=wrong;
+ Object.assign(e.service.metadata.annotations,{'run.googleapis.com/scalingMode':'manual','run.googleapis.com/manualInstanceCount':'1'});
+ e.revision.spec.containers[0].env.push({name:'NODE_OPTIONS',value:'SECRET_NEVER_PRINT_PR35_OPTIONS'});
+ const r=v.diagnose(sync(e),x.local),d=r.diagnostics;
+ assert.deepEqual(r.blocked,['provenance.run.googleapis.com/build-id','run.serviceScaling','run.environment']);
+ assert.equal(d.buildAnnotations['run.googleapis.com/build-id'].observed,wrong);assert.equal(d.buildAnnotations['run.googleapis.com/build-id'].idMatch,false);
+ assert.equal(d.scaling.service['run.googleapis.com/scalingMode'].observed,'manual');assert.equal(d.scaling.effective.maxInstances,null);
+ const row=d.environment.variables.find(x=>x.name==='NODE_OPTIONS');assert.equal(row.classification,'forbidden');assert.equal(row.comparison,'mismatch');
+ assert(!JSON.stringify(r).includes('SECRET_NEVER_PRINT_PR35_OPTIONS'));assert.equal(check(r,'source.bytes').status,'verified');
+});
+test('PR35: full build references never accept a different project, region or UUID',()=>{
+ for(const [project,region,uuid]of [['other-project','us-central1',v.EXPECTED.buildId],['fullhouse-staging','europe-west1',v.EXPECTED.buildId],['fullhouse-staging','us-central1','00000000-0000-0000-0000-000000000000']]){
+  const e=fixture(x);e.revision.metadata.annotations['run.googleapis.com/build-id']=`projects/${project}/locations/${region}/builds/${uuid}`;
+  blocked(sync(e),'provenance.run.googleapis.com/build-id','mismatch');
+ }
+ const e=fixture(x);e.revision.metadata.annotations['run.googleapis.com/build-id']='SECRET_NEVER_PRINT_PR35_ANNOTATION?token=private';
+ const r=blocked(sync(e),'provenance.run.googleapis.com/build-id','mismatch');assert.equal(r.diagnostics.buildAnnotations['run.googleapis.com/build-id'].format,'unsupported');assert(!JSON.stringify(r).includes('SECRET_NEVER_PRINT_PR35_ANNOTATION'));
+});
+test('PR35: scaling defaults and inert manual zero cannot conceal changed bounds or manual mode',()=>{
+ for(const mutate of [e=>e.service.metadata.annotations['run.googleapis.com/scalingMode']='manual',e=>e.service.metadata.annotations['run.googleapis.com/scalingMode']='AUTO',e=>e.service.metadata.annotations['run.googleapis.com/manualInstanceCount']='1',e=>e.service.metadata.annotations['run.googleapis.com/minScale']='1',e=>e.service.metadata.annotations['run.googleapis.com/maxScale']='2',e=>e.service.metadata.annotations['run.googleapis.com/maxScale']='0',e=>e.service.metadata.annotations['run.googleapis.com/minScale']=0,e=>e.revision.metadata.annotations['autoscaling.knative.dev/maxScale']='2',e=>e.fn.serviceConfig.maxInstanceCount=2]){
+  const e=fixture(x);mutate(e);const r=blocked(sync(e),'run.serviceScaling','mismatch');assert.equal(r.diagnostics.scaling.effective.maxInstances,null);assert(r.diagnostics.scaling.issues.length>0);
+ }
+ const e=fixture(x);e.service.metadata.annotations['run.googleapis.com/manualInstanceCount']='0';const r=v.diagnose(sync(e),x.local);
+ assert.equal(r.status,'verified');assert.equal(r.diagnostics.scaling.effective.minInstances,0);assert.equal(r.diagnostics.scaling.effective.maxInstances,1);
+ assert.equal(r.diagnostics.scaling.service['run.googleapis.com/maxScale'].present,false);
+});
+test('PR35: expected variable comparisons distinguish omitted empty value, absent row, duplicate and secret reference',()=>{
+ for(const mutate of [rows=>rows.splice(rows.findIndex(x=>x.name==='FULLHOUSE_STAGING_TEST_UIDS'),1),rows=>rows.push({...rows[0]}),rows=>{const e=rows.find(x=>x.name==='FULLHOUSE_STAGING_TEST_UIDS');delete e.value;e.valueFrom={secretKeyRef:{name:'SECRET_NEVER_PRINT_PR35_REF'}};},rows=>{rows.find(x=>x.name==='FULLHOUSE_STAGING_TEST_UIDS').value=null;}]){
+  const e=fixture(x);mutate(e.revision.spec.containers[0].env);const r=blocked(sync(e),'run.environment','mismatch');assert(!JSON.stringify(r).includes('SECRET_NEVER_PRINT_PR35_REF'));
+ }
+ const e=fixture(x);delete e.revision.spec.containers[0].env.find(x=>x.name==='FULLHOUSE_STAGING_TEST_UIDS').value;
+ const d=v.diagnose(sync(e),x.local).diagnostics.environment.variables.find(x=>x.name==='FULLHOUSE_STAGING_TEST_UIDS');
+ assert.equal(d.comparison,'match');assert.equal(d.representation,'default-empty-string');assert(!Object.hasOwn(d,'value'));
+});
+test('PR35: inline Firebase JSON can vary only in formatting/key order, with no extra or contradictory fields',()=>{
+ const e=fixture(x),entry=e.revision.spec.containers[0].env.find(x=>x.name==='FIREBASE_CONFIG');
+ entry.value=JSON.stringify({storageBucket:'fullhouse-staging.firebasestorage.app',projectId:'fullhouse-staging'},null,2);
+ const r=v.diagnose(sync(e),x.local);assert.equal(r.status,'verified');assert.equal(r.diagnostics.environment.variables.find(x=>x.name==='FIREBASE_CONFIG').representation,'equivalent-inline-json');
+ for(const value of ['{}','[]','not-json',JSON.stringify({projectId:'other',storageBucket:'fullhouse-staging.firebasestorage.app'}),JSON.stringify({projectId:'fullhouse-staging',storageBucket:'other'}),JSON.stringify({projectId:'fullhouse-staging',storageBucket:'fullhouse-staging.firebasestorage.app',extra:'SECRET_NEVER_PRINT_PR35_JSON'})]){
+  const e=fixture(x);e.revision.spec.containers[0].env.find(x=>x.name==='FIREBASE_CONFIG').value=value;const r=blocked(sync(e),'run.environment','mismatch');assert(!JSON.stringify(r).includes('SECRET_NEVER_PRINT_PR35_JSON'));
+ }
+});
+test('PR35: known platform names require exact identities; unknown, dangerous and malformed entries stay blocked',()=>{
+ const platform={GCLOUD_PROJECT:'fullhouse-staging',GOOGLE_CLOUD_PROJECT:'fullhouse-staging',FUNCTION_TARGET:'remoteV1',FUNCTION_SIGNATURE_TYPE:'http',K_SERVICE:'remotev1',K_CONFIGURATION:'remotev1',K_REVISION:fixture(x).revision.metadata.name,PORT:'8080'};
+ const e=fixture(x);e.revision.spec.containers[0].env.push(...Object.entries(platform).map(([name,value])=>({name,value})));assert.equal(v.diagnose(sync(e),x.local).status,'verified');
+ for(const [name]of Object.entries(platform)){
+  const e=fixture(x);e.revision.spec.containers[0].env.push({name,value:'SECRET_NEVER_PRINT_PR35_PLATFORM'});const r=blocked(sync(e),'run.environment','mismatch');assert(!JSON.stringify(r).includes('SECRET_NEVER_PRINT_PR35_PLATFORM'));
+ }
+ for(const addition of [null,{name:'NODE_TLS_REJECT_UNAUTHORIZED',value:'0'},{name:'FIREBASE_AUTH_EMULATOR_HOST',value:''},{name:'UNEXPECTED_KEY',value:{secret:'SECRET_NEVER_PRINT_PR35_NESTED'}},{name:'INVALID NAME SECRET_NEVER_PRINT_PR35_NAME',value:'private'}]){
+  const e=fixture(x);e.revision.spec.containers[0].env.push(addition);const r=blocked(sync(e),'run.environment','mismatch');assert(!JSON.stringify(r).includes('SECRET_NEVER_PRINT_PR35'));
+ }
+});
 test('changing any final control snapshot blocks; diagnostic reports all failures together without secrets',()=>{
  const e=fixture(x);e.end.fn.updateTime='changed';e.end.service.metadata.generation=2;e.end.policy.bindings=[];e.end.revision.metadata.uid='changed';
  e.fn.serviceConfig.environmentVariables.PRIVATE_KEY='do-not-print';e.build.status='FAILURE';

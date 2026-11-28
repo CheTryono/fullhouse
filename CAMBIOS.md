@@ -1,3 +1,22 @@
+# Comercial · PR35: explicación segura de los tres bloqueos
+
+- Propietario informó 31 controles reales aprobados, catorce HTTP200 y tres
+  incompatibilidades en build-id/escalado/env. ZIP aprobado por archivo, revisión
+  e imagen confirmados por el propietario; Codex no inspeccionó Google Cloud.
+- El mismo diagnóstico agrega anotación de build, ámbito/ID, escalado por capa
+  y comparación/clasificación de env solo por nombre. No añade consultas ni
+  imprime valores de env. Las causas reales siguen pendientes de esta lectura.
+- Admite únicamente equivalencias demostrables: mismo build por recurso completo,
+  contador manual cero inerte en automático, EnvVar.value omitido como cadena
+  vacía y JSON Firebase estructuralmente idéntico. Desconocidas y diferencias
+  reales permanecen bloqueadas; no se relajan límites ni identidades.
+- Backend/hash, cliente, UIDs, IAM, recursos, aplicación y deployers intactos.
+  No redeploy, eliminación ni activación. Procedimiento y evidencia en
+  docs/COMMERCIAL_DEPLOYED_RELEASE_VERIFICATION.md.
+- Codex: 30/30 pruebas específicas en Node22/24; general 705 aprobadas,
+  cero fallos y seis TODO previos (711 casos). Compilación/tipos/validadores
+  aprobados. Falta el nuevo diagnóstico real del propietario; PR35 en borrador.
+
 # Comercial · diagnóstico retrospectivo de remoteV1 ACTIVE
 
 - Issue #34 del propietario: Functions ACTIVE, Run Ready y build SUCCESS,
