@@ -1,3 +1,22 @@
+# Comercial · PR33: diagnóstico integral de metadata incompleta
+
+- Revisado el comentario real del propietario: inspección 4a3aa69 / Node22.23.5,
+  permisosFaltantes [], runtime no devuelto en FAILED, sin evidencia de cuenta
+  incorrecta. El JSON vacío era consecuencia secundaria del fallo de inspección.
+- Nuevo --diagnose de solo lectura: enumera todas las precondiciones ausentes,
+  contradictorias o no verificadas en un JSON resumido, sin valores sensibles.
+  Continúa consultando el resto de fuentes ante errores; no certifica lectura
+  parcial ni cambia el bloqueo estricto de --inspect/--recover.
+- No se atribuye la cuenta futura o el builder al runtime anterior. Se prepara
+  una propuesta no ejecutable de delete/recreate por dos autorizaciones, con
+  conservación de Firestore/Storage/Auth/IAM e identidades, y sin afirmar ausencia
+  de datos. Borrado aún sin implementar/autorizar; --delete sigue rechazado.
+- recoveryHash anterior invalidado por cambios de control y nuevo módulo sellado;
+  releaseHash de PR32 intacto. Backend/cliente/UIDs cerrados; sin nube/IAM/deploy.
+- Codex: general Node24 650 aprobados/0 fallos/6 TODO (656 casos); recuperación
+  y diagnóstico 25/25; selección comercial Node22 108/108. Compilación/tipos y
+  SDK592 original/recuperación offline aprobados. Sin atribuirse la inspección real.
+
 # Comercial · recuperación controlada de la función FAILED, sin ejecutar
 
 - Base e57b408 (PR32). Ruta independiente para remoteV1 FAILED / us-central1,

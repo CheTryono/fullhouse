@@ -30,35 +30,54 @@ function assertSnapshot(s){
 }
 function seal(snapshot,release){
  assertSnapshot(snapshot);g.verifyPlan(release);
- const controls=Object.fromEntries(['remote-staging-recovery.cjs','audit-remote-staging-iam.cjs','remote-staging-build-identity.cjs','probe-remote-staging-runtime.cjs','build-remote-staging.cjs','prepare-remote-staging-closed.cjs'].map(name=>[name,sha(fs.readFileSync(path.join(__dirname,name)))]));
+ const controls=Object.fromEntries(['remote-staging-recovery.cjs','remote-staging-recovery-diagnostic.cjs','audit-remote-staging-iam.cjs','remote-staging-build-identity.cjs','probe-remote-staging-runtime.cjs','build-remote-staging.cjs','prepare-remote-staging-closed.cjs'].map(name=>[name,sha(fs.readFileSync(path.join(__dirname,name)))]));
  const payload={format:1,target:id.FUNCTION,previousBuild:PREVIOUS_BUILD,releaseHash:release.releaseHash,snapshotHash:sha(canonical(snapshot)),controls};
  return {...payload,recoveryHash:sha(canonical(payload))};
 }
 function report(snapshot,release){const proof=seal(snapshot,release);return {mode:'READ_ONLY_RECOVERY_INSPECTION',...proof,checks:{runtimePolicy:snapshot.audit.assessment.directPolicy,apis:snapshot.audit.closedFunctionsPreparation.apiCheck,dedicatedBuilder:snapshot.audit.buildSelection.dedicated,managedIdentities:snapshot.audit.managedIdentities,sourceRepository:snapshot.audit.gcloudResources.checks,permissions:snapshot.audit.recoveryPermissions},observed:{name:snapshot.fn.name,state:snapshot.fn.state,environment:snapshot.fn.environment,createTime:snapshot.fn.createTime,updateTime:snapshot.fn.updateTime,build:snapshot.fn.buildConfig.build,builder:snapshot.fn.buildConfig.serviceAccount,runtime:snapshot.fn.serviceConfig.serviceAccountEmail,repository:snapshot.fn.buildConfig.dockerRepository,source:snapshot.fn.buildConfig.source.storageSource,capacity:{memory:snapshot.fn.serviceConfig.availableMemory,cpu:snapshot.fn.serviceConfig.availableCpu,maxInstances:snapshot.fn.serviceConfig.maxInstanceCount},run:snapshot.run,previousImages:snapshot.previousBuild.results.images,previousSource:snapshot.previousBuild.sourceProvenance.resolvedStorageSource},notice:'Metadata read-only, not deployment permission. Owner must review releaseHash and recoveryHash independently; freeze concurrent deployments. No atomic CAS in gcloud.'};}
-async function readLive({token,fetcher=fetch,readAudit}={}){
- const iam=require('./audit-remote-staging-iam.cjs');token??=iam.localToken();if(typeof token!=='string'||!token.trim()||/[\r\n]/.test(token))throw Error('Sesión local del propietario no disponible.');
- async function request(url,{method='GET',body,missing=false}={}){
-  const r=await fetcher(url,{method,headers:{authorization:'Bearer '+token,'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{}),redirect:'error',credentials:'omit',signal:AbortSignal.timeout(15000)});
-  if(!r.ok){let error;try{error=(await r.json()).error;}catch{}
-   const reason=error?.details?.find?.(d=>d?.['@type']==='type.googleapis.com/google.rpc.ErrorInfo')?.reason;
-   if(missing&&r.status===404&&error?.status==='NOT_FOUND'&&!reason)return {resource:RUN,http:404,rpcStatus:'NOT_FOUND'};
-   throw Error(`Inspección no verificable (HTTP ${r.status}); no se interpreta como ausencia ni se cambian permisos.`);
-  }return r.json();
+async function readLive({token,fetcher=fetch,readAudit,diagnostic=false}={}){
+ const iam=require('./audit-remote-staging-iam.cjs'),readIssues=[];
+ try{token??=iam.localToken();if(typeof token!=='string'||!token.trim()||/[\r\n]/.test(token))throw Error('Sesión local del propietario no disponible.');}catch(e){if(!diagnostic)throw e;return {readIssues:[{source:'credentials',status:'unverified'}]};}
+ const issue=(source,e,details={})=>{if(!diagnostic)throw e;readIssues.push({source,status:'unverified',...details});};
+ async function request(source,url,{method='GET',body,missing=false}={}){
+  let r;try{
+   r=await fetcher(url,{method,headers:{authorization:'Bearer '+token,'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{}),redirect:'error',credentials:'omit',signal:AbortSignal.timeout(15000)});
+   if(!r.ok){let error;try{error=(await r.json()).error;}catch{}
+    const reason=error?.details?.find?.(d=>d?.['@type']==='type.googleapis.com/google.rpc.ErrorInfo')?.reason;
+    if(missing&&r.status===404&&error?.status==='NOT_FOUND'&&!reason)return {resource:RUN,http:404,rpcStatus:'NOT_FOUND'};
+    throw Error(`Inspección no verificable (HTTP ${r.status}); no se interpreta como ausencia ni se cambian permisos.`);
+   }
+   if(missing)return {resource:RUN,http:200,rpcStatus:'OBSERVED'};return await r.json();
+  }catch(e){issue(source,e,Number.isInteger(r?.status)?{http:r.status}:{});return undefined;}
  }
- const audit=await (readAudit||iam.audit)({token,fetcher});
- const permission=await request(`https://cloudresourcemanager.googleapis.com/v1/projects/${id.PROJECT}:testIamPermissions`,{method:'POST',body:{permissions:REQUIRED}});audit.recoveryPermissions=permission.permissions;
- const fn=await request(`https://cloudfunctions.googleapis.com/v2/${id.FUNCTION}`),previousBuild=await request(`https://cloudbuild.googleapis.com/v1/${LOCATION}/builds/${PREVIOUS_BUILD}`);
- const run=await request(`https://run.googleapis.com/v2/${RUN}`,{missing:true});
- if(!run?.http)throw Error('Existe un servicio Run; detener y revisar su estado antes de otro ensayo.');
- const operations=[];let page='';const seen=new Set();
+ let audit;try{audit=await (readAudit||iam.audit)({token,fetcher});}catch(e){issue('audit',e);}
+ const permission=await request('permissions',`https://cloudresourcemanager.googleapis.com/v1/projects/${id.PROJECT}:testIamPermissions`,{method:'POST',body:{permissions:REQUIRED}});
+ if(audit)audit.recoveryPermissions=permission?.permissions;
+ const fn=await request('function',`https://cloudfunctions.googleapis.com/v2/${id.FUNCTION}`),previousBuild=await request('previousBuild',`https://cloudbuild.googleapis.com/v1/${LOCATION}/builds/${PREVIOUS_BUILD}`);
+ const run=await request('run',`https://run.googleapis.com/v2/${RUN}`,{missing:true});
+ if(run?.http===200)issue('run.exists',Error('Existe un servicio Run; detener y revisar su estado antes de otro ensayo.'));
+ let operations=[];let page='';const seen=new Set();
  for(let pages=0;pages<10;pages++){
-  const result=await request(`https://cloudfunctions.googleapis.com/v2/${LOCATION}/operations?pageSize=100${page?'&pageToken='+encodeURIComponent(page):''}`);
-  if(result.unreachable?.length||result.operations!==undefined&&!Array.isArray(result.operations))throw Error('Inventario de operaciones incompleto.');
-  operations.push(...(result.operations||[]));page=result.nextPageToken||'';if(!page)break;if(seen.has(page)||pages===9)throw Error('No se puede verificar la lista completa de operaciones.');seen.add(page);
+  const result=await request('operations',`https://cloudfunctions.googleapis.com/v2/${LOCATION}/operations?pageSize=100${page?'&pageToken='+encodeURIComponent(page):''}`);
+  if(!result){operations=undefined;break;}
+  if(result.unreachable?.length||result.operations!==undefined&&!Array.isArray(result.operations)){issue('operations',Error('Inventario de operaciones incompleto.'));operations=undefined;break;}
+  operations.push(...(result.operations||[]));page=result.nextPageToken||'';if(!page)break;
+  if(seen.has(page)||pages===9){issue('operations',Error('No se puede verificar la lista completa de operaciones.'));operations=undefined;break;}seen.add(page);
  }
- const last=await request(`https://cloudfunctions.googleapis.com/v2/${id.FUNCTION}`);if(canonical(last)!==canonical(fn))throw Error('La función cambió durante la inspección; conservar evidencia y revisar.');
- return {audit,fn,previousBuild,run,operations};
+ const last=await request('function.recheck',`https://cloudfunctions.googleapis.com/v2/${id.FUNCTION}`);if(canonical(last)!==canonical(fn))issue('function.stability',Error('La función cambió durante la inspección; conservar evidencia y revisar.'));
+ return {audit,fn,previousBuild,run,operations,...(diagnostic?{readIssues}:{})};
 }
+function diagnoseSnapshot(snapshot={},releaseHash){
+ const rows=require('./remote-staging-recovery-diagnostic.cjs').checks(snapshot,{requiredPermissions:REQUIRED,expectedBuild:PREVIOUS_BUILD});
+ let strict=false;try{assertSnapshot(snapshot);strict=true;}catch{/* Missing facts must never be filled from settings or from a builder identity. */}
+ for(const entry of snapshot.readIssues||[])rows.push({field:'read.'+entry.source,status:'unverified',...(Number.isInteger(entry.http)?{http:entry.http}:{})});
+ rows.push({field:'contract.strict',status:strict?'verified':'blocked'});
+ const complete=strict&&rows.every(row=>row.status==='verified'),summary=Object.fromEntries(['verified','missing','mismatch','unverified','blocked'].map(status=>[status,rows.filter(row=>row.status===status).length]));
+ const identityFields=['function.name','function.environment','function.state','function.buildConfig.build','function.createTime','function.updateTime','previousBuild.name','previousBuild.status','previousBuild.serviceAccount','previousBuild.images','previousBuild.resolvedSource.bucket','previousBuild.resolvedSource.object','previousBuild.resolvedSource.generation','run.resource','run.http','run.rpcStatus','run.errorInfo','operations.complete','operations.noPendingTarget'];
+ const recreationBlocks=rows.filter(row=>(identityFields.includes(row.field)||row.field.startsWith('read.'))&&row.status!=='verified');
+ return {mode:'READ_ONLY_RECOVERY_DIAGNOSTIC',target:id.FUNCTION,previousBuild:PREVIOUS_BUILD,releaseHash,summary,checks:rows.filter(row=>row.status!=='verified'),update:{status:complete?'preconditions-complete':'blocked',authorized:false,recoveryHash:null},recreation:{status:'PROPOSAL_ONLY',metadataStatus:recreationBlocks.length?'blocked':'identity-and-state-verifiable',blockingChecks:recreationBlocks,executable:false,deleteAuthorized:false,createAuthorized:false,dataAbsence:'NOT_INSPECTED',permissions:'DELETE_AND_CREATE_NOT_CHECKED',preserve:['Firestore','Storage objects/buckets','Auth','IAM','images/builds'],requires:'Separate review and delete/create approvals; no data absence or previous runtime identity inferred.'},notice:'Missing is not incorrect. Only failing/unknown checks are listed; verified counts are summarized. No raw metadata, tokens, environment values or complete API JSON. Diagnostic is never deployment permission.'};
+}
+async function diagnose({env=process.env,read=()=>readLive({diagnostic:true})}={}){g.closed(settings,client,env);const release=g.prepare({env});return diagnoseSnapshot(await read(),release.releaseHash);}
 async function inspect({env=process.env,read=readLive}={}){g.closed(settings,client,env);const release=g.prepare({env});return report(await read(),release);}
 const executeDefault=(program,args,opts)=>execFileSync(program,args,opts);
 function checkCli(execute,env){
@@ -82,5 +101,5 @@ async function recover({env=process.env,nodeVersion=process.versions.node,execut
   return {...g.verifyReadback({fn,build,invoker,plan:release}),mode:'CLOSED_RECOVERY_METADATA_VERIFIED',recoveryHash:proof.recoveryHash,previousBuild:PREVIOUS_BUILD,notice:'Requires real closed Auth/App Check tests; users remain disabled.'};
  }catch{throw Error('Recuperación interrumpida/fallida o confirmación incierta: pueden existir ZIP/build/revisión/servicio. Inspeccionar; no reintentar, eliminar ni anunciar rollback automático.');}
 }
-module.exports={PREVIOUS_BUILD,REQUIRED,RUN,canonical,assertRecoveryAudit,assertSnapshot,seal,report,readLive,inspect,recover};
-if(require.main===module){const args=process.argv.slice(2);(async()=>{if(!args.length)return console.log(JSON.stringify({mode:'PLAN_ONLY',target:id.FUNCTION,state:'FAILED',previousBuild:PREVIOUS_BUILD,inspect:'--inspect: live metadata reads only',recover:'--recover: separately authorized exclusive trial, exact release + inspection hashes',limitations:'No atomic CAS; gcloud deploy is upsert. No automatic cleanup/retry. Backend/client stay disabled.'},null,2));if(args.length===1&&args[0]==='--inspect')return console.log(JSON.stringify(await inspect(),null,2));if(args.length===1&&args[0]==='--recover')return console.log(JSON.stringify(await recover(),null,2));throw Error('Solo plan, --inspect o --recover; no flags libres ni destinos alternativos.');})().catch(e=>{console.error(e.message);process.exitCode=2;});}
+module.exports={PREVIOUS_BUILD,REQUIRED,RUN,canonical,assertRecoveryAudit,assertSnapshot,seal,report,readLive,inspect,diagnoseSnapshot,diagnose,recover};
+if(require.main===module){const args=process.argv.slice(2);(async()=>{if(!args.length)return console.log(JSON.stringify({mode:'PLAN_ONLY',target:id.FUNCTION,state:'FAILED',previousBuild:PREVIOUS_BUILD,diagnose:'--diagnose: all read-only preconditions, structured JSON even when blocked',inspect:'--inspect: live metadata reads only',recover:'--recover: separately authorized exclusive trial, exact release + inspection hashes',limitations:'No atomic CAS; gcloud deploy is upsert. No automatic cleanup/retry. Backend/client stay disabled.'},null,2));if(args.length===1&&args[0]==='--diagnose'){const result=await diagnose();console.log(JSON.stringify(result,null,2));if(result.update.status==='blocked')process.exitCode=2;return;}if(args.length===1&&args[0]==='--inspect')return console.log(JSON.stringify(await inspect(),null,2));if(args.length===1&&args[0]==='--recover')return console.log(JSON.stringify(await recover(),null,2));throw Error('Solo plan, --diagnose, --inspect o --recover; no flags libres ni destinos alternativos.');})().catch(e=>{console.error(e.message);process.exitCode=2;});}

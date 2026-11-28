@@ -2,7 +2,15 @@
 
 ## Recuperación cerrada de la función FAILED
 
-`npm run test:remote-staging:recovery`: catorce pruebas Node de los controles de
+Revisión PR33: `commercial-recovery-diagnostic.test.cjs` añade once regresiones
+para runtime ausente, omisión completa de serviceConfig, múltiples bloqueos,
+contradicciones, secretos no impresos, 403/paginación/estado inciertos, JSON
+estructurado con salida2 y propuesta de recreación no ejecutable. Se conserva el
+validador original de actualización; diagnosticar nunca rellena hechos ni emite
+una huella aprobable. `--diagnose` sustituye la secuencia de parches uno por uno.
+
+`npm run test:remote-staging:recovery`: veinticinco pruebas Node (catorce originales
+y once de diagnóstico) de los controles de
 inspección, consentimiento, hashes de código/metadata, IAM, doble lectura, éxito,
 interrupción, acuse perdido y ausencia de reintentos/limpieza. Artefactos aislados
 por archivo para no interferir con suites paralelas. APIs y ejecución simuladas.

@@ -3,6 +3,65 @@
 Base `e57b408`, PR #32 incorporada. Rama
 `feat/commercial-failed-function-recovery`. **No autoriza ni ejecuta un deploy.**
 
+## Revisión de PR #33: metadata ausente en FAILED
+
+El [comentario del propietario en PR #33](https://github.com/CheTryono/fullhouse/pull/33)
+informa la ejecución real de `--inspect` sobre `4a3aa69`, Node 22.23.5. Proyecto,
+runtime, builder y lectura de función correctos; `permisosFaltantes: []`.
+`gcloud functions describe` devolvió únicamente `state: FAILED` para la selección
+de estado/cuenta/servicio: **no devuelve `serviceConfig.serviceAccountEmail`**.
+No demuestra una cuenta incorrecta y no justifica conceder IAM adicional. Esta
+evidencia es del propietario; Codex no inspeccionó recursos reales.
+
+La omisión confirmada afecta dos precondiciones: la cuenta resumida del auditor
+y la cuenta del `serviceConfig` original. No se conoce aún si faltan también las
+otras propiedades del servicio, variables, labels, fechas, fuente o imágenes.
+No se afirma que estén ausentes por extrapolar el filtro de `gcloud describe`.
+
+**Decisión:** no rellenar metadata desde la configuración futura, el builder,
+la cuenta IAM existente o valores por defecto. La actualización mantiene todas
+las validaciones originales y continúa bloqueada si la identidad anterior no
+puede acreditarse. No se cambia el significado de `verified` para permitirla.
+
+Nuevo `--diagnose`: una sola recopilación de lectura que evalúa todas las
+precondiciones, muestra los campos ausentes/contradictorios y resume los verificados.
+También separa 403, lecturas interrumpidas, paginación incompleta y cambios de
+función. No imprime tokens, valores de variables, cuentas inesperadas, mensajes
+crudos de errores o JSON completo. Si el servicio no está descrito, enumera todas
+sus propiedades requeridas; no se detiene en la primera.
+
+Desde esta rama actualizada y el Node22 ya utilizado, ejecutar **solo**:
+
+```sh
+env -u GOOGLE_APPLICATION_CREDENTIALS node scripts/remote-staging-recovery.cjs --diagnose
+```
+
+Un diagnóstico completado con `update.status: blocked` sale con código 2 y JSON
+válido en stdout; no es una prueba fallida ni un permiso de despliegue.
+`missing` es distinto de `mismatch`.
+`update.authorized:false` y `recoveryHash:null` siempre: un diagnóstico nunca
+sustituye la inspección estricta ni crea una aprobación. El error de JSON vacío
+anterior era secundario a redirigir stdout de `--inspect` fallido; no indicaba
+corrupción del backend. No intentar parsear aquel archivo vacío.
+
+La sección `recreation` distingue si nombre, generación, FAILED, build, fechas,
+fuentes, imágenes, Run y operaciones son verificables **para revisar una propuesta**.
+Su `metadataStatus` no acredita la identidad runtime anterior ni autoriza borrar.
+`dataAbsence: NOT_INSPECTED` y `permissions: DELETE_AND_CREATE_NOT_CHECKED` son
+límites explícitos. No se consultan documentos, fotografías ni cuentas de usuarios.
+
+**Opción mínima recomendada:** si sigue sin existir metadata suficiente, preparar
+la eliminación dirigida y primera creación como dos autorizaciones separadas,
+según el procedimiento de abajo. Resulta preferible a relajar múltiples controles
+o atribuir al recurso fallido una definición que la API no devuelve. Aquí se
+prepara esa revisión; no se añade una ruta ejecutable de eliminación.
+
+Cambiar el controlador/diagnóstico invalida las aprobaciones `recoveryHash`
+anteriores: ahora el sello incluye también el nuevo módulo de diagnóstico. Solo
+una futura inspección completa puede emitir otro. El artefacto y el ejecutor
+original de deploy no cambiaron, por lo que `releaseHash` conserva el valor de
+PR32 mostrado abajo; no se reutiliza como autorización automática.
+
 ## Recurso y evidencia
 
 El propietario informó: `fullhouse-staging`, `us-central1`, función GEN2
@@ -45,9 +104,11 @@ fuentes o políticas. Solo un ensayo autorizado podrá confirmarlo. Referencias:
 
 ## Contrato implementado
 
-`scripts/remote-staging-recovery.cjs` tiene tres entradas:
+`scripts/remote-staging-recovery.cjs` tiene cuatro entradas:
 
 - Sin argumentos: plan local, sin preparar un deploy ni obtener credenciales.
+- `--diagnose`: lectura integral, resumida y no sensible, incluso si falta metadata.
+  No produce una huella de autorización y no modifica el contrato de actualización.
 - `--inspect`: prepara/verifica la release local y lee metadata real mediante
   la sesión gcloud del propietario. GETs y POSTs `testIamPermissions` /
   `getIamPolicy` del auditor; sin escritura de datos o permisos.
@@ -111,6 +172,10 @@ pero no revierte efectos ni evita cargos ya producidos.
 
 ## Cloud Shell: preparación e inspección de solo lectura
 
+Este es el procedimiento inicial completo. **Para la revisión de PR33 no hay que
+repetir esta batería:** usar primero únicamente `--diagnose`, según la sección
+inicial, y compartir su salida resumida.
+
 Conservar cualquier cambio local antes de cambiar de checkout. No reset/clean.
 
 ```sh
@@ -170,21 +235,51 @@ activar UIDs. El cliente sigue desconectado. No se ejecutan esas llamadas ahora.
 
 ## Alternativa si el control plane no permite actualizar
 
-No hay código de eliminación en esta entrega. Preparar una aprobación aparte que:
+También se recomienda esta alternativa cuando la API no permite **verificar**
+la definición anterior, aunque técnicamente acepte PATCH. No hay código de
+eliminación en esta entrega: `--delete` se rechaza.
 
-1. Conserve metadata, build/imágenes/digests/fuentes y evidencia del error; confirme
-   cero tráfico/datos de usuarios y ausencia de operaciones en curso.
-2. Revise de nuevo el recurso exacto y apruebe explícitamente eliminar **solo**
-   esa función GEN2. Verifique el permiso delete sin concederlo aquí.
-3. No borre buckets, objetos, Firestore, revisiones, Auth, identidades o imágenes.
-   Considere las consecuencias del controlador sobre el Run asociado y retención.
-4. Verifique de forma autorizada que terminó la eliminación; solo entonces
-   obtenga una nueva inspección de primera creación y otra aprobación de release.
-   No reutilice la autorización de recuperación para recrear.
+Preparación concreta, sin mutaciones:
+
+1. Obtener el diagnóstico único. Exigir identidad del recurso y estado FAILED,
+   build `a690a410-ec8f-4bd9-917f-581ee466b433`, fechas y fuentes/imágenes
+   verificables, Run observado NOT_FOUND y operaciones completas/sin pendientes.
+   Un `metadataStatus: blocked` impide incluso aprobar la propuesta con estos datos.
+2. Conservar un expediente no sensible con esos IDs, huellas/referencias y lista
+   explícita de propiedades previas desconocidas. No inventar la cuenta runtime.
+3. Confirmar con el propietario que no hay usuarios reales activos ni tráfico
+   atendido y que el cliente continúa desconectado. FAILED/Run ausente no prueban
+   que Firestore, Storage o Auth estén vacíos o nunca hayan recibido datos.
+   Ya se conservaron datos sintéticos del probe IAM; no borrarlos para simular
+   un entorno vacío. Cualquier dato real requiere respaldo y revisión antes de
+   aprobar; no se inspecciona ni migra aquí.
+4. Verificar de solo lectura los permisos delete/create necesarios y mantener los
+   permisos acotados actuales. El informe previo cubría actualización, no es una
+   concesión ni prueba suficiente del permiso de borrado. No conceder roles amplios.
+
+Después, **dos aprobaciones independientes**, todavía pendientes:
+
+- **A. Eliminación dirigida:** recurso exacto `remoteV1`, GEN2, us-central1,
+  proyecto/número conocidos, evidencia y huella del expediente, ausencia de
+  operaciones, ventana exclusiva y aceptación expresa de metadata previa
+  desconocida. Revalidar antes de actuar; no usar el hash de actualización como
+  permiso de delete. El alcance se limita a la función y sus recursos gestionados
+  por el controlador; **nunca** a Firestore, Storage, Auth, IAM, imágenes o builds.
+- **B. Primera creación:** solo tras comprobar por lecturas autorizadas que terminó
+  la eliminación, la función no existe y Run no dejó un servicio activo/huérfano.
+  Preparar el artefacto cerrado, repetir la inspección de primera creación y
+  aprobar por separado su hash/costes/Invoker. Crear con runtime/builder dedicados,
+  región/capacidad/variables explícitas y App Check/Auth; no restaurar propiedades
+  desconocidas del objeto eliminado. Mantener backend, cliente y UIDs cerrados.
 
 Si hay metadata huérfana o delete falla, detenerse y revisar con Google Cloud;
 no hacer eliminaciones manuales en cascada. Eliminar/recrear no es rollback
 transparente: cambian identidad temporal/revisiones y pueden cambiar URL/metadata.
+No ejecutar ni actualizar esta secuencia desde un diagnóstico parcial. La
+implementación ejecutable de delete, si se elige, requiere revisar esas guardas
+contra el expediente real y autorización explícita del propietario; no se da por
+terminada en esta PR. No es necesario repetir una batería larga de pruebas en
+Cloud Shell para decidir: primero compartir únicamente el diagnóstico resumido.
 
 ## Resultados de esta entrega
 
@@ -206,3 +301,25 @@ No se ejecutaron consultas reales, emuladores completos, navegador, Cloud Build
 real, deploy, llamadas al endpoint ni eliminación. La inspección efectiva,
 permisos actuales y viabilidad de la recuperación del control plane **siguen
 pendientes del propietario**, sin declararlos aprobados por los tests sintéticos.
+
+### Verificaciones de la revisión de PR33
+
+Los resultados anteriores se conservan como evidencia de `4a3aa69`. Esta revisión
+ejecuta pruebas adicionales con datos sintéticos, incluyendo los campos omitidos
+comunicados por el propietario y formas posibles de metadata incompleta. No
+presenta esas formas sintéticas como nuevos datos observados en Google Cloud.
+
+| Comprobación de Codex | Resultado |
+| --- | --- |
+| `npm test`, Node 24.22.1 | **656 casos: 650 aprobados, 0 fallos, 0 omitidos y seis TODO previos**, 47.442 s |
+| Recuperación y diagnóstico | **25/25**; once casos nuevos, sin relajar los catorce anteriores |
+| Selección comercial Node 22.23.5 | **108/108**, incluidos los casos de runtime ausente y salida JSON CLI bloqueada |
+| Compilación app, backend, cliente, Auth y contrato histórico | Aprobadas; fuente/app.js sincronizados sin escribirlos |
+| SDK592 original y recuperación | Repetidos offline, aprobados, cero intentos de red |
+| Artefacto de backend y configuración | Sin cambios; mismo `releaseHash` de PR32, backend/cliente/UIDs cerrados |
+
+No se repitió el ensayo Framework16 anterior, porque el backend no cambió.
+No se ejecutó diagnóstico real por Codex, ni se inspeccionaron datos, desplegaron
+servicios, modificaron permisos o eliminaron recursos. La nueva salida real se
+obtendrá con el único comando de lectura indicado; no se inventa un
+`recoveryHash` mientras falten precondiciones.

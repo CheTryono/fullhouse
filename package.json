@@ -49,7 +49,7 @@
     "check:remote-staging:gcloud-node22": "node scripts/check-remote-gcloud-node22.cjs",
     "test:remote-staging:startup": "node --test tests/runtime/staging-startup.test.cjs",
     "prepare:remote-staging:recovery": "node scripts/remote-staging-recovery.cjs",
-    "test:remote-staging:recovery": "node --test tests/commercial-recovery.test.cjs",
+    "test:remote-staging:recovery": "node --test tests/commercial-recovery*.test.cjs",
     "test:remote-staging:recovery-sdk": "node scripts/test-remote-recovery-sdk.cjs"
   },
   "engines": {
